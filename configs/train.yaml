@@ -1,0 +1,5 @@
+seed_everything: 42
+
+trainer: trainer/default.yaml
+model: model/mnist.yaml
+data: datamodule/mnist.yaml
