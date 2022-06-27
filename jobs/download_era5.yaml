@@ -1,0 +1,36 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Download ERA5
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: ml_template:latest
+  # image_setup:
+  #   - pip install capi
+  #   #- pip install -e .
+
+target:
+  service: aml
+  name: d8-ded
+
+storage:
+  data:
+    storage_account_name: weathermlstorage
+    container_name: datasets
+    mount_dir: /mnt/weatherml
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# SKU usage: G1 (single GPU), G4 (quad GPU), G4-V100 (1 machine, 4 V100 gpus), etc...
+jobs:
+  # amlt run jobs/amlt.yaml --target-name V100-1x-ded :train_1_node_1_gpu ml-template-mnist
+  - name: download_era5
+    sku: 1xC8
+    submit_args:
+      container_args:
+        shm_size: 650g
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+    command:
+      - rsync -a rsync://m1524895@dataserv.ub.tum.de/m1524895/1.40625deg ./
