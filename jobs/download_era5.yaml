@@ -9,18 +9,23 @@ environment:
   username: commondockerimages
   image: ml_template:latest
   # image_setup:
-  #   - pip install capi
-  #   #- pip install -e .
+  #   - sudo apt-get install rsync grsync
+  # - pip install capi
+  #- pip install -e .
 
 target:
   service: aml
   name: d8-ded
 
+# $CONFIG_DIR is expanded to the directory of this config file.
+code:
+  local_dir: $CONFIG_DIR/../
+
 storage:
-  data:
+  output:
     storage_account_name: weathermlstorage
     container_name: datasets
-    mount_dir: /mnt/weatherml
+    mount_dir: /mnt/data
     mount_options: ["--file-cache-timeout-in-seconds=0"]
 
 # SKU usage: G1 (single GPU), G4 (quad GPU), G4-V100 (1 machine, 4 V100 gpus), etc...
@@ -33,4 +38,6 @@ jobs:
         shm_size: 650g
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
     command:
-      - rsync -a rsync://m1524895@dataserv.ub.tum.de/m1524895/1.40625deg ./
+      - touch /mnt/data/test.txt
+      # - echo $$AMLT_OUTPUT_DIR
+      # - wget --no-check-certificate "https://dataserv.ub.tum.de/s/m1524895/download?path=%2F&files=IFS_T63&downloadStartSecret=rklt0z2f0r" -O echo $$AMLT_OUTPUT_DIR/ifs_t63.zip
