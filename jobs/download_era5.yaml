@@ -31,7 +31,7 @@ jobs:
         shm_size: 650g
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
     command:
-      - touch /mnt/data_write/test.txt
+      # - touch /mnt/data_write/test.txt
       # - echo $$AMLT_OUTPUT_DIR
-      # - wget --no-check-certificate "https://dataserv.ub.tum.de/s/m1524895/download?path=%2F&files=1.40625deg&downloadStartSecret=ivy85gdd6mh" -O /mnt/data_write/1.40625deg.zip
+      - wget --no-check-certificate "https://dataserv.ub.tum.de/s/m1524895/download?path=%2F&files=1.40625deg&downloadStartSecret=ivy85gdd6mh" -O /mnt/data_write/1.40625deg.zip
       # - wget --no-check-certificate "https://dataserv.ub.tum.de/s/m1524895/download?files=desktop.ini" -O /mnt/data_write/desktop.ini
