@@ -1,0 +1,5 @@
+seed_everything: 42
+
+trainer: trainer/mae.yaml
+model: model/mae.yaml
+data: datamodule/era5_surface.yaml
