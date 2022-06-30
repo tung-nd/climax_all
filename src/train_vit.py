@@ -2,15 +2,15 @@ import os
 
 from pytorch_lightning.utilities.cli import LightningCLI
 
-from datamodules.mnist_datamodule import MNISTDataModule
-from models.mnist_module import MNISTLitModule
+from datamodules.era5_surface_datamodule import ERA5SurfaceForecastDataModule
+from models.vit_module import ViTLitModule
 
 
 def main():
     # Initialize Lightning with the model and data modules, and instruct it to parse the config yml
     cli = LightningCLI(
-        model_class=MNISTLitModule,
-        datamodule_class=MNISTDataModule,
+        model_class=ViTLitModule,
+        datamodule_class=ERA5SurfaceForecastDataModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,

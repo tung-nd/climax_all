@@ -1,0 +1,18 @@
+lr: 0.001
+weight_decay: 0.005
+
+net:
+  class_path: src.models.components.vit.VisionTransformer
+  init_args:
+    img_size: [128, 256]
+    patch_size: 16
+    in_chans: 3
+    embed_dim: 1024
+    depth: 8
+    num_heads: 16
+    mlp_ratio: 4
+pretrained_path: '/mnt/climate_pretraining/outputs/mae/checkpoints/8-enc-4-dec/last.ckpt'
+# img_size=224, patch_size=16, in_chans=3,
+# embed_dim=1024, depth=24, num_heads=16,
+# decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
+# mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False

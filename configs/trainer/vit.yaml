@@ -1,4 +1,4 @@
-default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,outputs}
+default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,/mnt/climate_pretraining/outputs/vit}
 
 gpus: 1
 num_nodes: 1
@@ -20,7 +20,7 @@ logger:
   class_path: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
   init_args:
     save_dir: ${default_root_dir}/logs
-    name: null
+    name: pretrained-8-enc-4-dec
     version: null
     log_graph: False
     default_hp_metric: True
@@ -29,9 +29,9 @@ logger:
 callbacks:
   - class_path: pytorch_lightning.callbacks.ModelCheckpoint
     init_args:
-      dirpath: "${default_root_dir}/checkpoints/"
-      monitor: "val/acc" # name of the logged metric which determines when model is improving
-      mode: "max" # "max" means higher metric value is better, can be also "min"
+      dirpath: "${default_root_dir}/checkpoints/pretrained-8-enc-4-dec"
+      monitor: "val/loss" # name of the logged metric which determines when model is improving
+      mode: "min" # "max" means higher metric value is better, can be also "min"
       save_top_k: 1 # save k best models (determined by above metric)
       save_last: True # additionaly always save model from last epoch
       verbose: False
@@ -40,8 +40,8 @@ callbacks:
 
   - class_path: pytorch_lightning.callbacks.EarlyStopping
     init_args:
-      monitor: "val/acc" # name of the logged metric which determines when model is improving
-      mode: "max" # "max" means higher metric value is better, can be also "min"
+      monitor: "train/loss" # name of the logged metric which determines when model is improving
+      mode: "min" # "max" means higher metric value is better, can be also "min"
       patience: 100 # how many validation epochs of not improving until training stops
       min_delta: 0 # minimum change in the monitored metric needed to qualify as an improvement
 
