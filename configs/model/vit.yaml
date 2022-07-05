@@ -1,5 +1,6 @@
-lr: 0.001
+lr: 0.0005
 weight_decay: 0.005
+normalize_data: True
 
 net:
   class_path: src.models.components.vit.VisionTransformer
@@ -11,7 +12,7 @@ net:
     depth: 8
     num_heads: 16
     mlp_ratio: 4
-pretrained_path: '/mnt/climate_pretraining/outputs/mae/checkpoints/8-enc-4-dec/last.ckpt'
+pretrained_path: ''
 # img_size=224, patch_size=16, in_chans=3,
 # embed_dim=1024, depth=24, num_heads=16,
 # decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,

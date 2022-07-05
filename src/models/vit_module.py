@@ -3,6 +3,7 @@ from typing import Any, List
 
 import torch
 from pytorch_lightning import LightningModule
+from torchvision.transforms import transforms
 
 
 class ViTLitModule(LightningModule):
@@ -12,12 +13,20 @@ class ViTLitModule(LightningModule):
         pretrained_path: str,
         lr: float = 0.001,
         weight_decay: float = 0.005,
+        normalize_data=False
     ):
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
             self.load_mae_weights(pretrained_path)
+        if normalize_data:
+            self.inv_normalize = transforms.Normalize(
+                mean=[-277.0595/21.289722, 0.05025468/5.5454874, -0.18755548/4.764006],
+                std=[1/21.289722, 1/5.5454874, 1/4.764006]
+            )
+        else:
+            self.inv_normalize = None
 
     def load_mae_weights(self, pretrained_path):
         checkpoint = torch.load(pretrained_path)
@@ -43,7 +52,7 @@ class ViTLitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss, _ = self.net.forward(x, y)
+        loss, _ = self.net.forward(x, y, self.inv_normalize)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         return {"loss": loss}
 

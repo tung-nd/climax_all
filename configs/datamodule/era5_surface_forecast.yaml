@@ -6,7 +6,7 @@ variable_data_paths:
   ]
 predict_range: 6
 train_val_test_split: [45000, 5000, 8439]
-normalize: False
+normalize: True
 batch_size: 128
 num_workers: 2
 pin_memory: False

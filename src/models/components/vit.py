@@ -9,6 +9,8 @@
 # DeiT: https://github.com/facebookresearch/deit
 # --------------------------------------------------------
 
+from operator import inv
+
 import torch
 import torch.nn as nn
 from src.utils.pos_embed import get_2d_sincos_pos_embed
@@ -110,19 +112,22 @@ class VisionTransformer(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred):
+    def forward_loss(self, y, pred, inv_normalize):
         """
         imgs: [N, 3, H, W]
         pred: [N, L, p*p*3]
         """
         pred = self.unpatchify(pred)
+        if inv_normalize is not None:
+            pred = inv_normalize(pred)
+            y = inv_normalize(y)
         loss = torch.sum((pred - y) ** 2, dim=1) # sum over channels, [N, H, W]
         return loss.mean()
 
-    def forward(self, x, y):
+    def forward(self, x, y, inv_normalize=None):
         embeddings = self.forward_encoder(x)
         preds = self.head(embeddings)
-        loss = self.forward_loss(y, preds)
+        loss = self.forward_loss(y, preds, inv_normalize)
         return loss, preds
 
 
