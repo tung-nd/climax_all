@@ -5,7 +5,7 @@ variable_data_paths:
     "/mnt/weatherbench/wind_v_10m.npy",
   ]
 predict_range: 6
-train_val_test_split: [45000, 5000, 8439]
+train_val_test_split: [54056, 2924, 1459]
 normalize: True
 batch_size: 128
 num_workers: 2
