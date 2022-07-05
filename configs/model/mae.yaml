@@ -1,6 +1,7 @@
 lr: 0.0005
 weight_decay: 0.005
 mask_ratio: 0.5
+reconstruct_all: False
 
 net:
   class_path: src.models.components.mae.MaskedAutoencoderViT
