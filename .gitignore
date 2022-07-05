@@ -22,3 +22,6 @@ outputs/
 # env
 .env
 .autoenv
+
+visualization_mae/
+visualization_vit/

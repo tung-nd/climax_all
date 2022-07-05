@@ -1,0 +1,5 @@
+seed_everything: 42
+
+trainer: trainer/base.yaml
+model: model/vit.yaml
+data: datamodule/era5_surface_forecast.yaml

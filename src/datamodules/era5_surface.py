@@ -6,7 +6,7 @@ import xarray as xr
 from torch.utils.data import Dataset
 
 
-def create_era5_surface(data_dir_paths):
+def create_era5_surface(data_dir_paths, save_dir='/datadrive/datasets/1.40625deg'):
     """
     data_dir_paths
     create .npy data file from directories of netcdf files
@@ -16,11 +16,32 @@ def create_era5_surface(data_dir_paths):
         xr_dataset = xr.open_mfdataset(os.path.join(data_path, '*.nc'), combine='by_coords')
         xr_data = xr_dataset[list(xr_dataset)[0]].astype(np.float32)
         np_data = xr_data.to_numpy()
-        np_path = os.path.join('/mnt/weatherbench', data_path.split('/')[-1] + '.npy')
+
+        variable_name = data_path.split('/')[-1]
+        np_path = os.path.join(save_dir, variable_name + '.npy')
         fp = np.memmap(np_path, dtype='float32', mode='w+', shape=(350640, 128, 256))
         fp[:] = np_data[:]
         del np_data
         fp.flush()
+
+
+def create_era5_pressure_level(paths_level, save_dir='/datadrive/datasets/1.40625deg'):
+    for data_path in paths_level.keys():
+        print ('Saving numpy data from ' + data_path)
+        xr_dataset = xr.open_mfdataset(os.path.join(data_path, '*.nc'), combine='by_coords')
+        xr_data = xr_dataset[list(xr_dataset)[0]].astype(np.float32)
+        all_levels = paths_level[data_path]
+        for level in all_levels:
+            print (f'Level {level}')
+            xr_data_level = xr_data.sel(level = level)
+            np_data = xr_data_level.to_numpy()
+
+            variable_name = data_path.split('/')[-1] + f'_{level}hPa'
+            np_path = os.path.join(save_dir, variable_name + '.npy')
+            fp = np.memmap(np_path, dtype='float32', mode='w+', shape=(333120, 128, 256))
+            fp[:] = np_data[:]
+            del np_data
+            fp.flush()
 
 
 class ERA5Surface(Dataset):
@@ -83,11 +104,20 @@ class ERA5SurfaceForecast(Dataset):
 
 
 # data_paths = [
-#     '/mnt/weatherbench/temperature_2m',
-#     '/mnt/weatherbench/wind_u_10m',
-#     '/mnt/weatherbench/wind_v_10m',
+#     '/datadrive/datasets/1.40625deg/2m_temperature',
+#     '/datadrive/datasets/1.40625deg/10m_u_component_of_wind',
+#     '/datadrive/datasets/1.40625deg/10m_v_component_of_wind',
 # ]
-# create_era5_surface(data_paths)
+# create_era5_surface(data_paths, '/datadrive/datasets/1.40625deg')
+
+# paths_level = {
+#     '/mnt/data_write/1.40625deg/geopotential': [50, 500, 850, 1000],
+#     '/mnt/data_write/1.40625deg/u_component_of_wind': [500, 850, 1000],
+#     '/mnt/data_write/1.40625deg/v_component_of_wind': [500, 850, 1000],
+#     '/mnt/data_write/1.40625deg/temperature': [500, 850],
+#     '/mnt/data_write/1.40625deg/relative_humidity': [500, 850],
+# }
+# create_era5_pressure_level(paths_level, '/mnt/data_write/1.40625deg')
 
 # data_paths = [
 #     '/mnt/weatherbench/temperature_2m.npy',

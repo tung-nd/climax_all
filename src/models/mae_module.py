@@ -17,6 +17,13 @@ class MAELitModule(LightningModule):
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
 
+    def forward(self, x):
+        with torch.no_grad():
+            _, pred, mask = self.net.forward(x, self.hparams.mask_ratio)
+        mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])
+        pred = self.net.unpatchify(pred)
+        mask = self.net.unpatchify(mask)
+        return pred, mask
 
     def training_step(self, batch: Any, batch_idx: int):
         loss, _, _ = self.net.forward(batch, self.hparams.mask_ratio)
