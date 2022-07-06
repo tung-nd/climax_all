@@ -1,4 +1,8 @@
 import os
+import sys
+from os.path import abspath, dirname
+
+sys.path.append(dirname(dirname(abspath(__file__))))
 
 from pytorch_lightning.utilities.cli import LightningCLI
 
