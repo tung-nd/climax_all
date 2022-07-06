@@ -3,7 +3,6 @@ from typing import Any, List
 
 import torch
 from pytorch_lightning import LightningModule
-from torchvision.transforms import transforms
 
 
 class ViTLitModule(LightningModule):
@@ -12,21 +11,13 @@ class ViTLitModule(LightningModule):
         net: torch.nn.Module,
         pretrained_path: str,
         lr: float = 0.001,
-        weight_decay: float = 0.005,
-        normalize_data=False
+        weight_decay: float = 0.005
     ):
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
             self.load_mae_weights(pretrained_path)
-        if normalize_data:
-            self.inv_normalize = transforms.Normalize(
-                mean=[-277.0595/21.289722, 0.05025468/5.5454874, -0.18755548/4.764006],
-                std=[1/21.289722, 1/5.5454874, 1/4.764006]
-            )
-        else:
-            self.inv_normalize = None
 
     def load_mae_weights(self, pretrained_path):
         checkpoint = torch.load(pretrained_path)
@@ -44,17 +35,22 @@ class ViTLitModule(LightningModule):
         msg = self.load_state_dict(checkpoint_model, strict=False)
         print(msg)
 
+    def forward(self, x):
+        return self.net.predict(x)
+
     def training_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss, _ = self.net.forward(x, y)
-        self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
-        return {"loss": loss}
+        loss_dict, _ = self.net.forward(x, y)
+        for var in loss_dict.keys():
+            self.log("train/" + var, loss_dict[var], on_step=True, on_epoch=False, prog_bar=True)
+        return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss, _ = self.net.forward(x, y, self.inv_normalize)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        return {"loss": loss}
+        loss_dict, _ = self.net.forward(x, y)
+        for var in loss_dict.keys():
+            self.log("val/" + var, loss_dict[var], on_step=False, on_epoch=True, prog_bar=False)
+        return loss_dict
 
     # def validation_epoch_end(self, outputs: List[Any]):
     #     acc = self.val_acc.compute()  # get val accuracy from current epoch
@@ -67,9 +63,10 @@ class ViTLitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss, _ = self.net.forward(x, y)
-        self.log("test/loss", loss, on_step=False, on_epoch=True)
-        return {"loss": loss}
+        loss_dict, _ = self.net.forward(x, y)
+        for var in loss_dict.keys():
+            self.log("test/" + var, loss_dict[var], on_step=False, on_epoch=True)
+        return loss_dict
 
     def configure_optimizers(self):
         return torch.optim.Adam(

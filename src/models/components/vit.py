@@ -18,16 +18,21 @@ from timm.models.vision_transformer import Block, PatchEmbed
 
 
 class VisionTransformer(nn.Module):
-    def __init__(self, img_size=[128, 256], patch_size=16, in_chans=3,
-                 embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4.):
+    def __init__(self, img_size=[128, 256], patch_size=16,
+                in_vars=['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'],
+                embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4., out_vars=None):
         super().__init__()
 
         self.img_size = img_size
         self.patch_size = patch_size
 
+        out_vars = out_vars if out_vars is not None else in_vars
+        self.in_vars = in_vars
+        self.out_vars = out_vars
+
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
         num_patches = self.patch_embed.num_patches # 128
 
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim), requires_grad=False)  # fixed sin-cos embedding
@@ -40,7 +45,7 @@ class VisionTransformer(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.head = nn.Linear(embed_dim, in_chans*patch_size**2)
+        self.head = nn.Linear(embed_dim, len(self.out_vars)*patch_size**2)
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -112,23 +117,30 @@ class VisionTransformer(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred, inv_normalize):
+    def forward_loss(self, y, pred):
         """
-        imgs: [N, 3, H, W]
+        y: [N, 3, H, W]
         pred: [N, L, p*p*3]
         """
         pred = self.unpatchify(pred)
-        if inv_normalize is not None:
-            pred = inv_normalize(pred)
-            y = inv_normalize(y)
-        loss = torch.sum((pred - y) ** 2, dim=1) # sum over channels, [N, H, W]
-        return loss.mean()
+        loss = (pred - y) ** 2 # sum over channels, [N, 3, H, W]
+        loss_dict = {}
 
-    def forward(self, x, y, inv_normalize=None):
+        for i, var in enumerate(self.out_vars):
+            loss_dict[var] = torch.mean(loss[:, i])
+        loss_dict['loss'] = torch.mean(torch.sum(loss, dim=1))
+        
+        return loss_dict
+
+    def forward(self, x, y):
         embeddings = self.forward_encoder(x)
         preds = self.head(embeddings)
-        loss = self.forward_loss(y, preds, inv_normalize)
+        loss = self.forward_loss(y, preds)
         return loss, preds
+
+    def predict(self, x):
+        embeddings = self.forward_encoder(x)
+        return self.head(embeddings)
 
 
 # model = VisionTransformer(depth=8).cuda()

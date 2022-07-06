@@ -70,7 +70,7 @@ class ERA5Surface(Dataset):
 
 
 class ERA5SurfaceForecast(Dataset):
-    def __init__(self, paths, predict_range=6, transforms=None):
+    def __init__(self, root, variables, predict_range=6, transforms=None):
         """
         paths: paths to npy files, each file is one climate variable
         predict_range: how many hours we predict into the future
@@ -80,7 +80,8 @@ class ERA5SurfaceForecast(Dataset):
         self.transforms = transforms
         self.input_mms = []
         self.output_mms = []
-        for path in paths:
+        for var in variables:
+            path = os.path.join(root, var + '.npy')
             all_data = np.memmap(path, dtype='float32', mode='r', shape=(350640, 128, 256))
             self.input_mms.append(all_data[0:-predict_range:predict_range])
             self.output_mms.append(all_data[predict_range::predict_range])
