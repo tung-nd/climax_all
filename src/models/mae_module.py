@@ -12,7 +12,7 @@ class MAELitModule(LightningModule):
         lr: float = 0.001,
         weight_decay: float = 0.005,
         mask_ratio: float = 0.5,
-        reconstruct_all = False
+        reconstruct_all = False,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
@@ -27,14 +27,16 @@ class MAELitModule(LightningModule):
         return pred, mask
 
     def training_step(self, batch: Any, batch_idx: int):
-        loss, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
-        self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
-        return {"loss": loss}
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        for var in loss_dict.keys():
+            self.log("train/" + var, loss_dict[var], on_step=True, on_epoch=False, prog_bar=True)
+        return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
-        loss, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
-        return {"loss": loss}
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        for var in loss_dict.keys():
+            self.log("val/" + var, loss_dict[var], on_step=False, on_epoch=True, prog_bar=False)
+        return loss_dict
 
     # def validation_epoch_end(self, outputs: List[Any]):
     #     acc = self.val_acc.compute()  # get val accuracy from current epoch
@@ -46,9 +48,10 @@ class MAELitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
-        self.log("test/loss", loss, on_step=False, on_epoch=True)
-        return {"loss": loss}
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        for var in loss_dict.keys():
+            self.log("test/" + var, loss_dict[var], on_step=False, on_epoch=True)
+        return loss_dict
 
     def configure_optimizers(self):
         return torch.optim.Adam(

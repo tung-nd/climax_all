@@ -45,7 +45,7 @@ def create_era5_pressure_level(paths_level, save_dir='/datadrive/datasets/1.4062
 
 
 class ERA5Surface(Dataset):
-    def __init__(self, paths, transforms=None):
+    def __init__(self, root, variables, transforms=None):
         """
         paths: paths to npy files, each file is one climate variable
         transforms: data transformation
@@ -53,7 +53,8 @@ class ERA5Surface(Dataset):
         super(ERA5Surface, self).__init__()
         self.transforms = transforms
         self.data_mms = []
-        for path in paths:
+        for var in variables:
+            path = os.path.join(root, var + '.npy')
             self.data_mms.append(np.memmap(path, dtype='float32', mode='r', shape=(350640, 128, 256)))
 
     def __getitem__(self, index):

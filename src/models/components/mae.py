@@ -19,18 +19,24 @@ from timm.models.vision_transformer import Block, PatchEmbed
 class MaskedAutoencoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
-    def __init__(self, img_size=[128, 256], patch_size=16, in_chans=3,
-                 embed_dim=1024, depth=24, num_heads=16,
-                 decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
-                 mlp_ratio=4., norm_pix_loss=False):
+    def __init__(self, img_size=[128, 256], patch_size=16,
+            in_vars=['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'],
+            embed_dim=1024, depth=24, num_heads=16,
+            decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16, out_vars=None,
+            mlp_ratio=4., norm_pix_loss=False
+        ):
         super().__init__()
 
         self.img_size = img_size
         self.patch_size = patch_size
 
+        out_vars = out_vars if out_vars is not None else in_vars
+        self.in_vars = in_vars
+        self.out_vars = out_vars
+
         # --------------------------------------------------------------------------
         # MAE encoder specifics
-        self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
         num_patches = self.patch_embed.num_patches # 128
 
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim), requires_grad=False)  # fixed sin-cos embedding
@@ -54,7 +60,7 @@ class MaskedAutoencoderViT(nn.Module):
             for i in range(decoder_depth)])
 
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True) # decoder to patch
+        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * len(self.out_vars), bias=True) # decoder to patch
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -192,20 +198,23 @@ class MaskedAutoencoderViT(nn.Module):
         pred: [N, L, p*p*3]
         mask: [N, L], 0 is keep, 1 is remove, 
         """
-        target = self.patchify(imgs)
-        if self.norm_pix_loss:
-            mean = target.mean(dim=-1, keepdim=True)
-            var = target.var(dim=-1, keepdim=True)
-            target = (target - mean) / (var + 1.e-6)**.5
+        img_mask = mask.unsqueeze(-1).repeat(1,1,pred.shape[-1]) # [N, L, p*p*3]
+        img_pred = self.unpatchify(pred) # [N, 3, H, W]
+        img_mask = self.unpatchify(img_mask)[:, 0] # [N, H, W], mask is the same for all variables
 
-        loss = (pred - target) ** 2
-        loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+        loss = (img_pred - imgs) ** 2 # [N, 3, H, W]
+        loss_dict = {}
 
-        if not reconstruct_all:
-            loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        if reconstruct_all:
+            for i, var in enumerate(self.out_vars):
+                loss_dict[var] = torch.mean(loss[:, i])
+            loss_dict['loss'] = torch.mean(torch.sum(loss, dim=1))
         else:
-            loss = torch.mean(loss)
-        return loss
+            for i, var in enumerate(self.out_vars):
+                loss_dict[var] = (loss[:, i] * img_mask).sum() / img_mask.sum()
+            loss_dict['loss'] = (loss.sum(dim=1) * img_mask).sum() / img_mask.sum()
+
+        return loss_dict
 
     def forward(self, imgs, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)

@@ -8,13 +8,14 @@ net:
   init_args:
     img_size: [128, 256]
     patch_size: 16
-    in_chans: 3
+    in_vars: ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind']
     embed_dim: 1024
     depth: 8
     num_heads: 16
     decoder_embed_dim: 512
     decoder_depth: 4
     decoder_num_heads: 16
+    out_vars: null
     mlp_ratio: 4
     norm_pix_loss: False
 # img_size=224, patch_size=16, in_chans=3,
