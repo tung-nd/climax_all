@@ -69,6 +69,31 @@ class ERA5Surface(Dataset):
         return self.data_mms[0].shape[0]
 
 
+class ERA5SurfaceMax(Dataset):
+    def __init__(self, root, variables, transforms=None):
+        """
+        paths: paths to npy files, each file is one climate variable
+        transforms: data transformation
+        """
+        super(ERA5SurfaceMax, self).__init__()
+        self.transforms = transforms
+        self.data_mms = []
+        for var in variables:
+            path = os.path.join(root, var + '.npy')
+            self.data_mms.append(np.memmap(path, dtype='float32', mode='r', shape=(350640, 128, 256)))
+
+    def __getitem__(self, index):
+        np_data = [mm[index] for mm in self.data_mms]
+        np_data = np.stack(np_data, axis=0)
+        torch_data = torch.from_numpy(np_data)
+        if self.transforms:
+            torch_data = self.transforms(torch_data)
+        return torch_data, torch.amax(torch_data, dim=[1,2])
+
+    def __len__(self):
+        return self.data_mms[0].shape[0]
+
+
 class ERA5SurfaceForecast(Dataset):
     def __init__(self, root, variables, predict_range=6, transforms=None):
         """

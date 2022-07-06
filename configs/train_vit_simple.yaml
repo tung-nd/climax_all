@@ -1,0 +1,5 @@
+seed_everything: 42
+
+trainer: trainer/vit_simple.yaml
+model: model/vit_simple.yaml
+data: datamodule/era5_surface_max.yaml

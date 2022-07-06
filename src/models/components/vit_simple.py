@@ -9,24 +9,22 @@
 # DeiT: https://github.com/facebookresearch/deit
 # --------------------------------------------------------
 
-from operator import inv
-
 import torch
 import torch.nn as nn
 from src.utils.pos_embed import get_2d_sincos_pos_embed
 from timm.models.vision_transformer import Block, PatchEmbed
 
 
-class VisionTransformer(nn.Module):
+class VisionTransformerSimple(nn.Module):
     def __init__(self, img_size=[128, 256], patch_size=16,
                 in_vars=['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'],
-                embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4., out_vars=None):
+                embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4.,
+                out_vars=['2m_temperature_max', '10m_u_component_of_wind_max', '10m_v_component_of_wind_max']):
         super().__init__()
 
         self.img_size = img_size
         self.patch_size = patch_size
 
-        out_vars = out_vars if out_vars is not None else in_vars
         self.in_vars = in_vars
         self.out_vars = out_vars
 
@@ -45,7 +43,7 @@ class VisionTransformer(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.head = nn.Linear(embed_dim, len(self.out_vars)*patch_size**2)
+        self.head = nn.Linear(embed_dim, len(self.out_vars))
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -88,21 +86,6 @@ class VisionTransformer(nn.Module):
         x = x.reshape(shape=(imgs.shape[0], h * w, p**2 * 3))
         return x
 
-    def unpatchify(self, x):
-        """
-        x: (N, L, patch_size**2 *3)
-        imgs: (N, 3, H, W)
-        """
-        p = self.patch_size
-        h = self.img_size[0] // p
-        w = self.img_size[1] // p
-        assert h * w == x.shape[1]
-        
-        x = x.reshape(shape=(x.shape[0], h, w, p, p, 3))
-        x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], 3, h * p, w * p))
-        return imgs
-
     def forward_encoder(self, x):
         # embed patches
         x = self.patch_embed(x)
@@ -117,13 +100,19 @@ class VisionTransformer(nn.Module):
 
         return x
 
+    def forward_pred(self, x):
+        """
+        x: [N, L, embed_dim]
+        """
+        x = torch.mean(x, dim=1) # [N, embed_dim]
+        return self.head(x)
+
     def forward_loss(self, y, pred):
         """
-        y: [N, 3, H, W]
-        pred: [N, L, p*p*3]
+        y: [N, 3]
+        pred: [N, 3]
         """
-        pred = self.unpatchify(pred)
-        loss = (pred - y) ** 2 # sum over channels, [N, 3, H, W]
+        loss = (pred - y) ** 2 # sum over channels, [N, 3]
         loss_dict = {}
 
         with torch.no_grad():
@@ -135,15 +124,15 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, y):
         embeddings = self.forward_encoder(x)
-        preds = self.head(embeddings)
+        preds = self.forward_pred(embeddings)
         loss = self.forward_loss(y, preds)
         return loss, preds
 
     def predict(self, x):
         with torch.no_grad():
             embeddings = self.forward_encoder(x)
-            pred = self.head(embeddings)
-        return self.unpatchify(pred)
+            pred = self.forward_pred(embeddings)
+        return pred
 
 
 # model = VisionTransformer(depth=8).cuda()
