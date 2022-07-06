@@ -8,8 +8,7 @@ from pytorch_lightning.utilities.cli import LightningCLI
 from torchvision.transforms import transforms
 from tqdm import tqdm
 
-from src.datamodules.era5_surface_datamodule import \
-    ERA5SurfaceForecastDataModule
+from src.datamodules.era5_datamodule import ERA5DataModule
 from src.models.vit_module import ViTLitModule
 
 
@@ -108,7 +107,7 @@ def main(model, dataset, args):
 if __name__ == "__main__":
     cli = MyLightningCLI(
         model_class=ViTLitModule,
-        datamodule_class=ERA5SurfaceForecastDataModule,
+        datamodule_class=ERA5DataModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,

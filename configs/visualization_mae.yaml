@@ -1,5 +1,54 @@
 seed_everything: 42
 
-trainer: trainer/base.yaml
-model: model/mae.yaml
-data: datamodule/era5_surface.yaml
+# ---------------------------- TRAINER -------------------------------------------
+trainer:
+  gpus: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_false
+
+# ---------------------------- MODEL -------------------------------------------
+model:
+  lr: 0.0005
+  weight_decay: 0.005
+  mask_ratio: 0.5
+  reconstruct_all: False
+
+  net:
+    class_path: src.models.components.mae.MaskedAutoencoderViT
+    init_args:
+      img_size: [128, 256]
+      patch_size: 16
+      in_vars: ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind']
+      embed_dim: 1024
+      depth: 8
+      num_heads: 16
+      decoder_embed_dim: 512
+      decoder_depth: 4
+      decoder_num_heads: 16
+      out_vars: null
+      mlp_ratio: 4
+      norm_pix_loss: False
+
+# ---------------------------- DATA -------------------------------------------
+data:
+  dataset:
+    class_path: src.datamodules.era5_dataset.ERA5
+    init_args:
+      root: /mnt/weatherbench
+      variables:
+        [
+          "2m_temperature",
+          "10m_u_component_of_wind",
+          "10m_v_component_of_wind",
+        ]
+      transforms:
+        class_path: torchvision.transforms.Normalize
+        init_args:
+          mean: [277.0595, -0.05025468, 0.18755548]
+          std: [21.289722, 5.5454874, 4.764006]
+  train_val_test_split: [300000, 25000, 25640]
+  random_split: True
+  batch_size: 128
+  num_workers: 2
+  pin_memory: False

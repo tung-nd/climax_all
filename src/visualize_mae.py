@@ -1,17 +1,12 @@
-import argparse
 import os
-from email.policy import default
-from operator import inv
 
-import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import yaml
 from pytorch_lightning.utilities.cli import LightningCLI
 from torchvision.transforms import transforms
 
-from src.datamodules.era5_surface_datamodule import ERA5SurfaceDataModule
+from src.datamodules.era5_datamodule import ERA5DataModule
 from src.models.mae_module import MAELitModule
 
 
@@ -147,7 +142,7 @@ def main(model, dataset, args):
 if __name__ == "__main__":
     cli = MyLightningCLI(
         model_class=MAELitModule,
-        datamodule_class=ERA5SurfaceDataModule,
+        datamodule_class=ERA5DataModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,

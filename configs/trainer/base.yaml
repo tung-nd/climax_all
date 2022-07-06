@@ -1,4 +1,0 @@
-gpus: 1
-num_nodes: 1
-accelerator: gpu
-strategy: ddp_find_unused_parameters_false

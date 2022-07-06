@@ -4,6 +4,9 @@ import numpy as np
 import torch
 import xarray as xr
 from torch.utils.data import Dataset
+from torchvision.transforms import transforms
+
+from datamodules import normalize_mean, normalize_std
 
 
 def create_era5_surface(data_dir_paths, save_dir='/datadrive/datasets/1.40625deg'):
@@ -44,14 +47,20 @@ def create_era5_pressure_level(paths_level, save_dir='/datadrive/datasets/1.4062
             fp.flush()
 
 
-class ERA5Surface(Dataset):
-    def __init__(self, root, variables, transforms=None):
+def get_transforms(variables):
+    mean = [normalize_mean[v] for v in variables]
+    std = [normalize_std[v] for v in variables]
+    return transforms.Normalize(mean=mean, std=std)
+
+
+class ERA5(Dataset):
+    def __init__(self, root, variables):
         """
         paths: paths to npy files, each file is one climate variable
         transforms: data transformation
         """
-        super(ERA5Surface, self).__init__()
-        self.transforms = transforms
+        super(ERA5, self).__init__()
+        self.transforms = get_transforms(variables)
         self.data_mms = []
         for var in variables:
             path = os.path.join(root, var + '.npy')
@@ -69,14 +78,14 @@ class ERA5Surface(Dataset):
         return self.data_mms[0].shape[0]
 
 
-class ERA5SurfaceMax(Dataset):
-    def __init__(self, root, variables, transforms=None):
+class ERA5Max(Dataset):
+    def __init__(self, root, variables):
         """
         paths: paths to npy files, each file is one climate variable
         transforms: data transformation
         """
-        super(ERA5SurfaceMax, self).__init__()
-        self.transforms = transforms
+        super(ERA5Max, self).__init__()
+        self.transforms = get_transforms(variables)
         self.data_mms = []
         for var in variables:
             path = os.path.join(root, var + '.npy')
@@ -94,15 +103,15 @@ class ERA5SurfaceMax(Dataset):
         return self.data_mms[0].shape[0]
 
 
-class ERA5SurfaceForecast(Dataset):
-    def __init__(self, root, variables, predict_range=6, transforms=None):
+class ERA5Forecast(Dataset):
+    def __init__(self, root, variables, predict_range=6):
         """
         paths: paths to npy files, each file is one climate variable
         predict_range: how many hours we predict into the future
         transforms: data transformation
         """
-        super(ERA5SurfaceForecast, self).__init__()
-        self.transforms = transforms
+        super(ERA5Forecast, self).__init__()
+        self.transforms = get_transforms(variables)
         self.input_mms = []
         self.output_mms = []
         for var in variables:
