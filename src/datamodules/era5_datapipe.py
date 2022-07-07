@@ -43,3 +43,16 @@ class ERA5Forecast(dp.iter.IterDataPipe):
                 axis=1,
             )
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)
+
+
+class IndividualDataIter(dp.iter.IterDataPipe):
+    def __init__(self, dp: ERA5Forecast):
+        super().__init__()
+        self.dp = dp
+
+    def __iter__(self):
+        for (inp, out) in self.dp:
+            assert inp.shape[0] == out.shape[0]
+            for i in range(inp.shape[0]):
+                # TODO: should we unsqueeze the first dimension?
+                yield inp[i], out[i]
