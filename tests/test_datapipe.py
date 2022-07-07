@@ -34,9 +34,7 @@ dp = (
     IndividualDataIter(
         ERA5Forecast(
             READER(
-                lister.shuffle(
-                    buffer_size=4
-                ).sharding_filter(),  # shuffle at the year level  # needed for num_workers > 1
+                lister.shuffle().sharding_filter(),  # shuffle at the year level  # needed for num_workers > 1
                 variables=["t", "u10", "v10"],
             )
         ),
