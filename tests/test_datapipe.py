@@ -22,7 +22,9 @@ dp = (
             .sharding_filter()
         ),
     )
+    .shuffle(buffer_size=1000)
     .batch(batchsize)
+    .in_batch_shuffle()
     .collate(collate_fn)
 )
 
