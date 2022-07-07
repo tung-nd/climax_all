@@ -20,7 +20,7 @@ def nc2zarr(path, variables, years):
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
             paths.extend(ps)
 
-        ds = xr.open_mfdataset(paths, combine="by_coords", parallel=False)
+        ds = xr.open_mfdataset(paths, combine="by_coords", parallel=True)
 
         if "u10" in ds:
             ds["u10"] = ds.u10.expand_dims("val", axis=1)
