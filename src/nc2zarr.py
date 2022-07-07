@@ -35,9 +35,17 @@ def nc2zarr(path, variables, years):
 
 @click.command()
 @click.argument("path", type=click.Path(exists=True))
-def main(path):
-    variables = ["temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"]
-    years = range(1979, 1980)
+@click.option(
+    "--variables",
+    "-v",
+    type=click.STRING,
+    multiple=True,
+    default=["temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"],
+)
+@click.option("--start_year", type=int, default=1979)
+@click.option("--end_year", type=int, default=1980)
+def main(path, variables, start_year, end_year):
+    years = range(start_year, end_year)
     nc2zarr(path, variables, years)
 
 
