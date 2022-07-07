@@ -13,7 +13,7 @@ resources:
 variables:
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: "442ea973-c852-4792-aa09-fab4a9df791f"
-  imageRepository: "ml_template"
+  imageRepository: "climate_pretraining"
   containerRegistry: "commondockerimages.azurecr.io"
   dockerfilenvidiaPath: "$(Build.SourcesDirectory)/docker/Dockerfile_base_nvidia"
   dockerfilecondaPath: "$(Build.SourcesDirectory)/docker/Dockerfile_base_conda"
