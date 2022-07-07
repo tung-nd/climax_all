@@ -1,8 +1,7 @@
-from errno import ERANGE
-
 import numpy as np
 import torch
 import torchdata.datapipes as dp
+import xarray as xr
 
 
 class ERA5Npy(dp.iter.IterDataPipe):
@@ -15,6 +14,18 @@ class ERA5Npy(dp.iter.IterDataPipe):
         for path in self.dp:
             data = np.load(path)
             yield {k: data[k] for k in self.variables}
+
+
+class ERA5Zarr(dp.iter.IterDataPipe):
+    def __init__(self, dp: dp.iter.IterDataPipe, variables):
+        super().__init__()
+        self.dp = dp
+        self.variables = variables
+
+    def __iter__(self):
+        for path in self.dp:
+            data = xr.open_zarr(path)
+            yield {k: data[k].to_numpy() for k in self.variables}
 
 
 class ERA5Forecast(dp.iter.IterDataPipe):

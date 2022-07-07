@@ -1,11 +1,19 @@
-from tkinter import Y
+import glob
+import os
 
 import torch
 import torchdata.datapipes as dp
-from src.datamodules.era5_datapipe import ERA5Forecast, ERA5Npy, IndividualDataIter
+from src.datamodules.era5_datapipe import (
+    ERA5Forecast,
+    ERA5Npy,
+    ERA5Zarr,
+    IndividualDataIter,
+)
 from torch.utils.data import DataLoader
 
+NPY = False
 NPY_PATH = "/mnt/data/1.40625/_yearly_np"
+ZARRY_PATH = "/mnt/data/1.40625_yearly"
 
 
 def collate_fn(batch):
@@ -14,14 +22,21 @@ def collate_fn(batch):
     return inp, out
 
 
+if NPY:
+    READER = ERA5Npy
+    lister = dp.iter.FileLister(NPY_PATH)
+else:
+    READER = ERA5Zarr
+    lister = dp.iter.IterableWrapper(glob.glob(os.path.join(ZARRY_PATH, "*.zarr")))
+
 batchsize = 32
 dp = (
     IndividualDataIter(
         ERA5Forecast(
-            ERA5Npy(
-                dp.iter.FileLister(NPY_PATH)
-                .shuffle(buffer_size=4)  # shuffle at the year level
-                .sharding_filter(),  # needed for num_workers > 1
+            READER(
+                lister.shuffle(
+                    buffer_size=4
+                ).sharding_filter(),  # shuffle at the year level  # needed for num_workers > 1
                 variables=["t", "u10", "v10"],
             )
         ),
