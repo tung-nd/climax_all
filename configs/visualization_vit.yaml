@@ -38,11 +38,6 @@ data:
           "10m_v_component_of_wind",
         ]
       predict_range: 6
-      transforms:
-        class_path: torchvision.transforms.Normalize
-        init_args:
-          mean: [277.0595, -0.05025468, 0.18755548]
-          std: [21.289722, 5.5454874, 4.764006]
   train_val_test_split: [54056, 2924, 1459]
   random_split: False
   batch_size: 128
