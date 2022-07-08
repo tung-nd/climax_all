@@ -19,8 +19,8 @@ variables:
   dockerfilecondaPath: "$(Build.SourcesDirectory)/docker/Dockerfile_base_conda"
   tagCurrentNvidia: "$(Build.SourceBranchName)_$(Build.BuildNumber)-nvidia"
   tagCurrentConda: "$(Build.SourceBranchName)_$(Build.BuildNumber)-conda"
-  tagLatestConda: "latest-nvidia"
-  tagLatestNvidia: "latest-conda"
+  tagLatestConda: "latest-conda"
+  tagLatestNvidia: "latest-nvidia"
   tagLatest: "latest"
 
   # Agent VM image name
