@@ -1,6 +1,5 @@
 import glob
 import os
-import pickle
 
 import click
 import numpy as np
@@ -10,6 +9,7 @@ from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_MAP
 
 
 def nc2np(path, variables, years, save_dir, partition):
+    os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
     if partition == "train":
         normalize_mean = {}
         normalize_std = {}
@@ -69,10 +69,8 @@ def nc2np(path, variables, years, save_dir, partition):
             normalize_mean[var] = mean
             normalize_std[var] = std
 
-        with open(os.path.join(save_dir, "normalize_mean.pkl"), "wb") as f:
-            pickle.dump(normalize_mean, f)
-        with open(os.path.join(save_dir, "normalize_std.pkl"), "wb") as f:
-            pickle.dump(normalize_std, f)
+        np.savez(os.path.join(save_dir, "normalize_mean.npz"), **normalize_mean)
+        np.savez(os.path.join(save_dir, "normalize_std.npz"), **normalize_std)
 
 
 @click.command()
