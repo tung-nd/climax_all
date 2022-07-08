@@ -1,37 +1,78 @@
 import glob
 import os
+import pickle
 
 import click
 import numpy as np
 import xarray as xr
 
+from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_MAP
 
-def nc2np(path, variables, years):
-    newdatapath = os.path.join(
-        os.path.dirname(path), f"{os.path.basename(path)}_yearly_np"
-    )
-    os.makedirs(newdatapath, exist_ok=True)
 
+def nc2np(path, variables, years, save_dir, partition):
+    if partition == "train":
+        normalize_mean = {}
+        normalize_std = {}
     for year in years:
-        paths = []
+        yearly_dataset = None
         for var in variables:
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
-            paths.extend(ps)
+            ds = xr.open_mfdataset(
+                ps, combine="by_coords", parallel=True
+            )  # dataset for a single variable
+            code = NAME_MAP[var]
 
-        ds = xr.open_mfdataset(paths, combine="by_coords", parallel=True)
+            if len(ds[code].shape) == 3:  # surface level variables
+                ds[code] = ds[code].expand_dims("val", axis=1)
+            else:  # multiple-level variables, only use a subset
+                assert len(ds[code].shape) == 4
+                ds = ds.sel(level=DEFAULT_PRESSURE_LEVELS[code])
+                ds = ds.rename({"level": "level_" + code})
 
-        # TODO: check if this is necessary
-        if "u10" in ds:
-            ds["u10"] = ds.u10.expand_dims("val", axis=1)
+            if partition == "train":  # compute mean and std of each var in each year
+                var_mean_yearly = ds[code].mean(axis=(0, 2, 3)).to_numpy()
+                var_std_yearly = ds[code].std(axis=(0, 2, 3)).to_numpy()
+                if var not in normalize_mean:
+                    normalize_mean[var] = [var_mean_yearly]
+                    normalize_std[var] = [var_std_yearly]
+                else:
+                    normalize_mean[var].append(var_mean_yearly)
+                    normalize_std[var].append(var_std_yearly)
 
-        if "v10" in ds:
-            ds["v10"] = ds.v10.expand_dims("val", axis=1)
+            if yearly_dataset is None:
+                yearly_dataset = ds
+            else:
+                yearly_dataset = yearly_dataset.merge(ds)
 
         np_vars = {}
-        for k in ds.keys():
-            np_vars[k] = ds[k].to_numpy()
+        for k in yearly_dataset.keys():
+            np_vars[k] = yearly_dataset[k].to_numpy()
 
-        np.savez(os.path.join(newdatapath, f"{year}.npz"), **np_vars)
+        np.savez(os.path.join(save_dir, partition, f"{year}.npz"), **np_vars)
+
+    if partition == "train":
+        for var in normalize_mean.keys():
+            normalize_mean[var] = np.stack(normalize_mean[var], axis=0)
+            normalize_std[var] = np.stack(normalize_std[var], axis=0)
+
+        for var in normalize_mean.keys():  # aggregate over the years
+            mean, std = normalize_mean[var], normalize_std[var]
+            # var(X) = E[var(X|Y)] + var(E[X|Y])
+            variance = (
+                (std ** 2).mean(axis=0)
+                + (mean ** 2).mean(axis=0)
+                - mean.mean(axis=0) ** 2
+            )
+            std = np.sqrt(variance)
+            # E[X] = E[E[X|Y]]
+            mean = mean.mean(axis=0)
+            normalize_mean[var] = mean
+            normalize_std[var] = std
+
+        with open(os.path.join(save_dir, "normalize_mean.pkl"), "wb") as f:
+            pickle.dump(normalize_mean, f)
+        with open(os.path.join(save_dir, "normalize_std.pkl"), "wb") as f:
+            pickle.dump(normalize_std, f)
 
 
 @click.command()
@@ -41,13 +82,39 @@ def nc2np(path, variables, years):
     "-v",
     type=click.STRING,
     multiple=True,
-    default=["temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"],
+    default=[
+        "2m_temperature",
+        "10m_u_component_of_wind",
+        "10m_v_component_of_wind",
+        "u_component_of_wind",
+        "v_component_of_wind",
+        "geopotential",
+        "temperature",
+        "relative_humidity",
+    ],
 )
-@click.option("--start_year", type=int, default=1979)
-@click.option("--end_year", type=int, default=1980)
-def main(path, variables, start_year, end_year):
-    years = range(start_year, end_year)
-    nc2np(str(path), variables, years)
+@click.option("--start_train_year", type=int, default=1979)
+@click.option("--start_val_year", type=int, default=2013)
+@click.option("--start_test_year", type=int, default=2015)
+@click.option("--end_year", type=int, default=2017)
+def main(path, variables, start_train_year, start_val_year, start_test_year, end_year):
+    assert (
+        start_val_year > start_train_year
+        and start_test_year > start_val_year
+        and end_year > start_test_year
+    )
+    train_years = range(start_train_year, start_val_year)
+    val_years = range(start_val_year, start_test_year)
+    test_years = range(start_test_year, end_year)
+
+    yearly_datapath = os.path.join(
+        os.path.dirname(path), f"{os.path.basename(path)}_yearly_np"
+    )
+    os.makedirs(yearly_datapath, exist_ok=True)
+
+    nc2np(path, variables, train_years, yearly_datapath, "train")
+    nc2np(path, variables, val_years, yearly_datapath, "val")
+    nc2np(path, variables, test_years, yearly_datapath, "test")
 
 
 if __name__ == "__main__":

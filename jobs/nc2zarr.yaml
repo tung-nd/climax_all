@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Single GPU training for MAE
+description: Extracting yearly zarr files
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: f64-ded
+  name: d14ded
 
 storage:
   my_data:
@@ -24,11 +24,10 @@ storage:
     mount_dir: /mnt/data
     is_output: True
 
-
-# some environment variables to ease up setting of jobs
-env_defaults:
-  NODES: 2
-  GPUS: 1
+# # some environment variables to ease up setting of jobs
+# env_defaults:
+#   NODES: 2
+#   GPUS: 1
 
 # jobs:
 #   # amlt run jobs/amlt.yaml --target-name V100-1x-ded :train_1_node_1_gpu ml-template-mnist
@@ -42,11 +41,11 @@ env_defaults:
 #       - echo $$AMLT_OUTPUT_DIR
 
 jobs:
-  - name: train_{experiment_name:s}_{auto:4s} # ex: simple_job_lr_05
-  - sku: ${NODES}x32G${GPUS} # ex: G1
-  - command:
+  - name: extract_zarr
+    sku: 1xC16
+    command:
       #- conda env create --file docker/environment.yml
-      - export PYTHONPATH=$PWD
+      # - export PYTHONPATH=$PWD
       #- conda activate climate_pretrain
       #/opt/miniconda/envs/ml_template/bin/python src/train_mae.py --config configs/train_mae.yaml --data.root=/mnt/data/1.40625deg --data.num_workers=4 --trainer.default_root_dir=$$AMLT_OUTPUT_DIR --model.reconstruct_all={reconstruct}
       - python src/nc2zarr.py /mnt/data/1.40625deg
