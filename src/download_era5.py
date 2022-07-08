@@ -3,7 +3,7 @@ import os
 
 import cdsapi
 
-latlong_map = {'us': [50, -125, 24, -67], 'global': 'global'}
+latlong_map = {'us': [50, -125, 24, -67]}
 
 
 def download_era5(args):
@@ -36,30 +36,31 @@ def download_era5(args):
         '18:00', '19:00', '20:00',
         '21:00', '22:00', '23:00',
     ]
-    area = latlong_map[args.area]
     c = cdsapi.Client()
     if args.type == 'surface':
         for y in years:
             print(f"Downloading surface data for year {y}")
             fn = os.path.join(args.root, f"era5_surface_{y}.nc")
+            download_args = {
+                "product_type": "reanalysis",
+                "format": "netcdf",
+                "variable": [
+                    "10m_u_component_of_wind",
+                    "10m_v_component_of_wind",
+                    "2m_temperature",
+                    "mean_sea_level_pressure",
+                    "surface_pressure",
+                ],
+                "year": y,
+                "month": months,
+                "day": days,
+                "time": times,
+            }
+            if args.area != 'global':
+                download_args["area"] = latlong_map[args.area]
             c.retrieve(
                 "reanalysis-era5-single-levels",
-                {
-                    "product_type": "reanalysis",
-                    "format": "netcdf",
-                    "variable": [
-                        "10m_u_component_of_wind",
-                        "10m_v_component_of_wind",
-                        "2m_temperature",
-                        "mean_sea_level_pressure",
-                        "surface_pressure",
-                    ],
-                    "year": y,
-                    "month": months,
-                    "day": days,
-                    "time": times,
-                    "area": area,
-                },
+                download_args,
                 fn,
             )
             print("=" * 100)
@@ -69,25 +70,27 @@ def download_era5(args):
             for y in years:
                 print(f"Downloading data for pressure {p} year {y}")
                 fn = os.path.join(args.root, f"era5_surface_{y}.nc")
+                download_args = {
+                    "product_type": "reanalysis",
+                    "format": "netcdf",
+                    "variable": [
+                        "geopotential",
+                        "relative_humidity",
+                        "temperature",
+                        "u_component_of_wind",
+                        "v_component_of_wind",
+                    ],
+                    "pressure_level": p,
+                    "year": y,
+                    "month": months,
+                    "day": days,
+                    "time": times,
+                }
+                if args.area != 'global':
+                    download_args["area"] = latlong_map[args.area]
                 c.retrieve(
                     "reanalysis-era5-pressure-levels",
-                    {
-                        "product_type": "reanalysis",
-                        "format": "netcdf",
-                        "variable": [
-                            "geopotential",
-                            "relative_humidity",
-                            "temperature",
-                            "u_component_of_wind",
-                            "v_component_of_wind",
-                        ],
-                        "pressure_level": p,
-                        "year": y,
-                        "month": months,
-                        "day": days,
-                        "time": times,
-                        "area": area,
-                    },
+                    download_args,
                     fn,
                 )
                 print("=" * 100)

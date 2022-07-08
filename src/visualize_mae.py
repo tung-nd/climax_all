@@ -107,7 +107,7 @@ class MyLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.add_argument("--ckpt", type=str, required=True)
         parser.add_argument("--save_dir", type=str, default="/home/t-tungnguyen/climate_pretraining/visualization_mae")
-        parser.add_argument("--filename", type=str, default="model.gif")
+        parser.add_argument("--filename", type=str, default="model.png")
 
 
 def main(model, dataset, args):
@@ -137,7 +137,7 @@ def main(model, dataset, args):
     pred = pred.squeeze()
     pred = inv_normalize(pred)
 
-    save_img(ground_truth, masked_data, pred, args.save_dir, 'viz.png')
+    save_img(ground_truth, masked_data, pred, args.save_dir, args.filename)
 
 if __name__ == "__main__":
     cli = MyLightningCLI(
