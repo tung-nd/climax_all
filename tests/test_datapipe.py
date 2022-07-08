@@ -46,7 +46,7 @@ dp = (
 )
 
 
-for x, y in DataLoader(dp):
+for x, y in DataLoader(dp, batch_size=None):
     print(x.shape, y.shape)
     import pdb
 
