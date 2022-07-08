@@ -83,7 +83,7 @@ dependencies:
   - toml=0.10.2=pyhd3eb1b0_0
   - torchdata=0.4.0=py38
   - torchvision=0.13.0=py38_cu113
-  - tqdm=4.64.0=pyhd8ed1ab_0
+  - tqdm=4.64.0=py38h06a4308_0
   - typed-ast=1.4.3=py38h7f8727e_1
   - typing_extensions=4.1.1=pyh06a4308_0
   - urllib3=1.26.9=py38h06a4308_0
@@ -172,7 +172,7 @@ dependencies:
     - jinja2==3.0.3
     - jmespath==1.0.0
     - json-logging-py==0.2
-    - jsonargparse==4.9.0
+    - jsonargparse==4.10.2
     - jsonpickle==2.2.0
     - jsonschema==4.6.1
     - kiwisolver==1.4.3

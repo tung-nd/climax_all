@@ -4,6 +4,7 @@ import os
 import click
 import numpy as np
 import xarray as xr
+from tqdm import tqdm
 
 from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_MAP
 
@@ -13,7 +14,7 @@ def nc2np(path, variables, years, save_dir, partition):
     if partition == "train":
         normalize_mean = {}
         normalize_std = {}
-    for year in years:
+    for year in tqdm(years):
         yearly_dataset = None
         for var in variables:
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
