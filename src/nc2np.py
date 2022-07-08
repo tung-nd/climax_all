@@ -3,7 +3,6 @@ import os
 
 import click
 import numpy as np
-import tqdm
 import xarray as xr
 from tqdm import tqdm
 
