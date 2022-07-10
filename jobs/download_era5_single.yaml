@@ -1,0 +1,49 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Download 0.25deg data
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: f16-download
+
+storage:
+  my_data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    is_output: True
+
+search:
+  job_template:
+    name: download_{auto:4s} # ex: simple_job_lr_05
+    sku: 1xC16
+    command:
+      - cp .cdsapirc /root/.cdsapirc
+      - python src/download_era5.py --save_dir=/mnt/data/0.25deg --year={year} --variable={variable}
+               
+  type: grid
+  max_trials: 80
+  params:
+    - name: year
+      spec: discrete
+      values: [1959, 1960, 1961, 1962, 1963, 1964, 1965, 1966, 1967, 1968, 1969,
+        1970, 1971, 1972, 1973, 1974, 1975, 1976, 1977, 1978, 1979, 1980, 1981,
+        1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993,
+        1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+        2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 
+        2018, 2019, 2020, 2021, 2022
+      ]
+    - name: variable
+      spec: discrete
+      values: ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature', 'mean_sea_level_pressure', 'surface_pressure']
