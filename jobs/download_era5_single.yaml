@@ -26,14 +26,14 @@ storage:
 
 search:
   job_template:
-    name: download_{auto:4s} # ex: simple_job_lr_05
+    name: downloadfull_{auto:4s} # ex: simple_job_lr_05
     sku: 1xC16
     command:
       - cp .cdsapirc /root/.cdsapirc
       - python src/download_era5.py --save_dir=/mnt/data/0.25deg --year={year} --variable={variable}
                
   type: grid
-  max_trials: 80
+  max_trials: 400
   params:
     - name: year
       spec: discrete

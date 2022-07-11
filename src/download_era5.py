@@ -85,6 +85,8 @@ def download_era5(args):
     fn = os.path.join(
         args.save_dir, args.variable, f"{args.variable}_{args.year}_0.25deg.nc"
     )
+    if os.path.exists(fn):
+        return
     os.makedirs(os.path.join(args.save_dir, args.variable), exist_ok=True)
     download_args = {
         "product_type": "reanalysis",
