@@ -28,6 +28,32 @@ class ERA5Zarr(dp.iter.IterDataPipe):
             yield {k: data[k].to_numpy() for k in self.variables}
 
 
+### for pretraining
+class ERA5(dp.iter.IterDataPipe):
+    def __init__(self, dp: ERA5Npy):
+        super().__init__()
+        self.dp = dp
+
+    def __iter__(self):
+        for data in self.dp:
+            np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
+            yield torch.from_numpy(np_data)
+
+
+class IndividualDataIter(dp.iter.IterDataPipe):
+    def __init__(self, dp: ERA5, transforms: torch.nn.Module):
+        super().__init__()
+        self.dp = dp
+        self.transforms = transforms
+
+    def __iter__(self):
+        for inp in self.dp:
+            for i in range(inp.shape[0]):
+                # TODO: should we unsqueeze the first dimension?
+                yield self.transforms(inp[i])
+
+
+### for finetuning
 class ERA5Forecast(dp.iter.IterDataPipe):
     def __init__(self, dp: ERA5Npy, predict_range: int = 6) -> None:
         super().__init__()
@@ -56,14 +82,15 @@ class ERA5Forecast(dp.iter.IterDataPipe):
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)
 
 
-class IndividualDataIter(dp.iter.IterDataPipe):
-    def __init__(self, dp: ERA5Forecast):
+class IndividualForecastDataIter(dp.iter.IterDataPipe):
+    def __init__(self, dp: ERA5Forecast, transforms: torch.nn.Module):
         super().__init__()
         self.dp = dp
+        self.transforms = transforms
 
     def __iter__(self):
         for (inp, out) in self.dp:
             assert inp.shape[0] == out.shape[0]
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
-                yield inp[i], out[i]
+                yield self.transforms(inp[i]), self.transforms(out[i])

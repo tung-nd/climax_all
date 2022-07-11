@@ -15,7 +15,7 @@ normalize_std = {
     "10m_v_component_of_wind": 4.764006,
 }
 
-NAME_MAP = {
+NAME_TO_VAR = {
     "2m_temperature": "t2m",
     "10m_u_component_of_wind": "u10",
     "10m_v_component_of_wind": "v10",
@@ -24,6 +24,17 @@ NAME_MAP = {
     "geopotential": "z",
     "temperature": "t",
     "relative_humidity": "r",
+}
+
+VAR_TO_NAME = {
+    "t2m": "2m_temperature",
+    "u10": "10m_u_component_of_wind",
+    "v10": "10m_v_component_of_wind",
+    "u": "u_component_of_wind",
+    "v": "v_component_of_wind",
+    "z": "geopotential",
+    "t": "temperature",
+    "r": "relative_humidity",
 }
 
 DEFAULT_PRESSURE_LEVELS = {
