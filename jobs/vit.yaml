@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Single GPU training for MAE
+description: Single GPU training for ViT
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -30,10 +30,10 @@ env_defaults:
   GPUS: 1
 
 jobs:
-  - name: pretrain_17_variables
+  - name: vit_scratch_17_variables
     sku: ${NODES}x32G${GPUS} # ex: G1
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae_new.py --config configs/train_mae_new.yaml --model.reconstruct_all=True --data.root_dir=/mnt/data/1.40625deg_yearly --data.reader=zarr
+      - python src/train_vit_new.py --config configs/train_vit_new.yaml --data.root_dir=/mnt/data/1.40625deg_yearly --data.reader=zarr
       # - python src/train_mae_new.py --config configs/train_mae_new.yaml --model.reconstruct_all=True --data.root_dir=/mnt/data/1.40625deg_yearly_np --data.reader=npy
