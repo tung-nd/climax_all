@@ -79,7 +79,7 @@ data:
   reader: zarr  # npy or zarr
   dataset_type: forecast  # pretrain or forecast (finetune)
   variables: ['t2m', 'u10', 'v10']
-  buffer_size: 10000
+  buffer_size: 20000
   batch_size: 128
-  num_workers: 2
+  num_workers: 4
   pin_memory: False
