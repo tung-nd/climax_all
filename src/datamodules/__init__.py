@@ -26,16 +26,7 @@ NAME_TO_VAR = {
     "relative_humidity": "r",
 }
 
-VAR_TO_NAME = {
-    "t2m": "2m_temperature",
-    "u10": "10m_u_component_of_wind",
-    "v10": "10m_v_component_of_wind",
-    "u": "u_component_of_wind",
-    "v": "v_component_of_wind",
-    "z": "geopotential",
-    "t": "temperature",
-    "r": "relative_humidity",
-}
+VAR_TO_NAME = {v: k for k, v in NAME_TO_VAR.items()}
 
 DEFAULT_PRESSURE_LEVELS = {
     "u": [1000, 850, 500],

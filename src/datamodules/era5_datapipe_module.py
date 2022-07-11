@@ -6,7 +6,12 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from src.datamodules.era5_datapipe import (
+from torch.utils.data import DataLoader
+from torchvision.transforms import transforms
+
+from datamodules import VAR_TO_NAME
+
+from .era5_datapipe import (
     ERA5,
     ERA5Forecast,
     ERA5Npy,
@@ -14,10 +19,6 @@ from src.datamodules.era5_datapipe import (
     IndividualDataIter,
     IndividualForecastDataIter,
 )
-from torch.utils.data import DataLoader
-from torchvision.transforms import transforms
-
-from datamodules import VAR_TO_NAME
 
 
 def collate_fn(batch):
