@@ -1,0 +1,90 @@
+seed_everything: 42
+
+# ---------------------------- TRAINER -------------------------------------------
+trainer:
+  default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,/mnt/climate_pretraining/outputs/mae}
+
+  gpus: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_false
+
+  min_epochs: 1
+  max_epochs: 10
+  enable_progress_bar: true
+
+  sync_batchnorm: True
+  enable_checkpointing: True
+  resume_from_checkpoint: null
+
+  # debugging
+  fast_dev_run: false
+
+  logger:
+    class_path: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
+    init_args:
+      save_dir: ${trainer.default_root_dir}/logs
+      name: test
+      version: null
+      log_graph: False
+      default_hp_metric: True
+      prefix: ""
+
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: "${trainer.default_root_dir}/checkpoints/test"
+        monitor: "val/loss" # name of the logged metric which determines when model is improving
+        mode: "min" # "max" means higher metric value is better, can be also "min"
+        save_top_k: 1 # save k best models (determined by above metric)
+        save_last: True # additionaly always save model from last epoch
+        verbose: False
+        filename: "epoch_{epoch:03d}"
+        auto_insert_metric_name: False
+
+    - class_path: pytorch_lightning.callbacks.EarlyStopping
+      init_args:
+        monitor: "train/loss" # name of the logged metric which determines when model is improving
+        mode: "min" # "max" means higher metric value is better, can be also "min"
+        patience: 100 # how many validation epochs of not improving until training stops
+        min_delta: 0 # minimum change in the monitored metric needed to qualify as an improvement
+
+    - class_path: pytorch_lightning.callbacks.RichModelSummary
+      init_args:
+        max_depth: -1
+
+    - class_path: pytorch_lightning.callbacks.RichProgressBar
+
+# ---------------------------- MODEL -------------------------------------------
+model:
+  lr: 0.0005
+  weight_decay: 0.005
+  mask_ratio: 0.5
+  reconstruct_all: False
+
+  net:
+    class_path: src.models.components.mae.MaskedAutoencoderViT
+    init_args:
+      img_size: [128, 256]
+      patch_size: 16
+      in_vars: ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind']
+      embed_dim: 1024
+      depth: 8
+      num_heads: 16
+      decoder_embed_dim: 512
+      decoder_depth: 4
+      decoder_num_heads: 16
+      out_vars: null
+      mlp_ratio: 4
+      norm_pix_loss: False
+
+# ---------------------------- DATA -------------------------------------------
+data:
+  root_dir: /datadrive/datasets/1.40625deg_yearly
+  reader: zarr  # npy or zarr
+  dataset_type: pretrain  # pretrain or forecast (finetune)
+  variables: ['t2m', 'u10', 'v10']
+  buffer_size: 10000
+  batch_size: 128
+  num_workers: 2
+  pin_memory: False
