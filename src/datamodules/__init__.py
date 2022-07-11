@@ -15,7 +15,7 @@ normalize_std = {
     "10m_v_component_of_wind": 4.764006,
 }
 
-NAME_MAP = {
+NAME_TO_VAR = {
     "2m_temperature": "t2m",
     "10m_u_component_of_wind": "u10",
     "10m_v_component_of_wind": "v10",
@@ -25,6 +25,8 @@ NAME_MAP = {
     "temperature": "t",
     "relative_humidity": "r",
 }
+
+VAR_TO_NAME = {v: k for k, v in NAME_TO_VAR.items()}
 
 DEFAULT_PRESSURE_LEVELS = {
     "u": [1000, 850, 500],
