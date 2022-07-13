@@ -55,9 +55,9 @@ trainer:
 
     - class_path: pytorch_lightning.callbacks.RichProgressBar
 
-    - class_path: callbacks.device_stats.DeviceStatsMonitor2
-      init_args:
-        cpu_stats: True
+    # - class_path: callbacks.device_stats.DeviceStatsMonitor2
+    #   init_args:
+    #     cpu_stats: True
 
 # ---------------------------- MODEL -------------------------------------------
 model:
