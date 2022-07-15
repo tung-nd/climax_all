@@ -1,0 +1,52 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Check 0.25 dataset
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: d14ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+search:
+  job_template:
+    name: check_{auto:50s}
+    sku: 1xC16
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/check_dataset.py /mnt/data/0.25deg/ -v {variable}
+               
+  type: grid
+  max_trials: 80
+  params:
+    - name: variable
+      spec: discrete
+      values: [
+          "2m_temperature",
+          "10m_u_component_of_wind",
+          "10m_v_component_of_wind",
+          "mean_sea_level_pressure",
+          "surface_pressure",
+          "u_component_of_wind",
+          "v_component_of_wind",
+          "geopotential",
+          "temperature",
+          "relative_humidity",
+      ]
