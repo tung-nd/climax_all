@@ -29,6 +29,7 @@ class VideoMAE(nn.Module):
         timesteps=8,
         img_size=[128, 256],
         patch_size=16,
+        learn_pos_emb=False,
         in_vars=[
             "2m_temperature",
             "10m_u_component_of_wind",
@@ -63,10 +64,10 @@ class VideoMAE(nn.Module):
         num_patches = self.patch_embed.num_patches  # 128, for each timestep
 
         self.pos_embed = nn.Parameter(
-            torch.zeros(1, num_patches, embed_dim), requires_grad=False
+            torch.zeros(1, num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
         self.time_pos_embed = nn.Parameter(
-            torch.zeros(1, timesteps, embed_dim), requires_grad=False
+            torch.zeros(1, timesteps, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
 
         self.blocks = nn.ModuleList(
@@ -91,10 +92,10 @@ class VideoMAE(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
         self.decoder_pos_embed = nn.Parameter(
-            torch.zeros(1, num_patches, decoder_embed_dim), requires_grad=False
+            torch.zeros(1, num_patches, decoder_embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
         self.decoder_time_pos_embed = nn.Parameter(
-            torch.zeros(1, timesteps, decoder_embed_dim), requires_grad=False
+            torch.zeros(1, timesteps, decoder_embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
 
         self.decoder_blocks = nn.ModuleList(
