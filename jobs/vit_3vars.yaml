@@ -1,0 +1,42 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Single GPU training for ViT with only 3 variables
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100-1-ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 1
+
+jobs:
+  - name: vit_finetune_videomae_learn_pe_3_variables
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_vit_new.py --config configs/train_vit_new.yaml
+              --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind']
+              --model.pretrained_path=/mnt/data/checkpoints/videomae/3vars_0.5_recon_all_learn_pe/last.ckpt --model.net.learn_pos_emb=True
+              --data.root_dir=/mnt/data/1.40625deg_yearly --data.reader=zarr --data.variables=['t2m','u10','v10']
+      # - python src/train_mae_new.py --config configs/train_mae_new.yaml --model.reconstruct_all=True --data.root_dir=/mnt/data/1.40625deg_yearly_np --data.reader=npy
