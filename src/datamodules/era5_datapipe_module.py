@@ -177,7 +177,7 @@ class ERA5DataPipeModule(LightningDataModule):
 
 
 # era5 = ERA5DataPipeModule(
-#     "/mnt/weatherbench/tmp/_yearly_np",
+#     "/datadrive/datasets/1.40625deg_monthly_np/",
 #     "npy",
 #     "image",
 #     ["t2m", "z", "t"],
