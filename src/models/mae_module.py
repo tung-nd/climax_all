@@ -20,9 +20,7 @@ class MAELitModule(LightningModule):
 
     def forward(self, x):
         with torch.no_grad():
-            _, pred, mask = self.net.forward(
-                x, self.hparams.mask_ratio, self.hparams.reconstruct_all
-            )
+            pred, mask = self.net.pred(x, self.hparams.mask_ratio)
         mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])
         pred = self.net.unpatchify(pred)
         mask = self.net.unpatchify(mask)

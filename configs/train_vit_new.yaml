@@ -65,6 +65,7 @@ model:
     init_args:
       img_size: [128, 256]
       patch_size: 16
+      learn_pos_emb: False
       in_vars: [
         'geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50',
         'relative_humidity_850', 'relative_humidity_500',

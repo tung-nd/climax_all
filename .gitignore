@@ -23,5 +23,4 @@ outputs/
 .env
 .autoenv
 
-visualization_mae/
-visualization_vit/
+visualization_*

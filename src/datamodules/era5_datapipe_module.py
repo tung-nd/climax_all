@@ -15,6 +15,7 @@ from .era5_datapipe import (
     ERA5,
     ERA5Forecast,
     ERA5Npy,
+    ERA5Video,
     ERA5Zarr,
     IndividualDataIter,
     IndividualForecastDataIter,
@@ -37,7 +38,7 @@ class ERA5DataPipeModule(LightningDataModule):
         self,
         root_dir,  # contains metadata and train + val + test
         reader,  # npy or zarr
-        dataset_type,  # pretrain or forecast (finetune)
+        dataset_type,  # image, video, or forecast (finetune)
         variables,
         buffer_size,
         batch_size: int = 64,
@@ -68,8 +69,12 @@ class ERA5DataPipeModule(LightningDataModule):
         else:
             raise NotImplementedError(f"Only support npy or zarr")
 
-        if dataset_type == "pretrain":
+        if dataset_type == "image":
             self.dataset_class = ERA5
+            self.data_iter = IndividualDataIter
+            self.collate_fn = collate_fn
+        elif dataset_type == "video":
+            self.dataset_class = ERA5Video
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
@@ -77,7 +82,7 @@ class ERA5DataPipeModule(LightningDataModule):
             self.data_iter = IndividualForecastDataIter
             self.collate_fn = collate_forecast_fn
         else:
-            raise NotImplementedError("Only support pretrain or forecast dataset")
+            raise NotImplementedError("Only support image, video, or forecast dataset")
 
         self.transforms = self.get_normalize()
 
@@ -116,7 +121,7 @@ class ERA5DataPipeModule(LightningDataModule):
                 .shuffle(
                     buffer_size=self.hparams.buffer_size
                 )  # shuffle at the individual data level
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .in_batch_shuffle()  # shuffle within a batch, probably not necessary
                 .collate(self.collate_fn)
             )
@@ -128,7 +133,7 @@ class ERA5DataPipeModule(LightningDataModule):
                     ),
                     self.transforms,
                 )
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .collate(self.collate_fn)
             )
 
@@ -139,7 +144,7 @@ class ERA5DataPipeModule(LightningDataModule):
                     ),
                     self.transforms,
                 )
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .collate(self.collate_fn)
             )
 
@@ -172,13 +177,30 @@ class ERA5DataPipeModule(LightningDataModule):
 
 
 # era5 = ERA5DataPipeModule(
-#     "/mnt/weatherbench/tmp/_yearly_np",
+#     "/datadrive/datasets/1.40625deg_monthly_np/",
 #     "npy",
-#     "pretrain",
+#     "image",
 #     ["t2m", "z", "t"],
 #     1000,
 #     64,
 #     2,
+#     False,
+# )
+# era5.setup()
+# for x in era5.train_dataloader():
+#     print(x.shape)
+#     print(x.mean(dim=(0, 2, 3)))
+#     print(x.std(dim=(0, 2, 3)))
+#     break
+
+# era5 = ERA5DataPipeModule(
+#     "/mnt/weatherbench/tmp/_yearly_np",
+#     "npy",
+#     "video",
+#     ["t2m", "z", "t"],
+#     1000,
+#     16,
+#     0,
 #     False,
 # )
 # era5.setup()

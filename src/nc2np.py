@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_MAP
+from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
 
 def nc2np(path, variables, years, save_dir, partition):
@@ -21,7 +21,7 @@ def nc2np(path, variables, years, save_dir, partition):
             ds = xr.open_mfdataset(
                 ps, combine="by_coords", parallel=True
             )  # dataset for a single variable
-            code = NAME_MAP[var]
+            code = NAME_TO_VAR[var]
 
             if len(ds[code].shape) == 3:  # surface level variables
                 ds[code] = ds[code].expand_dims("val", axis=1)
@@ -106,9 +106,14 @@ def main(path, variables, start_train_year, start_val_year, start_test_year, end
     val_years = range(start_val_year, start_test_year)
     test_years = range(start_test_year, end_year)
 
-    yearly_datapath = os.path.join(
-        os.path.dirname(path), f"{os.path.basename(path)}_yearly_np"
-    )
+    if len(variables) <= 3:  # small dataset for testing new models
+        yearly_datapath = os.path.join(
+            os.path.dirname(path), f"{os.path.basename(path)}_yearly_small_np"
+        )
+    else:
+        yearly_datapath = os.path.join(
+            os.path.dirname(path), f"{os.path.basename(path)}_yearly_np"
+        )
     os.makedirs(yearly_datapath, exist_ok=True)
 
     nc2np(path, variables, train_years, yearly_datapath, "train")

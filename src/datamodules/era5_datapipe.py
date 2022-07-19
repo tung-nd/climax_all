@@ -53,6 +53,28 @@ class IndividualDataIter(dp.iter.IterDataPipe):
                 yield self.transforms(inp[i])
 
 
+### for video pretraining
+class ERA5Video(dp.iter.IterDataPipe):
+    def __init__(self, dp: ERA5Npy, timesteps: int = 8):
+        super().__init__()
+        self.dp = dp
+        self.timesteps = timesteps
+
+    def __iter__(self):
+        for data in self.dp:
+            np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
+            torch_data = torch.from_numpy(np_data)
+            yield self.construct_video(torch_data)
+
+    def construct_video(self, x):
+        # x: 8760, 3, 128, 256
+        x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0)
+        for i in range(self.timesteps):
+            x[i] = torch.roll(x[i], shifts=-i, dims=0)
+        x = x[:, : -self.timesteps + 1]
+        return torch.transpose(x, dim0=0, dim1=1)
+
+
 ### for finetuning
 class ERA5Forecast(dp.iter.IterDataPipe):
     def __init__(self, dp: ERA5Npy, predict_range: int = 6) -> None:
@@ -94,3 +116,20 @@ class IndividualForecastDataIter(dp.iter.IterDataPipe):
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 yield self.transforms(inp[i]), self.transforms(out[i])
+
+
+# def construct_video(x, timesteps):
+#     # x: 8760, 3, 128, 256
+#     x = x.unsqueeze(0).repeat_interleave(timesteps, dim=0)
+#     for i in range(timesteps):
+#         x[i] = torch.roll(x[i], shifts=-i, dims=0)
+#     x = x[:, : -timesteps + 1]
+#     return torch.transpose(x, dim0=0, dim1=1)
+
+
+# steps = 4
+# x = torch.randn(100, 3, 128, 256)
+# v = construct_video(x, steps)
+# # print(v.shape)
+# i = 14
+# print(x[i : i + steps] == v[i])

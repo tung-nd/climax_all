@@ -4,21 +4,20 @@ import os
 import click
 import numpy as np
 import xarray as xr
-import zarr.storage
 from tqdm import tqdm
 
 from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
-zarr.storage.default_compressor = None
+MONTHS = range(1, 12 + 1)
 
 
-def nc2zarr(path, variables, years, save_dir, partition):
+def nc2np(path, variables, years, save_dir, partition):
     os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
     if partition == "train":
         normalize_mean = {}
         normalize_std = {}
     for year in tqdm(years):
-        yearly_dataset = None
+        monthly_dataset = {k: None for k in MONTHS}
         for var in variables:
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
             ds = xr.open_mfdataset(
@@ -43,14 +42,24 @@ def nc2zarr(path, variables, years, save_dir, partition):
                     normalize_mean[var].append(var_mean_yearly)
                     normalize_std[var].append(var_std_yearly)
 
-            if yearly_dataset is None:
-                yearly_dataset = ds
-            else:
-                yearly_dataset = yearly_dataset.merge(ds)
+            ds_group_by_month = ds.groupby("time.month")
+            for month in MONTHS:  # sharding monthly
+                if monthly_dataset[month] is None:
+                    monthly_dataset[month] = ds_group_by_month[month]
+                else:
+                    monthly_dataset[month] = monthly_dataset[month].merge(
+                        ds_group_by_month[month]
+                    )
 
-        yearly_dataset.to_zarr(
-            os.path.join(save_dir, partition, f"{year}.zarr"), mode="w",
-        )
+        for month in MONTHS:
+            np_vars_monthly = {}
+            for k in monthly_dataset[month].keys():
+                np_vars_monthly[k] = monthly_dataset[month][k].to_numpy()
+
+            np.savez(
+                os.path.join(save_dir, partition, f"{year}_{month}.npz"),
+                **np_vars_monthly,
+            )
 
     if partition == "train":
         for var in normalize_mean.keys():
@@ -108,18 +117,18 @@ def main(path, variables, start_train_year, start_val_year, start_test_year, end
     test_years = range(start_test_year, end_year)
 
     if len(variables) <= 3:  # small dataset for testing new models
-        yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly_small"
+        monthly_datapath = os.path.join(
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly_small_np"
         )
     else:
-        yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly"
+        monthly_datapath = os.path.join(
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly_np"
         )
-    os.makedirs(yearly_datapath, exist_ok=True)
+    os.makedirs(monthly_datapath, exist_ok=True)
 
-    nc2zarr(path, variables, train_years, yearly_datapath, "train")
-    nc2zarr(path, variables, val_years, yearly_datapath, "val")
-    nc2zarr(path, variables, test_years, yearly_datapath, "test")
+    nc2np(path, variables, train_years, monthly_datapath, "train")
+    nc2np(path, variables, val_years, monthly_datapath, "val")
+    nc2np(path, variables, test_years, monthly_datapath, "test")
 
 
 if __name__ == "__main__":

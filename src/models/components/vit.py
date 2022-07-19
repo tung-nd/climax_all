@@ -22,6 +22,7 @@ class VisionTransformer(nn.Module):
         self,
         img_size=[128, 256],
         patch_size=16,
+        learn_pos_emb=False,
         in_vars=[
             "2m_temperature",
             "10m_u_component_of_wind",
@@ -51,7 +52,7 @@ class VisionTransformer(nn.Module):
         num_patches = self.patch_embed.num_patches  # 128
 
         self.pos_embed = nn.Parameter(
-            torch.zeros(1, num_patches, embed_dim), requires_grad=False
+            torch.zeros(1, num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
 
         self.blocks = nn.ModuleList(

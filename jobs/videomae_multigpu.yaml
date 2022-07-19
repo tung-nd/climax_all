@@ -1,0 +1,53 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Multi GPU training for VideoMAE
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100x8-ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 8
+
+search:
+  job_template:
+    name: videomae_3vars_0.75_recon_all_8gpus_{auto:15s} # ex: simple_job_lr_05
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      container_args:
+        shm_size: 650g
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_mae_new.py --config configs/train_videomae.yaml
+                --trainer.devices=${GPUS} --trainer.strategy=ddp
+                --model.reconstruct_all=True --model.mask_ratio=0.75 --model.net.learn_pos_emb={learn_pos_emb}
+                --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=1 --data.batch_size=32 --data.buffer_size=50000
+                # --data.root_dir=/mnt/data/1.40625deg_yearly --data.num_workers=${GPUS} --data.buffer_size=20000
+               
+  type: grid
+  max_trials: 80
+  params:
+    - name: learn_pos_emb
+      spec: discrete
+      values: [True, False]

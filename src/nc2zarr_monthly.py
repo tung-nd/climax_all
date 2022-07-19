@@ -11,6 +11,8 @@ from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
 zarr.storage.default_compressor = None
 
+MONTHS = range(1, 12 + 1)
+
 
 def nc2zarr(path, variables, years, save_dir, partition):
     os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
@@ -18,7 +20,7 @@ def nc2zarr(path, variables, years, save_dir, partition):
         normalize_mean = {}
         normalize_std = {}
     for year in tqdm(years):
-        yearly_dataset = None
+        monthly_dataset = {k: None for k in MONTHS}
         for var in variables:
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
             ds = xr.open_mfdataset(
@@ -43,14 +45,19 @@ def nc2zarr(path, variables, years, save_dir, partition):
                     normalize_mean[var].append(var_mean_yearly)
                     normalize_std[var].append(var_std_yearly)
 
-            if yearly_dataset is None:
-                yearly_dataset = ds
-            else:
-                yearly_dataset = yearly_dataset.merge(ds)
+            ds_group_by_month = ds.groupby("time.month")
+            for month in MONTHS:  # sharding monthly
+                if monthly_dataset[month] is None:
+                    monthly_dataset[month] = ds_group_by_month[month]
+                else:
+                    monthly_dataset[month] = monthly_dataset[month].merge(
+                        ds_group_by_month[month]
+                    )
 
-        yearly_dataset.to_zarr(
-            os.path.join(save_dir, partition, f"{year}.zarr"), mode="w",
-        )
+        for month in MONTHS:
+            monthly_dataset[month].to_zarr(
+                os.path.join(save_dir, partition, f"{year}_{month}.zarr"), mode="w",
+            )
 
     if partition == "train":
         for var in normalize_mean.keys():
@@ -109,11 +116,11 @@ def main(path, variables, start_train_year, start_val_year, start_test_year, end
 
     if len(variables) <= 3:  # small dataset for testing new models
         yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly_small"
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly_small"
         )
     else:
         yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly"
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly"
         )
     os.makedirs(yearly_datapath, exist_ok=True)
 

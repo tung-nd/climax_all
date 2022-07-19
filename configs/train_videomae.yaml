@@ -2,7 +2,7 @@ seed_everything: 42
 
 # ---------------------------- TRAINER -------------------------------------------
 trainer:
-  default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,/mnt/climate_pretraining/outputs/mae}
+  default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,/mnt/climate_pretraining/outputs/video_mae}
 
   gpus: null
   num_nodes: 1
@@ -24,7 +24,7 @@ trainer:
     class_path: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
     init_args:
       save_dir: ${trainer.default_root_dir}/logs
-      name: reconstruct_all_17_vars
+      name: 8steps_0.5_recon_all
       version: null
       log_graph: False
       default_hp_metric: True
@@ -33,7 +33,7 @@ trainer:
   callbacks:
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
-        dirpath: "${trainer.default_root_dir}/checkpoints/reconstruct_all_17_vars"
+        dirpath: "${trainer.default_root_dir}/checkpoints/8steps_0.5_recon_all"
         monitor: "val/loss" # name of the logged metric which determines when model is improving
         mode: "min" # "max" means higher metric value is better, can be also "min"
         save_top_k: 1 # save k best models (determined by above metric)
@@ -55,9 +55,9 @@ trainer:
 
     - class_path: pytorch_lightning.callbacks.RichProgressBar
 
-    - class_path: callbacks.device_stats.DeviceStatsMonitor2
-      init_args:
-        cpu_stats: True
+    # - class_path: callbacks.device_stats.DeviceStatsMonitor2
+    #   init_args:
+    #     cpu_stats: True
 
 # ---------------------------- MODEL -------------------------------------------
 model:
@@ -67,18 +67,13 @@ model:
   reconstruct_all: False
 
   net:
-    class_path: src.models.components.mae.MaskedAutoencoderViT
+    class_path: src.models.components.video_mae.VideoMAE
     init_args:
+      timesteps: 8
       img_size: [128, 256]
       patch_size: 16
-      in_vars: [
-        'geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50',
-        'relative_humidity_850', 'relative_humidity_500',
-        'u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500',
-        'v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500',
-        'temperature_850', 'temperature_500',
-        '2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'
-        ]
+      learn_pos_emb: False
+      in_vars: ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind']
       embed_dim: 1024
       depth: 8
       num_heads: 16
@@ -93,9 +88,9 @@ model:
 data:
   root_dir: /datadrive/datasets/1.40625deg_yearly
   reader: zarr  # npy or zarr
-  dataset_type: image  # pretrain or forecast (finetune)
-  variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
+  dataset_type: video  # pretrain or forecast (finetune)
+  variables: ["t2m", "u10", "v10"]
   buffer_size: 20000
-  batch_size: 128
+  batch_size: 8
   num_workers: 1
   pin_memory: False

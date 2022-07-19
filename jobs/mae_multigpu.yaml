@@ -30,8 +30,11 @@ env_defaults:
   GPUS: 4
 
 jobs:
-  - name: mae_4gpus
+  - name: mae_4gpus_64x4bz_2worker_10000buffer_monthly
     sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      container_args:
+        shm_size: 650g
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
@@ -39,4 +42,4 @@ jobs:
       - python src/train_mae_new.py --config configs/train_mae_new.yaml
                       --trainer.strategy=ddp --trainer.devices=${GPUS}
                       --model.reconstruct_all=True
-                      --data.root_dir=/mnt/data/1.40625deg_yearly --data.reader=zarr --data.num_workers=1 --data.batch_size=32 --data.buffer_size=1000
+                      --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=2 --data.batch_size=64 --data.buffer_size=10000
