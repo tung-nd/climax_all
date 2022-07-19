@@ -181,7 +181,6 @@ dependencies:
     - dotnetcore2==3.1.23
     - fastargs==1.2.0
     - fastrlock==0.8
-    - ffcv==0.0.3
     - filelock==3.7.1
     - flask==1.0.3
     - fonttools==4.33.3
