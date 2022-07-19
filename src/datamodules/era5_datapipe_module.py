@@ -121,7 +121,7 @@ class ERA5DataPipeModule(LightningDataModule):
                 .shuffle(
                     buffer_size=self.hparams.buffer_size
                 )  # shuffle at the individual data level
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .in_batch_shuffle()  # shuffle within a batch, probably not necessary
                 .collate(self.collate_fn)
             )
@@ -133,7 +133,7 @@ class ERA5DataPipeModule(LightningDataModule):
                     ),
                     self.transforms,
                 )
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .collate(self.collate_fn)
             )
 
@@ -144,7 +144,7 @@ class ERA5DataPipeModule(LightningDataModule):
                     ),
                     self.transforms,
                 )
-                .batch(self.hparams.batch_size)
+                .batch(self.hparams.batch_size, drop_last=True)
                 .collate(self.collate_fn)
             )
 
