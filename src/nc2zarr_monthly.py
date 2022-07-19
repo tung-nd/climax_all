@@ -116,11 +116,11 @@ def main(path, variables, start_train_year, start_val_year, start_test_year, end
 
     if len(variables) <= 3:  # small dataset for testing new models
         yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly_small"
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly_small"
         )
     else:
         yearly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_yearly"
+            os.path.dirname(path), f"{os.path.basename(path)}_monthly"
         )
     os.makedirs(yearly_datapath, exist_ok=True)
 
