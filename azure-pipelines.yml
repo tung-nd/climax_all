@@ -23,7 +23,8 @@ variables:
   tagLatestNvidia: "latest-nvidia"
   tagLatest: "latest"
 
-  # Agent VM image name
+  # Agent details
+  agentPoolName: "ado_ci_pool_cpu"
   vmImageName: "ubuntu-latest"
 
   # docker image names for pytest
@@ -38,6 +39,7 @@ stages:
       - job: BuildDockerNvidiaBasePipInstall
         displayName: docker build nvidia base; run pytest
         pool:
+          name: $(agentPoolName)
           vmImage: $(vmImageName)
         steps:
           - task: Docker@2
@@ -66,6 +68,7 @@ stages:
       - job: BuildDockerAzureMLBaseAndConda
         displayName: docker build azureml base; run pytest
         pool:
+          name: $(agentPoolName)
           vmImage: $(vmImageName)
         steps:
           - task: Docker@2
@@ -95,6 +98,7 @@ stages:
       - job: NvidiaBaseTagLatestPytest
         displayName: run pytest latest-nvidia
         pool:
+          name: $(agentPoolName)
           vmImage: $(vmImageName)
         steps:
           - checkout: self
@@ -116,6 +120,7 @@ stages:
       - job: AzureMLCondaBaseTagLatestPytest
         displayName: run pytest latest-conda
         pool:
+          name: $(agentPoolName)
           vmImage: $(vmImageName)
         steps:
           - checkout: self
