@@ -51,6 +51,7 @@ class MAELitModule(LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=False,
+                sync_dist=True,
             )
         return loss_dict
 
@@ -68,7 +69,13 @@ class MAELitModule(LightningModule):
             batch, self.hparams.mask_ratio, self.hparams.reconstruct_all
         )
         for var in loss_dict.keys():
-            self.log("test/" + var, loss_dict[var], on_step=False, on_epoch=True)
+            self.log(
+                "test/" + var,
+                loss_dict[var],
+                on_step=False,
+                on_epoch=True,
+                sync_dist=True,
+            )
         return loss_dict
 
     def configure_optimizers(self):

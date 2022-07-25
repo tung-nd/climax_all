@@ -64,6 +64,7 @@ class ViTLitModule(LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=False,
+                sync_dist=True,
             )
         return loss_dict
 
@@ -80,7 +81,13 @@ class ViTLitModule(LightningModule):
         x, y = batch
         loss_dict, _ = self.net.forward(x, y)
         for var in loss_dict.keys():
-            self.log("test/" + var, loss_dict[var], on_step=False, on_epoch=True)
+            self.log(
+                "test/" + var,
+                loss_dict[var],
+                on_step=False,
+                on_epoch=True,
+                sync_dist=True,
+            )
         return loss_dict
 
     def configure_optimizers(self):
