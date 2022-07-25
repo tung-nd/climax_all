@@ -91,8 +91,21 @@ class ViTLitModule(LightningModule):
         return loss_dict
 
     def configure_optimizers(self):
+        decay = []
+        no_decay = []
+        for name, m in self.named_parameters():
+            if "pos_embed" in name:
+                no_decay.append(m)
+            else:
+                decay.append(m)
+
         return torch.optim.AdamW(
-            params=self.parameters(),
-            lr=self.hparams.lr,
-            weight_decay=self.hparams.weight_decay,
+            [
+                {
+                    "params": decay,
+                    "lr": self.hparams.lr,
+                    "weight_decay": self.hparams.weight_decay,
+                },
+                {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
+            ]
         )
