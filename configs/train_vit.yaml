@@ -26,7 +26,7 @@ trainer:
     class_path: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
     init_args:
       save_dir: ${trainer.default_root_dir}/logs
-      name: pretrained-17-vars
+      name: null
       version: null
       log_graph: False
       default_hp_metric: True
@@ -35,7 +35,7 @@ trainer:
   callbacks:
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
-        dirpath: "${trainer.default_root_dir}/checkpoints/pretrained-17-vars"
+        dirpath: "${trainer.default_root_dir}/checkpoints/"
         monitor: "val/loss" # name of the logged metric which determines when model is improving
         mode: "min" # "max" means higher metric value is better, can be also "min"
         save_top_k: 1 # save k best models (determined by above metric)
@@ -85,8 +85,8 @@ model:
 
 # ---------------------------- DATA -------------------------------------------
 data:
-  root_dir: /datadrive/datasets/1.40625deg_yearly
-  reader: zarr  # npy or zarr
+  root_dir: /datadrive/datasets/1.40625deg_monthly_np
+  reader: npy  # npy or zarr
   dataset_type: forecast  # pretrain or forecast (finetune)
   variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
   buffer_size: 20000

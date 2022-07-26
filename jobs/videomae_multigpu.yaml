@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x8-scus
 
 storage:
   data:
@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: videomae_3vars_0.75_recon_all_8gpus_{auto:15s} # ex: simple_job_lr_05
+    name: videomae_datapipe_3vars_recon_all_{auto:15s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       container_args:
@@ -39,15 +39,15 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae_new.py --config configs/train_videomae.yaml
+      - python src/train_mae.py --config configs/train_videomae.yaml
                 --trainer.devices=${GPUS} --trainer.strategy=ddp
-                --model.reconstruct_all=True --model.mask_ratio=0.75 --model.net.learn_pos_emb={learn_pos_emb}
-                --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=1 --data.batch_size=32 --data.buffer_size=50000
+                --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
+                --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=1 --data.batch_size=32 --data.buffer_size=10000
                 # --data.root_dir=/mnt/data/1.40625deg_yearly --data.num_workers=${GPUS} --data.buffer_size=20000
                
   type: grid
   max_trials: 80
   params:
-    - name: learn_pos_emb
+    - name: mask_ratio
       spec: discrete
-      values: [True, False]
+      values: [0.75, 0.9]

@@ -35,5 +35,4 @@ jobs:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_vit_new.py --config configs/train_vit_new.yaml --data.root_dir=/mnt/data/1.40625deg_yearly --data.reader=zarr
-      # - python src/train_mae_new.py --config configs/train_mae_new.yaml --model.reconstruct_all=True --data.root_dir=/mnt/data/1.40625deg_yearly_np --data.reader=npy
+      - python src/train_vit2.py --config configs/train_vit.yaml --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy

@@ -36,7 +36,7 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae_new.py --config configs/train_videomae.yaml --model.reconstruct_all=True --model.net.learn_pos_emb={learn_pos_emb} --data.root_dir=/mnt/data/1.40625deg_yearly
+      - python src/train_mae2.py --config configs/train_videomae.yaml --model.reconstruct_all=True --model.net.learn_pos_emb={learn_pos_emb} --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy
                
   type: grid
   max_trials: 80
