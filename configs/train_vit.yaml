@@ -7,7 +7,7 @@ trainer:
   gpus: null
   num_nodes: 1
   accelerator: gpu
-  strategy: null
+  strategy: ddp_find_unused_parameters_false
 
   min_epochs: 1
   max_epochs: 10
@@ -16,6 +16,8 @@ trainer:
   sync_batchnorm: True
   enable_checkpointing: True
   resume_from_checkpoint: null
+
+  gradient_clip_val: 0.25
 
   # debugging
   fast_dev_run: false
