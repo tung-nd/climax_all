@@ -13,9 +13,11 @@ from datamodules import VAR_TO_NAME
 
 from .era5_iterdataset import (
     ERA5,
+    ERA5Forecast,
     ERA5Npy,
     ERA5Video,
     IndividualDataIter,
+    IndividualForecastDataIter,
     ShuffleIterableDataset,
 )
 
@@ -66,6 +68,10 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.dataset_class = ERA5Video
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
+        elif dataset_type == "forecast":
+            self.dataset_class = ERA5Forecast
+            self.data_iter = IndividualForecastDataIter
+            self.collate_fn = collate_forecast_fn
         else:
             raise NotImplementedError("Only support image, video, or forecast dataset")
 

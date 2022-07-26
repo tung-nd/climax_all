@@ -78,6 +78,50 @@ class ERA5Video(IterableDataset):
         return torch.transpose(x, dim0=0, dim1=1)
 
 
+class ERA5Forecast(IterableDataset):
+    def __init__(self, dataset: ERA5Npy, predict_range: int = 6) -> None:
+        super().__init__()
+        self.dataset = dataset
+        self.predict_range = predict_range
+
+    def __iter__(self):
+        # TODO: this would not get us stuff across the years
+        # i.e. where inputs are from previous years and output from next
+        for data in self.dataset:
+            inputs = np.concatenate(
+                [
+                    data[k][0 : -self.predict_range : self.predict_range]
+                    for k in data.keys()
+                ],
+                axis=1,
+            )
+            outputs = np.concatenate(
+                [
+                    data[k][self.predict_range :: self.predict_range]
+                    for k in data.keys()
+                ],
+                axis=1,
+            )
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs)
+
+
+class IndividualForecastDataIter(IterableDataset):
+    def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module):
+        super().__init__()
+        self.dataset = dataset
+        self.transforms = transforms
+
+    def __iter__(self):
+        for (inp, out) in self.dataset:
+            assert inp.shape[0] == out.shape[0]
+            for i in range(inp.shape[0]):
+                # TODO: should we unsqueeze the first dimension?
+                if self.transforms is not None:
+                    yield self.transforms(inp[i]), self.transforms(out[i])
+                else:
+                    yield inp[i], out[i]
+
+
 class ShuffleIterableDataset(IterableDataset):
     def __init__(self, dataset, buffer_size: int) -> None:
         super().__init__()
@@ -117,3 +161,27 @@ class ShuffleIterableDataset(IterableDataset):
         #         yield shufbuf.pop()
         # except GeneratorExit:
         #     pass
+
+
+# import os
+
+# import torchdata.datapipes as dp
+
+# root_dir = "/datadrive/datasets/1.40625deg_monthly_np"
+# lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
+# dataset = ShuffleIterableDataset(
+#     dataset=IndividualForecastDataIter(
+#         dataset=ERA5Forecast(
+#             dataset=ERA5Npy(
+#                 file_list=lister_train, variables=["t2m", "u10", "v10", "z"]
+#             ),
+#             predict_range=6,
+#         ),
+#         transforms=None,
+#     ),
+#     buffer_size=1000,
+# )
+
+# x, y = next(iter(dataset))
+# print(x.shape)
+# print(y.shape)
