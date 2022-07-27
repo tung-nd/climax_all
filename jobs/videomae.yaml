@@ -31,16 +31,18 @@ env_defaults:
 
 search:
   job_template:
-    name: videomae_3vars_0.5_recon_all_{auto:20s} # ex: simple_job_lr_05
+    name: videomae_1_gpu_16bs # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae2.py --config configs/train_videomae.yaml --model.reconstruct_all=True --model.net.learn_pos_emb={learn_pos_emb} --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy
+      - python src/train_mae2.py --config configs/train_videomae.yaml
+                --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
+                --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=2 --data.batch_size=16 --data.buffer_size=10000
                
   type: grid
   max_trials: 80
   params:
-    - name: learn_pos_emb
+    - name: mask_ratio
       spec: discrete
-      values: [True, False]
+      values: [0.5, 0.75, 0.9]
