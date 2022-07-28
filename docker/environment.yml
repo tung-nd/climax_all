@@ -74,7 +74,7 @@ dependencies:
   - pysocks=1.7.1=py38h06a4308_0
   - python=3.8.13=h12debd9_0
   - python_abi=3.8=2_cp38
-  - pytorch=1.12.0=py3.8_cuda11.3_cudnn8.3.2_0
+  - pytorch=1.11.0=py3.8_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
   - readline=8.1.2=h7f8727e_1
   - regex=2022.3.15=py38h7f8727e_0
@@ -84,9 +84,9 @@ dependencies:
   - sqlite=3.38.3=hc218d9a_0
   - tk=8.6.12=h1ccaba5_0
   - toml=0.10.2=pyhd3eb1b0_0
-  - torchaudio=0.12.0=py38_cu113
-  - torchdata=0.4.0=py38
-  - torchvision=0.13.0=py38_cu113
+  - torchaudio=0.11.0=py38_cu113
+  - torchdata=0.3.0=py38
+  - torchvision=0.12.0=py38_cu113
   - tornado=6.1=py38h27cfd23_0
   - tqdm=4.64.0=py38h06a4308_0
   - typed-ast=1.4.3=py38h7f8727e_1
