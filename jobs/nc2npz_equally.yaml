@@ -28,5 +28,4 @@ jobs:
   - name: extract_equally_npz
     sku: 1xC16
     command:
-      - python src/nc2np_equally.py /mnt/data/1.40625deg --num_shards=10
-
+      - python src/nc2np_equally.py /mnt/data/1.40625deg --num_shards=12
