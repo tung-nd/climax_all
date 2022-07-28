@@ -10,14 +10,13 @@ trainer:
   strategy: ddp_find_unused_parameters_false
 
   min_epochs: 1
-  max_epochs: 10
+  max_epochs: 20
   enable_progress_bar: true
 
   sync_batchnorm: True
   enable_checkpointing: True
   resume_from_checkpoint: null
 
-  gradient_clip_val: 0.25
 
   # debugging
   fast_dev_run: false
@@ -26,16 +25,20 @@ trainer:
     class_path: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
     init_args:
       save_dir: ${trainer.default_root_dir}/logs
-      name: null
+      name: test
       version: null
       log_graph: False
       default_hp_metric: True
       prefix: ""
 
   callbacks:
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: 'step'
+
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
-        dirpath: "${trainer.default_root_dir}/checkpoints/"
+        dirpath: "${trainer.default_root_dir}/checkpoints/test"
         monitor: "val/loss" # name of the logged metric which determines when model is improving
         mode: "min" # "max" means higher metric value is better, can be also "min"
         save_top_k: 1 # save k best models (determined by above metric)
@@ -65,6 +68,10 @@ trainer:
 model:
   lr: 0.0005
   weight_decay: 0.005
+  warmup_epochs: 5
+  max_epochs: 30
+  warmup_start_lr: 1e-8
+  eta_min: 1e-8
   mask_ratio: 0.5
   reconstruct_all: False
 
@@ -74,12 +81,15 @@ model:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
+      # in_vars: [
+      #   'geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50',
+      #   'relative_humidity_850', 'relative_humidity_500',
+      #   'u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500',
+      #   'v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500',
+      #   'temperature_850', 'temperature_500',
+      #   '2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'
+      #   ]
       in_vars: [
-        'geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50',
-        'relative_humidity_850', 'relative_humidity_500',
-        'u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500',
-        'v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500',
-        'temperature_850', 'temperature_500',
         '2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'
         ]
       embed_dim: 1024
@@ -97,7 +107,8 @@ data:
   root_dir: /datadrive/datasets/1.40625deg_monthly_np
   reader: npy  # npy or zarr
   dataset_type: image  # pretrain or forecast (finetune)
-  variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
+  # variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
+  variables: ["t2m", "u10", "v10"]
   buffer_size: 20000
   batch_size: 128
   num_workers: 1

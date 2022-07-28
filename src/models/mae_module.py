@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 
 class MAELitModule(LightningModule):
@@ -11,6 +12,10 @@ class MAELitModule(LightningModule):
         net: torch.nn.Module,
         lr: float = 0.001,
         weight_decay: float = 0.005,
+        warmup_epochs: int = 5,
+        max_epochs: int = 30,
+        warmup_start_lr: float = 1e-8,
+        eta_min: float = 1e-8,
         mask_ratio: float = 0.5,
         reconstruct_all=False,
     ):
@@ -87,7 +92,7 @@ class MAELitModule(LightningModule):
             else:
                 decay.append(m)
 
-        return torch.optim.AdamW(
+        optimizer = torch.optim.AdamW(
             [
                 {
                     "params": decay,
@@ -97,3 +102,13 @@ class MAELitModule(LightningModule):
                 {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
             ]
         )
+
+        lr_scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer,
+            self.hparams.warmup_epochs,
+            self.hparams.max_epochs,
+            self.hparams.warmup_start_lr,
+            self.hparams.eta_min,
+        )
+
+        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}

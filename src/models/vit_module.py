@@ -12,6 +12,10 @@ class ViTLitModule(LightningModule):
         pretrained_path: str,
         lr: float = 0.001,
         weight_decay: float = 0.005,
+        warmup_epochs: int = 5,
+        max_epochs: int = 30,
+        warmup_start_lr: float = 1e-8,
+        eta_min: float = 1e-8,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
@@ -99,7 +103,7 @@ class ViTLitModule(LightningModule):
             else:
                 decay.append(m)
 
-        return torch.optim.AdamW(
+        optimizer = torch.optim.AdamW(
             [
                 {
                     "params": decay,
@@ -109,3 +113,13 @@ class ViTLitModule(LightningModule):
                 {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
             ]
         )
+
+        lr_scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer,
+            self.hparams.warmup_epochs,
+            self.hparams.max_epochs,
+            self.hparams.warmup_start_lr,
+            self.hparams.eta_min,
+        )
+
+        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}

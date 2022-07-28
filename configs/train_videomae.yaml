@@ -10,14 +10,13 @@ trainer:
   strategy: ddp_find_unused_parameters_false
 
   min_epochs: 1
-  max_epochs: 10
+  max_epochs: 20
   enable_progress_bar: true
 
   sync_batchnorm: True
   enable_checkpointing: True
   resume_from_checkpoint: null
 
-  gradient_clip_val: 0.25
 
   # debugging
   fast_dev_run: false
@@ -31,6 +30,11 @@ trainer:
       log_graph: False
       default_hp_metric: True
       prefix: ""
+
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: 'step'
 
   callbacks:
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
@@ -65,6 +69,10 @@ trainer:
 model:
   lr: 0.0005
   weight_decay: 0.005
+  warmup_epochs: 5
+  max_epochs: 30
+  warmup_start_lr: 1e-8
+  eta_min: 1e-8
   mask_ratio: 0.5
   reconstruct_all: False
 
