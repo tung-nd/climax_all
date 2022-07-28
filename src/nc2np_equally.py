@@ -12,7 +12,7 @@ HOURS_PER_YEAR = 8760  # 365-day year
 
 
 def nc2np(path, variables, years, save_dir, partition, num_shards_per_year):
-    # os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
+    os.makedirs(os.path.join(save_dir, partition), exist_ok=True)
     if partition == "train":
         normalize_mean = {}
         normalize_std = {}
