@@ -21,10 +21,16 @@ class ERA5Npy(IterableDataset):
             iter_start = 0
             iter_end = len(self.file_list)
         else:
-            per_worker = int(
-                math.ceil(len(self.file_list) / float(worker_info.num_workers))
-            )
-            worker_id = worker_info.id
+            if not torch.distributed.is_initialized():
+                rank = 0
+                world_size = 1
+            else:
+                rank = torch.distributed.get_rank()
+                world_size = torch.distributed.get_world_size()
+            num_workers_per_ddp = worker_info.num_workers
+            num_shards = num_workers_per_ddp * world_size
+            per_worker = int(math.ceil(len(self.file_list) / float(num_shards)))
+            worker_id = rank * num_workers_per_ddp + worker_info.id
             iter_start = worker_id * per_worker
             iter_end = min(iter_start + per_worker, len(self.file_list))
 
