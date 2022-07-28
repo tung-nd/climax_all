@@ -29,10 +29,27 @@ class ERA5Npy(IterableDataset):
                 world_size = torch.distributed.get_world_size()
             num_workers_per_ddp = worker_info.num_workers
             num_shards = num_workers_per_ddp * world_size
-            per_worker = int(math.ceil(len(self.file_list) / float(num_shards)))
+            per_worker = int(math.floor(len(self.file_list) / float(num_shards)))
             worker_id = rank * num_workers_per_ddp + worker_info.id
             iter_start = worker_id * per_worker
-            iter_end = min(iter_start + per_worker, len(self.file_list))
+            # iter_end = min(iter_start + per_worker, len(self.file_list))
+            iter_end = iter_start + per_worker
+
+        # print(f"rank {rank}")
+        # print(f"world size {world_size}")
+        # print(f"len data {len(self.file_list)}")
+        # print(f"start {iter_start}, end {iter_end}")
+
+        # count the number of data points this worker holds
+        # num_data = 0
+        # for idx in range(iter_start, iter_end):
+        #     data = np.load(self.file_list[idx])
+        #     num_data += data["t2m"].shape[0]
+
+        # print(f"rank {rank}")
+        # print(f"{num_data} data points")
+
+        # print("==============================")
 
         for idx in range(iter_start, iter_end):
             path = self.file_list[idx]
