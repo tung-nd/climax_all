@@ -63,8 +63,9 @@ class ViTLitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        all_loss_dicts, _ = self.net.forward(
-            x, y, [lat_weighted_rmse, lat_weighted_acc]
+        pred_steps = y.shape[1]
+        all_loss_dicts = self.net.rollout(
+            x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc]
         )
 
         loss_dict = {}
@@ -94,8 +95,9 @@ class ViTLitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        all_loss_dicts, _ = self.net.forward(
-            x, y, [lat_weighted_rmse, lat_weighted_acc]
+        pred_steps = y.shape[1]
+        all_loss_dicts = self.net.rollout(
+            x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc]
         )
 
         loss_dict = {}

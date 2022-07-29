@@ -171,6 +171,14 @@ class VisionTransformer(nn.Module):
             pred = self.head(embeddings)
         return self.unpatchify(pred)
 
+    def rollout(self, x, y, steps, metric):
+        preds = []
+        for _ in range(steps):
+            x = self.predict(x)
+            preds.append(x)
+        preds = torch.stack(preds, dim=1)
+        return [m(preds, y, self.out_vars) for m in metric]
+
 
 # model = VisionTransformer(depth=8).cuda()
 # x, y = torch.randn(2, 3, 128, 256).cuda(), torch.randn(2, 3, 128, 256).cuda()

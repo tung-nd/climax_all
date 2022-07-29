@@ -14,6 +14,7 @@ from datamodules import VAR_TO_NAME
 from .era5_iterdataset import (
     ERA5,
     ERA5Forecast,
+    ERA5ForecastMultiStep,
     ERA5Npy,
     ERA5Video,
     IndividualDataIter,
@@ -61,15 +62,18 @@ class ERA5IterDatasetModule(LightningDataModule):
             raise NotImplementedError(f"Only support npy or zarr")
 
         if dataset_type == "image":
-            self.dataset_class = ERA5
+            self.train_dataset_class = ERA5
+            self.val_dataset_class = ERA5
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "video":
-            self.dataset_class = ERA5Video
+            self.train_dataset_class = ERA5Video
+            self.val_dataset_class = ERA5Video
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
-            self.dataset_class = ERA5Forecast
+            self.train_dataset_class = ERA5Forecast
+            self.val_dataset_class = ERA5ForecastMultiStep
             self.data_iter = IndividualForecastDataIter
             self.collate_fn = collate_forecast_fn
         else:
@@ -101,7 +105,7 @@ class ERA5IterDatasetModule(LightningDataModule):
         if not self.data_train and not self.data_val and not self.data_test:
             self.data_train = ShuffleIterableDataset(
                 self.data_iter(
-                    self.dataset_class(
+                    self.train_dataset_class(
                         self.reader(
                             self.lister_train,
                             variables=self.hparams.variables,
@@ -114,14 +118,14 @@ class ERA5IterDatasetModule(LightningDataModule):
             )
 
             self.data_val = self.data_iter(
-                self.dataset_class(
+                self.val_dataset_class(
                     self.reader(self.lister_val, variables=self.hparams.variables,)
                 ),
                 self.transforms,
             )
 
             self.data_test = self.data_iter(
-                self.dataset_class(
+                self.val_dataset_class(
                     self.reader(self.lister_test, variables=self.hparams.variables,)
                 ),
                 self.transforms,
@@ -159,6 +163,26 @@ class ERA5IterDatasetModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
+
+# era5 = ERA5IterDatasetModule(
+#     "/datadrive/1.40625deg_equally_np/",
+#     "npy",
+#     "forecast",
+#     ["t2m", "z", "t"],
+#     1000,
+#     64,
+#     2,
+#     False,
+# )
+# era5.setup()
+# for x, y in era5.train_dataloader():
+#     print(x.shape)
+#     print(y.shape)
+#     break
+# for x, y in era5.val_dataloader():
+#     print(x.shape)
+#     print(y.shape)
+#     break
 
 # era5 = ERA5DataPipeModule(
 #     "/datadrive/datasets/1.40625deg_monthly_np/",

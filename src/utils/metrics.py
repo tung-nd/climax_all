@@ -22,12 +22,12 @@ def mse(pred, y, vars):
 
 def lat_weighted_rmse(pred, y, vars):
     """
-    y: [N, 3, H, W]
-    pred: [N, 3, H, W]
+    y: [N, T, 3, H, W]
+    pred: [N, T, 3, H, W]
     vars: list of variable names
     lat: H
     """
-    error = (pred - y) ** 2  # [N, 3, H, W]
+    error = (pred - y) ** 2  # [N, T, 3, H, W]
 
     # lattitude weights
     lat = np.load("lat.npy")
@@ -38,7 +38,10 @@ def lat_weighted_rmse(pred, y, vars):
     loss_dict = {}
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[f"w_rmse_{var}"] = torch.sqrt(torch.mean(error[:, i] * w_lat))
+            for step in range(y.shape[1]):
+                loss_dict[f"w_rmse_{var}_step_{step+1}"] = torch.sqrt(
+                    torch.mean(error[:, step, i] * w_lat)
+                )
 
     loss_dict["w_rmse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
     return loss_dict
@@ -46,8 +49,8 @@ def lat_weighted_rmse(pred, y, vars):
 
 def lat_weighted_acc(pred, y, vars):
     """
-    y: [N, 3, H, W]
-    pred: [N, 3, H, W]
+    y: [N, T, 3, H, W]
+    pred: [N, T, 3, H, W]
     vars: list of variable names
     lat: H
     TODO: subtract the climatology
@@ -60,17 +63,20 @@ def lat_weighted_acc(pred, y, vars):
         torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(pred.device)
     )  # [1, H, 1]
 
-    pred = pred - pred.mean(dim=(-2, -1), keepdim=True)
+    # clim = torch.mean(y, dim=1, keepdim=True)
+    # pred = pred - clim
+    # y = y - clim
     loss_dict = {}
     with torch.no_grad():
         for i, var in enumerate(vars):
-            pred_prime_i = pred[:, i] - torch.mean(pred[:, i])  # [N, H, W]
-            y_prime_i = y[:, i] - torch.mean(y[:, i])  # [N, H, W]
-            loss_dict[f"acc_{var}"] = torch.sum(
-                w_lat * pred_prime_i * y_prime_i
-            ) / torch.sqrt(
-                torch.sum(w_lat * pred_prime_i ** 2) * torch.sum(w_lat * y_prime_i ** 2)
-            )
+            for step in range(y.shape[1]):
+                pred_prime = pred[:, step, i] - torch.mean(pred[:, step, i])
+                y_prime = y[:, step, i] - torch.mean(y[:, step, i])
+                loss_dict[f"acc_{var}_step_{step+1}"] = torch.sum(
+                    w_lat * pred_prime * y_prime
+                ) / torch.sqrt(
+                    torch.sum(w_lat * pred_prime ** 2) * torch.sum(w_lat * y_prime ** 2)
+                )
 
     loss_dict["acc"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
     return loss_dict
@@ -109,8 +115,9 @@ def lat_weighted_acc(pred, y, vars):
 #     )
 #     return acc
 
-# pred = torch.randn(2, 3, 128, 256).cuda()
-# y = torch.randn(2, 3, 128, 256).cuda()
+
+# pred = torch.randn(2, 4, 3, 128, 256).cuda()
+# y = torch.randn(2, 4, 3, 128, 256).cuda()
 # vars = ["x", "y", "z"]
 # print(lat_weighted_rmse(pred, y, vars))
 # print(lat_weighted_acc(pred, y, vars))

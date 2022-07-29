@@ -128,6 +128,47 @@ class ERA5Forecast(IterableDataset):
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)
 
 
+class ERA5ForecastMultiStep(IterableDataset):
+    def __init__(
+        self, dataset: ERA5Npy, pred_range: int = 6, pred_steps: int = 4
+    ) -> None:
+        super().__init__()
+        self.dataset = dataset
+        self.pred_range = pred_range
+        self.pred_steps = pred_steps
+
+    def __iter__(self):
+        # TODO: this would not get us stuff across the years
+        # i.e. where inputs are from previous years and output from next
+        pred_range = self.pred_range
+        pred_steps = self.pred_steps
+        for data in self.dataset:
+            inputs = {}
+            outputs = {}
+            for k in data.keys():
+                x = data[k]  # (730, d, 128, 256)
+                interval = pred_range * pred_steps
+
+                inputs[k] = x[0:-interval:interval]
+
+                output_k = []
+                for step in range(pred_steps):
+                    start = (step + 1) * pred_range
+                    end = (
+                        (step - pred_steps + 1) * pred_range
+                        if step != pred_steps - 1
+                        else -1
+                    )
+                    output_k.append(x[start:end:interval])
+
+                output_k = np.stack(output_k, axis=1)
+                outputs[k] = output_k
+
+            inputs = np.concatenate([inputs[k] for k in inputs.keys()], axis=1,)
+            outputs = np.concatenate([outputs[k] for k in outputs.keys()], axis=2,)
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs)
+
+
 class IndividualForecastDataIter(IterableDataset):
     def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module):
         super().__init__()
@@ -190,15 +231,16 @@ class ShuffleIterableDataset(IterableDataset):
 
 # import torchdata.datapipes as dp
 
-# root_dir = "/datadrive/datasets/1.40625deg_monthly_np"
+# root_dir = "/datadrive/1.40625deg_equally_np"
 # lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
 # dataset = ShuffleIterableDataset(
 #     dataset=IndividualForecastDataIter(
-#         dataset=ERA5Forecast(
+#         dataset=ERA5ForecastMultiStep(
 #             dataset=ERA5Npy(
 #                 file_list=lister_train, variables=["t2m", "u10", "v10", "z"]
 #             ),
-#             predict_range=6,
+#             pred_range=6,
+#             pred_steps=4,
 #         ),
 #         transforms=None,
 #     ),
@@ -208,3 +250,20 @@ class ShuffleIterableDataset(IterableDataset):
 # x, y = next(iter(dataset))
 # print(x.shape)
 # print(y.shape)
+
+
+# x = np.random.normal(size=(730, 128, 256))
+# pred_range = 6
+# pred_steps = 4
+# interval = pred_range * pred_steps
+# input = x[0:-interval:interval]
+# print(input.shape)
+# output = []
+# for step in range(pred_steps):
+#     start = (step + 1) * pred_range
+#     end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else -1
+#     output.append(x[start:end:interval])
+
+# output = np.stack(output, axis=1)
+# print(output.shape)
+
