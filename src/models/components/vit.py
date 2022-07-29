@@ -151,26 +151,18 @@ class VisionTransformer(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred):
+    def forward_loss(self, y, pred, metric):  # metric is a list
         """
         y: [N, 3, H, W]
         pred: [N, L, p*p*3]
         """
         pred = self.unpatchify(pred)
-        loss = (pred - y) ** 2  # sum over channels, [N, 3, H, W]
-        loss_dict = {}
+        return [m(pred, y, self.out_vars) for m in metric]
 
-        with torch.no_grad():
-            for i, var in enumerate(self.out_vars):
-                loss_dict[var] = torch.mean(loss[:, i])
-        loss_dict["loss"] = torch.mean(torch.sum(loss, dim=1))
-
-        return loss_dict
-
-    def forward(self, x, y):
+    def forward(self, x, y, metric):
         embeddings = self.forward_encoder(x)
         preds = self.head(embeddings)
-        loss = self.forward_loss(y, preds)
+        loss = self.forward_loss(y, preds, metric)
         return loss, preds
 
     def predict(self, x):

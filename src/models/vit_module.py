@@ -3,6 +3,8 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import lat_weighted_acc, lat_weighted_rmse, mse
 
 
 class ViTLitModule(LightningModule):
@@ -47,7 +49,8 @@ class ViTLitModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss_dict, _ = self.net.forward(x, y)
+        loss_dict, _ = self.net.forward(x, y, [mse])
+        loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
                 "train/" + var,
@@ -60,7 +63,15 @@ class ViTLitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss_dict, _ = self.net.forward(x, y)
+        all_loss_dicts, _ = self.net.forward(
+            x, y, [lat_weighted_rmse, lat_weighted_acc]
+        )
+
+        loss_dict = {}
+        for d in all_loss_dicts:
+            for k in d.keys():
+                loss_dict[k] = d[k]
+
         for var in loss_dict.keys():
             self.log(
                 "val/" + var,
@@ -83,7 +94,15 @@ class ViTLitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y = batch
-        loss_dict, _ = self.net.forward(x, y)
+        all_loss_dicts, _ = self.net.forward(
+            x, y, [lat_weighted_rmse, lat_weighted_acc]
+        )
+
+        loss_dict = {}
+        for d in all_loss_dicts:
+            for k in d.keys():
+                loss_dict[k] = d[k]
+
         for var in loss_dict.keys():
             self.log(
                 "test/" + var,
