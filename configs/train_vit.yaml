@@ -4,6 +4,8 @@ seed_everything: 42
 trainer:
   default_root_dir: ${oc.env:AMLT_OUTPUT_DIR,/mnt/climate_pretraining/outputs/vit}
 
+  precision: 16
+
   gpus: null
   num_nodes: 1
   accelerator: gpu
