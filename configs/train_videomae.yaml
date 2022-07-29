@@ -101,6 +101,7 @@ data:
   reader: npy  # npy or zarr
   dataset_type: video  # pretrain or forecast (finetune)
   variables: ["t2m", "u10", "v10"]
+  timesteps: 8
   buffer_size: 20000
   batch_size: 8
   num_workers: 1

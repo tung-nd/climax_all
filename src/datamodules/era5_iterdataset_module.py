@@ -42,6 +42,9 @@ class ERA5IterDatasetModule(LightningDataModule):
         dataset_type,  # image, video, or forecast (finetune)
         variables,
         buffer_size,
+        timesteps: int = 8,  # only used for video
+        predict_range: int = 6,  # only used for forecast
+        predict_steps: int = 4,  # only used for forecast
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -63,17 +66,26 @@ class ERA5IterDatasetModule(LightningDataModule):
 
         if dataset_type == "image":
             self.train_dataset_class = ERA5
+            self.train_dataset_args = {}
             self.val_dataset_class = ERA5
+            self.val_dataset_args = {}
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "video":
             self.train_dataset_class = ERA5Video
+            self.train_dataset_args = {"timesteps": timesteps}
             self.val_dataset_class = ERA5Video
+            self.val_dataset_args = {"timesteps": timesteps}
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
             self.train_dataset_class = ERA5Forecast
+            self.train_dataset_args = {"predict_range": predict_range}
             self.val_dataset_class = ERA5ForecastMultiStep
+            self.val_dataset_args = {
+                "pred_range": predict_range,
+                "pred_steps": predict_steps,
+            }
             self.data_iter = IndividualForecastDataIter
             self.collate_fn = collate_forecast_fn
         else:
@@ -110,7 +122,8 @@ class ERA5IterDatasetModule(LightningDataModule):
                             self.lister_train,
                             variables=self.hparams.variables,
                             shuffle=True,
-                        )
+                        ),
+                        **self.train_dataset_args,
                     ),
                     self.transforms,
                 ),
@@ -119,14 +132,16 @@ class ERA5IterDatasetModule(LightningDataModule):
 
             self.data_val = self.data_iter(
                 self.val_dataset_class(
-                    self.reader(self.lister_val, variables=self.hparams.variables,)
+                    self.reader(self.lister_val, variables=self.hparams.variables,),
+                    **self.val_dataset_args,
                 ),
                 self.transforms,
             )
 
             self.data_test = self.data_iter(
                 self.val_dataset_class(
-                    self.reader(self.lister_test, variables=self.hparams.variables,)
+                    self.reader(self.lister_test, variables=self.hparams.variables,),
+                    **self.val_dataset_args,
                 ),
                 self.transforms,
             )
