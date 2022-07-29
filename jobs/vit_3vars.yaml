@@ -30,12 +30,12 @@ env_defaults:
   GPUS: 1
 
 jobs:
-  - name: vit_finetune_0.75_learn_pe_3_variables
+  - name: vit_finetune_mae_0.9_learn_pe_3_variables
     sku: ${NODES}x32G${GPUS} # ex: G1
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_vit.yaml
               --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind']
-              --model.net.learn_pos_emb=True --model.pretrained_path=/mnt/data/checkpoints/videomae/3vars_0.75_recon_all_learn_pe/last.ckpt
-              --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.num_workers=2
+              --model.net.learn_pos_emb=True --model.pretrained_path=/mnt/data/checkpoints/mae/recon_all_3vars_0.9/last.ckpt
+              --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.num_workers=2

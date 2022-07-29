@@ -35,4 +35,4 @@ jobs:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_vit2.py --config configs/train_vit.yaml --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy
+      - python src/train_vit2.py --config configs/train_vit.yaml --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy

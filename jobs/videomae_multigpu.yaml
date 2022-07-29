@@ -42,7 +42,7 @@ search:
       - python src/train_mae2.py --config configs/train_videomae.yaml
                 --trainer.devices=${GPUS} --trainer.strategy=ddp
                 --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
-                --data.root_dir=/mnt/data/1.40625deg_monthly_np --data.reader=npy --data.num_workers=1 --data.batch_size=32 --data.buffer_size=10000
+                --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.num_workers=1 --data.batch_size=32 --data.buffer_size=10000
                 # --data.root_dir=/mnt/data/1.40625deg_yearly --data.num_workers=${GPUS} --data.buffer_size=20000
                
   type: grid

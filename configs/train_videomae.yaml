@@ -37,8 +37,7 @@ trainer:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
         logging_interval: 'step'
-
-  callbacks:
+        
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
         dirpath: "${trainer.default_root_dir}/checkpoints/"
@@ -98,7 +97,7 @@ model:
 
 # ---------------------------- DATA -------------------------------------------
 data:
-  root_dir: /datadrive/datasets/1.40625deg_monthly_np
+  root_dir: /datadrive/1.40625deg_equally_np
   reader: npy  # npy or zarr
   dataset_type: video  # pretrain or forecast (finetune)
   variables: ["t2m", "u10", "v10"]
