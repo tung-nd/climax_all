@@ -79,12 +79,8 @@ def download_era5(args):
         "23:00",
     ]
     c = cdsapi.Client()
-    print(
-        f"Downloading {args.variable} data for year {args.year}, pressure={args.pressure}"
-    )
-    fn = os.path.join(
-        args.save_dir, args.variable, f"{args.variable}_{args.year}_0.25deg.nc"
-    )
+    print(f"Downloading {args.variable} data for year {args.year}, pressure={args.pressure}")
+    fn = os.path.join(args.save_dir, args.variable, f"{args.variable}_{args.year}_0.25deg.nc")
     if os.path.exists(fn):
         return
     os.makedirs(os.path.join(args.save_dir, args.variable), exist_ok=True)
@@ -99,12 +95,16 @@ def download_era5(args):
     }
     if not args.pressure:
         c.retrieve(
-            "reanalysis-era5-single-levels", download_args, fn,
+            "reanalysis-era5-single-levels",
+            download_args,
+            fn,
         )
     else:
         download_args["pressure_level"] = [1000, 850, 500, 50]
         c.retrieve(
-            "reanalysis-era5-pressure-levels", download_args, fn,
+            "reanalysis-era5-pressure-levels",
+            download_args,
+            fn,
         )
 
 

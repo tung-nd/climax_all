@@ -14,12 +14,13 @@ def download_weatherbench(args):
     # print (" ".join(cmd))
     subprocess.run(["wget", "--no-check-certificate", url, "-O", os.path.join(args.root, variable + ".zip")])
 
+
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--root", type=str, default="/datadrive/datasets/1.40625deg")
     parser.add_argument("--variable", type=str, required=True)
-    parser.add_argument("--resolution", type=str, default='1.40625')
+    parser.add_argument("--resolution", type=str, default="1.40625")
 
     args = parser.parse_args()
 

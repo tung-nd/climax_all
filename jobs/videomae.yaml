@@ -37,9 +37,9 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_videomae.yaml
-                --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
-                --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.num_workers=2 --data.batch_size=16 --data.buffer_size=10000
-               
+        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.num_workers=2 --data.batch_size=16 --data.buffer_size=10000
+
   type: grid
   max_trials: 80
   params:

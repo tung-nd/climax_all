@@ -88,17 +88,11 @@ class ERA5Forecast(dp.iter.IterDataPipe):
         for data in self.dp:
 
             inputs = np.concatenate(
-                [
-                    data[k][0 : -self.predict_range : self.predict_range]
-                    for k in data.keys()
-                ],
+                [data[k][0 : -self.predict_range : self.predict_range] for k in data.keys()],
                 axis=1,
             )
             outputs = np.concatenate(
-                [
-                    data[k][self.predict_range :: self.predict_range]
-                    for k in data.keys()
-                ],
+                [data[k][self.predict_range :: self.predict_range] for k in data.keys()],
                 axis=1,
             )
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)

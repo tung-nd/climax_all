@@ -39,6 +39,6 @@ jobs:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_mae.yaml
-                      --trainer.strategy=ddp --trainer.devices=${GPUS}
-                      --model.reconstruct_all=True
-                      --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.num_workers=2 --data.batch_size=64 --data.buffer_size=10000
+        --trainer.strategy=ddp --trainer.devices=${GPUS}
+        --model.reconstruct_all=True
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.num_workers=2 --data.batch_size=64 --data.buffer_size=10000

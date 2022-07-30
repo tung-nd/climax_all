@@ -56,9 +56,7 @@ class ERA5IterDatasetModule(LightningDataModule):
 
         if reader == "npy":
             self.reader = ERA5Npy
-            self.lister_train = list(
-                dp.iter.FileLister(os.path.join(root_dir, "train"))
-            )
+            self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
             self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
             self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
         else:
@@ -98,18 +96,10 @@ class ERA5IterDatasetModule(LightningDataModule):
         self.data_test: Optional[IterableDataset] = None
 
     def get_normalize(self):
-        normalize_mean = dict(
-            np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz"))
-        )
-        normalize_mean = np.concatenate(
-            [normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables]
-        )
-        normalize_std = dict(
-            np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz"))
-        )
-        normalize_std = np.concatenate(
-            [normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables]
-        )
+        normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
+        normalize_mean = np.concatenate([normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables])
+        normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
+        normalize_std = np.concatenate([normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables])
         return transforms.Normalize(normalize_mean, normalize_std)
 
     def setup(self, stage: Optional[str] = None):
@@ -132,7 +122,10 @@ class ERA5IterDatasetModule(LightningDataModule):
 
             self.data_val = self.data_iter(
                 self.val_dataset_class(
-                    self.reader(self.lister_val, variables=self.hparams.variables,),
+                    self.reader(
+                        self.lister_val,
+                        variables=self.hparams.variables,
+                    ),
                     **self.val_dataset_args,
                 ),
                 self.transforms,
@@ -140,7 +133,10 @@ class ERA5IterDatasetModule(LightningDataModule):
 
             self.data_test = self.data_iter(
                 self.val_dataset_class(
-                    self.reader(self.lister_test, variables=self.hparams.variables,),
+                    self.reader(
+                        self.lister_test,
+                        variables=self.hparams.variables,
+                    ),
                     **self.val_dataset_args,
                 ),
                 self.transforms,

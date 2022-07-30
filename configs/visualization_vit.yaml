@@ -17,13 +17,14 @@ model:
     init_args:
       img_size: [128, 256]
       patch_size: 16
-      in_vars: ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind']
+      in_vars:
+        ["2m_temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"]
       embed_dim: 1024
       depth: 8
       num_heads: 16
       mlp_ratio: 4
       out_vars: null
-  pretrained_path: ''
+  pretrained_path: ""
 
 # ---------------------------- DATA -------------------------------------------
 data:
@@ -32,11 +33,7 @@ data:
     init_args:
       root: /mnt/weatherbench
       variables:
-        [
-          "2m_temperature",
-          "10m_u_component_of_wind",
-          "10m_v_component_of_wind",
-        ]
+        ["2m_temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"]
       predict_range: 6
   train_val_test_split: [54056, 2924, 1459]
   random_split: False

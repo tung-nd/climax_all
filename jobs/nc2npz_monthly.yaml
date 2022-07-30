@@ -50,4 +50,3 @@ jobs:
       #- conda activate climate_pretrain
       #/opt/miniconda/envs/ml_template/bin/python src/train_mae.py --config configs/train_mae.yaml --data.root=/mnt/data/1.40625deg --data.num_workers=4 --trainer.default_root_dir=$$AMLT_OUTPUT_DIR --model.reconstruct_all={reconstruct}
       - python src/nc2np_monthly.py /mnt/data/1.40625deg
-

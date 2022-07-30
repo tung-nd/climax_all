@@ -33,10 +33,7 @@ class ViTLitModule(LightningModule):
         state_dict = self.state_dict()
         checkpoint_keys = list(checkpoint_model.keys())
         for k in checkpoint_keys:
-            if (
-                k not in state_dict.keys()
-                or checkpoint_model[k].shape != state_dict[k].shape
-            ):
+            if k not in state_dict.keys() or checkpoint_model[k].shape != state_dict[k].shape:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
 
@@ -64,9 +61,7 @@ class ViTLitModule(LightningModule):
     def validation_step(self, batch: Any, batch_idx: int):
         x, y = batch
         pred_steps = y.shape[1]
-        all_loss_dicts = self.net.rollout(
-            x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc]
-        )
+        all_loss_dicts = self.net.rollout(x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc])
 
         loss_dict = {}
         for d in all_loss_dicts:
@@ -96,9 +91,7 @@ class ViTLitModule(LightningModule):
     def test_step(self, batch: Any, batch_idx: int):
         x, y = batch
         pred_steps = y.shape[1]
-        all_loss_dicts = self.net.rollout(
-            x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc]
-        )
+        all_loss_dicts = self.net.rollout(x, y, pred_steps, [lat_weighted_rmse, lat_weighted_acc])
 
         loss_dict = {}
         for d in all_loss_dicts:

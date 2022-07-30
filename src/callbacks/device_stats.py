@@ -48,9 +48,7 @@ class DeviceStatsMonitor2(Callback):
     ) -> None:
 
         if not trainer.loggers:
-            raise MisconfigurationException(
-                "Cannot use DeviceStatsMonitor callback with Trainer that has no logger."
-            )
+            raise MisconfigurationException("Cannot use DeviceStatsMonitor callback with Trainer that has no logger.")
 
     def on_train_batch_start(
         self,
@@ -61,9 +59,7 @@ class DeviceStatsMonitor2(Callback):
         unused: Optional[int] = 0,
     ) -> None:
         if not trainer.loggers:
-            raise MisconfigurationException(
-                "Cannot use `DeviceStatsMonitor` callback with `Trainer(logger=False)`."
-            )
+            raise MisconfigurationException("Cannot use `DeviceStatsMonitor` callback with `Trainer(logger=False)`.")
 
         device = trainer.strategy.root_device
         device_stats = trainer.accelerator.get_device_stats(device)
@@ -73,9 +69,7 @@ class DeviceStatsMonitor2(Callback):
             device_stats.update(get_cpu_stats())
         for logger in trainer.loggers:
             separator = logger.group_separator
-            prefixed_device_stats = _prefix_metric_keys(
-                device_stats, "on_train_batch_start", separator
-            )
+            prefixed_device_stats = _prefix_metric_keys(device_stats, "on_train_batch_start", separator)
             logger.log_metrics(prefixed_device_stats, step=trainer.global_step)
 
     def on_train_batch_end(
@@ -88,9 +82,7 @@ class DeviceStatsMonitor2(Callback):
         unused: Optional[int] = 0,
     ) -> None:
         if not trainer.loggers:
-            raise MisconfigurationException(
-                "Cannot use `DeviceStatsMonitor` callback with `Trainer(logger=False)`."
-            )
+            raise MisconfigurationException("Cannot use `DeviceStatsMonitor` callback with `Trainer(logger=False)`.")
 
         device = trainer.strategy.root_device
         device_stats = trainer.accelerator.get_device_stats(device)
@@ -99,14 +91,9 @@ class DeviceStatsMonitor2(Callback):
             device_stats.update(get_cpu_stats())
         for logger in trainer.loggers:
             separator = logger.group_separator
-            prefixed_device_stats = _prefix_metric_keys(
-                device_stats, "on_train_batch_end", separator
-            )
+            prefixed_device_stats = _prefix_metric_keys(device_stats, "on_train_batch_end", separator)
             logger.log_metrics(prefixed_device_stats, step=trainer.global_step)
 
 
-def _prefix_metric_keys(
-    metrics_dict: Dict[str, float], prefix: str, separator: str
-) -> Dict[str, float]:
+def _prefix_metric_keys(metrics_dict: Dict[str, float], prefix: str, separator: str) -> Dict[str, float]:
     return {prefix + separator + k: v for k, v in metrics_dict.items()}
-

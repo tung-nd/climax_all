@@ -20,9 +20,7 @@ def nc2np(path, variables, years, save_dir, partition):
         monthly_dataset = {k: None for k in MONTHS}
         for var in variables:
             ps = glob.glob(os.path.join(path, var, f"*{year}*.nc"))
-            ds = xr.open_mfdataset(
-                ps, combine="by_coords", parallel=True
-            )  # dataset for a single variable
+            ds = xr.open_mfdataset(ps, combine="by_coords", parallel=True)  # dataset for a single variable
             code = NAME_TO_VAR[var]
 
             if len(ds[code].shape) == 3:  # surface level variables
@@ -47,9 +45,7 @@ def nc2np(path, variables, years, save_dir, partition):
                 if monthly_dataset[month] is None:
                     monthly_dataset[month] = ds_group_by_month[month]
                 else:
-                    monthly_dataset[month] = monthly_dataset[month].merge(
-                        ds_group_by_month[month]
-                    )
+                    monthly_dataset[month] = monthly_dataset[month].merge(ds_group_by_month[month])
 
         for month in MONTHS:
             np_vars_monthly = {}
@@ -69,11 +65,7 @@ def nc2np(path, variables, years, save_dir, partition):
         for var in normalize_mean.keys():  # aggregate over the years
             mean, std = normalize_mean[var], normalize_std[var]
             # var(X) = E[var(X|Y)] + var(E[X|Y])
-            variance = (
-                (std ** 2).mean(axis=0)
-                + (mean ** 2).mean(axis=0)
-                - mean.mean(axis=0) ** 2
-            )
+            variance = (std**2).mean(axis=0) + (mean**2).mean(axis=0) - mean.mean(axis=0) ** 2
             std = np.sqrt(variance)
             # E[X] = E[E[X|Y]]
             mean = mean.mean(axis=0)
@@ -107,23 +99,15 @@ def nc2np(path, variables, years, save_dir, partition):
 @click.option("--start_test_year", type=int, default=2015)
 @click.option("--end_year", type=int, default=2017)
 def main(path, variables, start_train_year, start_val_year, start_test_year, end_year):
-    assert (
-        start_val_year > start_train_year
-        and start_test_year > start_val_year
-        and end_year > start_test_year
-    )
+    assert start_val_year > start_train_year and start_test_year > start_val_year and end_year > start_test_year
     train_years = range(start_train_year, start_val_year)
     val_years = range(start_val_year, start_test_year)
     test_years = range(start_test_year, end_year)
 
     if len(variables) <= 3:  # small dataset for testing new models
-        monthly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_monthly_small_np"
-        )
+        monthly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_monthly_small_np")
     else:
-        monthly_datapath = os.path.join(
-            os.path.dirname(path), f"{os.path.basename(path)}_monthly_np"
-        )
+        monthly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_monthly_np")
     os.makedirs(monthly_datapath, exist_ok=True)
 
     nc2np(path, variables, train_years, monthly_datapath, "train")

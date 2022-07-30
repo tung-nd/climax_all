@@ -32,13 +32,14 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/check_dataset.py /mnt/data/0.25deg/ -v {variable}
-               
+
   type: grid
   max_trials: 80
   params:
     - name: variable
       spec: discrete
-      values: [
+      values:
+        [
           "2m_temperature",
           "10m_u_component_of_wind",
           "10m_v_component_of_wind",
@@ -49,4 +50,4 @@ search:
           "geopotential",
           "temperature",
           "relative_humidity",
-      ]
+        ]

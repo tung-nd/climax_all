@@ -36,6 +36,6 @@ jobs:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_vit.yaml
-              --trainer.strategy=ddp --trainer.devices=${GPUS}
-              --model.pretrained_path=/mnt/data/checkpoints/mae/recon_all_17_vars/last.ckpt
-              --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy
+        --trainer.strategy=ddp --trainer.devices=${GPUS}
+        --model.pretrained_path=/mnt/data/checkpoints/mae/recon_all_17_vars/last.ckpt
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy

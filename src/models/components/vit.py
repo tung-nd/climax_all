@@ -46,9 +46,7 @@ class VisionTransformer(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.patch_embed = PatchEmbed(
-            img_size, patch_size, len(self.in_vars), embed_dim
-        )
+        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
         num_patches = self.patch_embed.num_patches  # 128
 
         self.pos_embed = nn.Parameter(
@@ -72,7 +70,7 @@ class VisionTransformer(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.head = nn.Linear(embed_dim, len(self.out_vars) * patch_size ** 2)
+        self.head = nn.Linear(embed_dim, len(self.out_vars) * patch_size**2)
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -118,7 +116,7 @@ class VisionTransformer(nn.Module):
         c = self.n_channels
         x = imgs.reshape(shape=(imgs.shape[0], c, h, p, w, p))
         x = torch.einsum("nchpwq->nhwpqc", x)
-        x = x.reshape(shape=(imgs.shape[0], h * w, p ** 2 * c))
+        x = x.reshape(shape=(imgs.shape[0], h * w, p**2 * c))
         return x
 
     def unpatchify(self, x):

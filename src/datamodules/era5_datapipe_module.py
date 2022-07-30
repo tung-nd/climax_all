@@ -57,15 +57,9 @@ class ERA5DataPipeModule(LightningDataModule):
             self.lister_test = dp.iter.FileLister(os.path.join(root_dir, "test"))
         elif reader == "zarr":
             self.reader = ERA5Zarr
-            self.lister_train = dp.iter.IterableWrapper(
-                glob.glob(os.path.join(root_dir, "train", "*.zarr"))
-            )
-            self.lister_val = dp.iter.IterableWrapper(
-                glob.glob(os.path.join(root_dir, "val", "*.zarr"))
-            )
-            self.lister_test = dp.iter.IterableWrapper(
-                glob.glob(os.path.join(root_dir, "test", "*.zarr"))
-            )
+            self.lister_train = dp.iter.IterableWrapper(glob.glob(os.path.join(root_dir, "train", "*.zarr")))
+            self.lister_val = dp.iter.IterableWrapper(glob.glob(os.path.join(root_dir, "val", "*.zarr")))
+            self.lister_test = dp.iter.IterableWrapper(glob.glob(os.path.join(root_dir, "test", "*.zarr")))
         else:
             raise NotImplementedError(f"Only support npy or zarr")
 
@@ -91,18 +85,10 @@ class ERA5DataPipeModule(LightningDataModule):
         self.data_test: Optional[dp.iter.IterDataPipe] = None
 
     def get_normalize(self):
-        normalize_mean = dict(
-            np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz"))
-        )
-        normalize_mean = np.concatenate(
-            [normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables]
-        )
-        normalize_std = dict(
-            np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz"))
-        )
-        normalize_std = np.concatenate(
-            [normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables]
-        )
+        normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
+        normalize_mean = np.concatenate([normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables])
+        normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
+        normalize_std = np.concatenate([normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables])
         return transforms.Normalize(normalize_mean, normalize_std)
 
     def setup(self, stage: Optional[str] = None):
@@ -118,9 +104,7 @@ class ERA5DataPipeModule(LightningDataModule):
                     ),
                     self.transforms,
                 )
-                .shuffle(
-                    buffer_size=self.hparams.buffer_size
-                )  # shuffle at the individual data level
+                .shuffle(buffer_size=self.hparams.buffer_size)  # shuffle at the individual data level
                 .batch(self.hparams.batch_size, drop_last=True)
                 .in_batch_shuffle()  # shuffle within a batch, probably not necessary
                 .collate(self.collate_fn)
@@ -129,7 +113,10 @@ class ERA5DataPipeModule(LightningDataModule):
             self.data_val = (
                 self.data_iter(
                     self.dataset_class(
-                        self.reader(self.lister_val, variables=self.hparams.variables,)
+                        self.reader(
+                            self.lister_val,
+                            variables=self.hparams.variables,
+                        )
                     ),
                     self.transforms,
                 )
@@ -140,7 +127,10 @@ class ERA5DataPipeModule(LightningDataModule):
             self.data_test = (
                 self.data_iter(
                     self.dataset_class(
-                        self.reader(self.lister_test, variables=self.hparams.variables,)
+                        self.reader(
+                            self.lister_test,
+                            variables=self.hparams.variables,
+                        )
                     ),
                     self.transforms,
                 )

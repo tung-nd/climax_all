@@ -11,9 +11,7 @@ from datamodules import NAME_TO_VAR
 def get_shape(root_dir, var, year):
     try:
         ps = glob.glob(os.path.join(root_dir, var, f"*{year}*.nc"))
-        ds = xr.open_mfdataset(
-            ps, combine="by_coords", parallel=True
-        )  # dataset for a single variable
+        ds = xr.open_mfdataset(ps, combine="by_coords", parallel=True)  # dataset for a single variable
         code = NAME_TO_VAR[var]
         return ds[code].shape
     except:

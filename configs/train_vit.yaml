@@ -19,7 +19,6 @@ trainer:
   enable_checkpointing: True
   resume_from_checkpoint: null
 
-
   # debugging
   fast_dev_run: false
 
@@ -36,8 +35,8 @@ trainer:
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args:
-        logging_interval: 'step'
-        
+        logging_interval: "step"
+
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
         dirpath: "${trainer.default_root_dir}/checkpoints/test"
@@ -77,26 +76,38 @@ model:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
-      in_vars: [
-        'geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50',
-        'relative_humidity_850', 'relative_humidity_500',
-        'u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500',
-        'v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500',
-        'temperature_850', 'temperature_500',
-        '2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind'
+      in_vars:
+        [
+          "geopotential_1000",
+          "geopotential_850",
+          "geopotential_500",
+          "geopotential_50",
+          "relative_humidity_850",
+          "relative_humidity_500",
+          "u_component_of_wind_1000",
+          "u_component_of_wind_850",
+          "u_component_of_wind_500",
+          "v_component_of_wind_1000",
+          "v_component_of_wind_850",
+          "v_component_of_wind_500",
+          "temperature_850",
+          "temperature_500",
+          "2m_temperature",
+          "10m_u_component_of_wind",
+          "10m_v_component_of_wind",
         ]
       embed_dim: 1024
       depth: 8
       num_heads: 16
       mlp_ratio: 4
       out_vars: null
-  pretrained_path: ''
+  pretrained_path: ""
 
 # ---------------------------- DATA -------------------------------------------
 data:
   root_dir: /datadrive/1.40625deg_equally_np
-  reader: npy  # npy or zarr
-  dataset_type: forecast  # pretrain or forecast (finetune)
+  reader: npy # npy or zarr
+  dataset_type: forecast # pretrain or forecast (finetune)
   variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
   predict_range: 6
   predict_steps: 4

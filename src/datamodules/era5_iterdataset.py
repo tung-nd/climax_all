@@ -112,26 +112,18 @@ class ERA5Forecast(IterableDataset):
         # i.e. where inputs are from previous years and output from next
         for data in self.dataset:
             inputs = np.concatenate(
-                [
-                    data[k][0 : -self.predict_range : self.predict_range]
-                    for k in data.keys()
-                ],
+                [data[k][0 : -self.predict_range : self.predict_range] for k in data.keys()],
                 axis=1,
             )
             outputs = np.concatenate(
-                [
-                    data[k][self.predict_range :: self.predict_range]
-                    for k in data.keys()
-                ],
+                [data[k][self.predict_range :: self.predict_range] for k in data.keys()],
                 axis=1,
             )
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)
 
 
 class ERA5ForecastMultiStep(IterableDataset):
-    def __init__(
-        self, dataset: ERA5Npy, pred_range: int = 6, pred_steps: int = 4
-    ) -> None:
+    def __init__(self, dataset: ERA5Npy, pred_range: int = 6, pred_steps: int = 4) -> None:
         super().__init__()
         self.dataset = dataset
         self.pred_range = pred_range
@@ -154,18 +146,20 @@ class ERA5ForecastMultiStep(IterableDataset):
                 output_k = []
                 for step in range(pred_steps):
                     start = (step + 1) * pred_range
-                    end = (
-                        (step - pred_steps + 1) * pred_range
-                        if step != pred_steps - 1
-                        else -1
-                    )
+                    end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else -1
                     output_k.append(x[start:end:interval])
 
                 output_k = np.stack(output_k, axis=1)
                 outputs[k] = output_k
 
-            inputs = np.concatenate([inputs[k] for k in inputs.keys()], axis=1,)
-            outputs = np.concatenate([outputs[k] for k in outputs.keys()], axis=2,)
+            inputs = np.concatenate(
+                [inputs[k] for k in inputs.keys()],
+                axis=1,
+            )
+            outputs = np.concatenate(
+                [outputs[k] for k in outputs.keys()],
+                axis=2,
+            )
             yield torch.from_numpy(inputs), torch.from_numpy(outputs)
 
 
@@ -266,4 +260,3 @@ class ShuffleIterableDataset(IterableDataset):
 
 # output = np.stack(output, axis=1)
 # print(output.shape)
-

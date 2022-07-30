@@ -32,9 +32,7 @@ class MAELitModule(LightningModule):
         return pred, mask
 
     def training_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(
-            batch, self.hparams.mask_ratio, self.hparams.reconstruct_all
-        )
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "train/" + var,
@@ -46,9 +44,7 @@ class MAELitModule(LightningModule):
         return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(
-            batch, self.hparams.mask_ratio, self.hparams.reconstruct_all
-        )
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "val/" + var,
@@ -70,9 +66,7 @@ class MAELitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(
-            batch, self.hparams.mask_ratio, self.hparams.reconstruct_all
-        )
+        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "test/" + var,

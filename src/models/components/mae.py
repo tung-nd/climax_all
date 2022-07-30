@@ -17,8 +17,7 @@ from timm.models.vision_transformer import Block, PatchEmbed
 
 
 class MaskedAutoencoderViT(nn.Module):
-    """ Masked Autoencoder with VisionTransformer backbone
-    """
+    """Masked Autoencoder with VisionTransformer backbone."""
 
     def __init__(
         self,
@@ -52,9 +51,7 @@ class MaskedAutoencoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # MAE encoder specifics
-        self.patch_embed = PatchEmbed(
-            img_size, patch_size, len(self.in_vars), embed_dim
-        )
+        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
         num_patches = self.patch_embed.num_patches  # 128
 
         self.pos_embed = nn.Parameter(
@@ -101,7 +98,7 @@ class MaskedAutoencoderViT(nn.Module):
 
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
         self.decoder_pred = nn.Linear(
-            decoder_embed_dim, patch_size ** 2 * len(self.out_vars), bias=True
+            decoder_embed_dim, patch_size**2 * len(self.out_vars), bias=True
         )  # decoder to patch
         # --------------------------------------------------------------------------
 
@@ -126,9 +123,7 @@ class MaskedAutoencoderViT(nn.Module):
             int(self.img_size[1] / self.patch_size),
             cls_token=False,
         )
-        self.decoder_pos_embed.data.copy_(
-            torch.from_numpy(decoder_pos_embed).float().unsqueeze(0)
-        )
+        self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.patch_embed.proj.weight.data
@@ -163,7 +158,7 @@ class MaskedAutoencoderViT(nn.Module):
         c = self.n_channels
         x = imgs.reshape(shape=(imgs.shape[0], c, h, p, w, p))
         x = torch.einsum("nchpwq->nhwpqc", x)
-        x = x.reshape(shape=(imgs.shape[0], h * w, p ** 2 * c))
+        x = x.reshape(shape=(imgs.shape[0], h * w, p**2 * c))
         return x
 
     def unpatchify(self, x):
@@ -183,8 +178,8 @@ class MaskedAutoencoderViT(nn.Module):
         return imgs
 
     def random_masking(self, x, mask_ratio):
-        """
-        Perform per-sample random masking by per-sample shuffling.
+        """Perform per-sample random masking by per-sample shuffling.
+
         Per-sample shuffling is done by argsort random noise.
         x: [N, L, D], sequence
         """
@@ -194,9 +189,7 @@ class MaskedAutoencoderViT(nn.Module):
         noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
 
         # sort noise for each sample
-        ids_shuffle = torch.argsort(
-            noise, dim=1
-        )  # ascend: small is keep, large is remove
+        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
         ids_restore = torch.argsort(ids_shuffle, dim=1)
 
         # keep the first subset
@@ -233,13 +226,9 @@ class MaskedAutoencoderViT(nn.Module):
         x = self.decoder_embed(x)
 
         # append mask tokens to sequence
-        mask_tokens = self.mask_token.repeat(
-            x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1
-        )
+        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
         x = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
-        x = torch.gather(
-            x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2])
-        )  # unshuffle
+        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
 
         # add pos embed
         x = x + self.decoder_pos_embed
@@ -258,13 +247,11 @@ class MaskedAutoencoderViT(nn.Module):
         """
         imgs: [N, 3, H, W]
         pred: [N, L, p*p*3]
-        mask: [N, L], 0 is keep, 1 is remove, 
+        mask: [N, L], 0 is keep, 1 is remove,
         """
         img_mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])  # [N, L, p*p*3]
         img_pred = self.unpatchify(pred)  # [N, 3, H, W]
-        img_mask = self.unpatchify(img_mask)[
-            :, 0
-        ]  # [N, H, W], mask is the same for all variables
+        img_mask = self.unpatchify(img_mask)[:, 0]  # [N, H, W], mask is the same for all variables
 
         loss = (img_pred - imgs) ** 2  # [N, 3, H, W]
         loss_dict = {}
