@@ -13,15 +13,29 @@
             "justMyCode": true
         },
         {
-            "name": "train_cli.py",
+            "name": "src/train_mae2.py",
             "type": "python",
             "request": "launch",
-            "program": "src/train_cli.py",
+            "program": "src/train_mae2.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
                 "--config",
-                "configs/train.yaml"
+                "configs/train_mae2.yaml",
+                "--trainer.devices",
+                "1",
+                "--model.reconstruct_all",
+                "True",
+                "--data.root_dir",
+                "/datadrive/weatherstorage2datasets/1.40625deg_monthly_np",
+                "--data.reader",
+                "npy",
+                "--data.num_workers",
+                "2",
+                "--data.batch_size",
+                "32",
+                "--data.buffer_size",
+                "1000"
             ]
         }
     ]
