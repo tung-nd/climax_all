@@ -1,4 +1,3 @@
-import pytest
 
 from helpers import run_command
 

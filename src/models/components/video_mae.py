@@ -13,11 +13,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from timm.models.vision_transformer import Block, PatchEmbed
+
 from src.utils.pos_embed import (
     get_1d_sincos_pos_embed_from_grid,
     get_2d_sincos_pos_embed,
 )
-from timm.models.vision_transformer import Block, PatchEmbed
 
 
 class VideoMAE(nn.Module):

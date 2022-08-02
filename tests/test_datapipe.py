@@ -3,15 +3,9 @@ import os
 
 import torch
 import torchdata.datapipes as dp
-from src.datamodules.era5_datapipe import (
-    ERA5,
-    ERA5Forecast,
-    ERA5Npy,
-    ERA5Zarr,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-)
 from torch.utils.data import DataLoader
+
+from src.datamodules.era5_datapipe import ERA5, ERA5Npy, ERA5Zarr, IndividualDataIter
 
 NPY = False
 NPY_PATH = "/datadrive/datasets/1.40625deg_yearly_np/train"

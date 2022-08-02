@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from pytorch_pfn_extras import to
 
 
 def mse(pred, y, vars):
