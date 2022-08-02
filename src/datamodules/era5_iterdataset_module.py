@@ -1,6 +1,5 @@
-import glob
 import os
-from typing import Iterable, Optional
+from typing import Optional
 
 import numpy as np
 import torch
@@ -15,6 +14,8 @@ from .era5_iterdataset import (
     ERA5,
     ERA5Forecast,
     ERA5ForecastMultiStep,
+    ERA5ForecastMultiStepPrecip,
+    ERA5ForecastPrecip,
     ERA5Npy,
     ERA5Video,
     IndividualDataIter,
@@ -32,6 +33,13 @@ def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     return inp, out
+
+
+def collate_forecast_precip_fn(batch):
+    inp = torch.stack([batch[i][0] for i in range(len(batch))])
+    out = torch.stack([batch[i][1] for i in range(len(batch))])
+    tp = torch.stack([batch[i][2] for i in range(len(batch))])
+    return inp, out, inp
 
 
 class ERA5IterDatasetModule(LightningDataModule):
@@ -84,6 +92,16 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.train_dataset_class = ERA5Forecast
             self.train_dataset_args = {"predict_range": predict_range}
             self.val_dataset_class = ERA5ForecastMultiStep
+            self.val_dataset_args = {
+                "pred_range": predict_range,
+                "pred_steps": predict_steps,
+            }
+            self.data_iter = IndividualForecastDataIter
+            self.collate_fn = collate_forecast_fn
+        elif dataset_type == "forecast_precip":
+            self.train_dataset_class = ERA5ForecastPrecip
+            self.train_dataset_args = {"predict_range": predict_range}
+            self.val_dataset_class = ERA5ForecastMultiStepPrecip
             self.val_dataset_args = {
                 "pred_range": predict_range,
                 "pred_steps": predict_steps,
