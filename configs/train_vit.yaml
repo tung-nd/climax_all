@@ -111,6 +111,7 @@ data:
   variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
   predict_range: 6
   predict_steps: 4
+  pct_train: 1.0
   buffer_size: 20000
   batch_size: 128
   num_workers: 2

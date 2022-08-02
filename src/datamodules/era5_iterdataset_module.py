@@ -45,6 +45,7 @@ class ERA5IterDatasetModule(LightningDataModule):
         timesteps: int = 8,  # only used for video
         predict_range: int = 6,  # only used for forecast
         predict_steps: int = 4,  # only used for forecast
+        pct_train: float = 1.0,  # percentage of data used for training
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -57,6 +58,9 @@ class ERA5IterDatasetModule(LightningDataModule):
         if reader == "npy":
             self.reader = ERA5Npy
             self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
+            if pct_train < 1.0:
+                train_len = int(pct_train * len(self.lister_train))
+                self.lister_train = self.lister_train[:train_len]
             self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
             self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
         else:
