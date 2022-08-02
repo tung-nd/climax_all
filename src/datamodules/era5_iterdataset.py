@@ -190,6 +190,7 @@ class ERA5ForecastPrecip(IterableDataset):
         tp = data["tp"][: len_data * self.predict_range]  # len_data*predict_range, 1, 128, 256
         tp = np.reshape(tp, (len_data, self.predict_range, *tp.shape[1:]))  # len_data, predict_range, 1, 128, 256
         tp = np.sum(tp, axis=1)  # sum over the predict range
+        tp = np.log(1 + tp / 1e-5) # log-transformation
         return tp
 
     def __iter__(self):
@@ -223,6 +224,7 @@ class ERA5ForecastMultiStepPrecip(IterableDataset):
         tp = data["tp"][: len_data * interval]  # x, 1, 128, 256
         tp = np.reshape(tp, (len_data, pred_steps, pred_range, *tp.shape[1:]))  # len_data, predict_range, 1, 128, 256
         tp = np.sum(tp, axis=2)  # sum over the predict range
+        tp = np.log(1 + tp / 1e-5) # log-transformation
         return tp
 
     def __iter__(self):
@@ -264,7 +266,7 @@ class ERA5ForecastMultiStepPrecip(IterableDataset):
 
 
 class IndividualForecastPrecipDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module):
+    def __init__(self, dataset: ERA5ForecastPrecip, transforms: torch.nn.Module):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
