@@ -88,6 +88,7 @@ def nc2np(path, variables, years, save_dir, partition, num_shards_per_year):
         "geopotential",
         "temperature",
         "relative_humidity",
+        "total_precipitation",
     ],
 )
 @click.option("--start_train_year", type=int, default=1979)
