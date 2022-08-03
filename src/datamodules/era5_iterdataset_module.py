@@ -10,12 +10,19 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_TO_NAME
 
-from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
-                               ERA5Npy, ERA5Video, IndividualDataIter,
-                               IndividualForecastDataIter,
-                               IndividualForecastPrecipDataIter,
-                               ShuffleIterableDataset)
+from .era5_iterdataset import (
+    ERA5,
+    ERA5Forecast,
+    ERA5ForecastMultiStep,
+    ERA5ForecastMultiStepPrecip,
+    ERA5ForecastPrecip,
+    ERA5Npy,
+    ERA5Video,
+    IndividualDataIter,
+    IndividualForecastDataIter,
+    IndividualForecastPrecipDataIter,
+    ShuffleIterableDataset,
+)
 
 
 def collate_fn(batch):
@@ -113,9 +120,13 @@ class ERA5IterDatasetModule(LightningDataModule):
 
     def get_normalize(self):
         normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
-        normalize_mean = np.concatenate([normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables if var != 'tp'])
+        normalize_mean = np.concatenate(
+            [normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables if var != "tp"]
+        )
         normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
-        normalize_std = np.concatenate([normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables if var != 'tp'])
+        normalize_std = np.concatenate(
+            [normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables if var != "tp"]
+        )
         return transforms.Normalize(normalize_mean, normalize_std)
 
     def setup(self, stage: Optional[str] = None):

@@ -77,8 +77,7 @@ model:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
-      in_vars:
-        [
+      in_vars: [
           # "geopotential_1000",
           # "geopotential_850",
           # "geopotential_500",
@@ -102,15 +101,14 @@ model:
       num_heads: 16
       mlp_ratio: 4
       out_vars: null
-  
+
   precip_net:
     class_path: src.models.components.vit.VisionTransformer
     init_args:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
-      in_vars:
-        [
+      in_vars: [
           # "geopotential_1000",
           # "geopotential_850",
           # "geopotential_500",

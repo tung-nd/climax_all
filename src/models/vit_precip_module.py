@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
+
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import lat_weighted_acc, lat_weighted_rmse, mse
 
@@ -78,7 +79,7 @@ class ViTPrecipLitModule(LightningModule):
 
         loss_dict = {}
         loss_dict["loss"] = pred_loss["loss"] + precip_loss["loss"]
-        
+
         return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
@@ -92,8 +93,8 @@ class ViTPrecipLitModule(LightningModule):
                 precip_pred.append(self.precip_net.predict(preds[:, step]))
         precip_pred = torch.stack(precip_pred, dim=1)
         precip_pred_loss = [
-            lat_weighted_rmse(precip_pred, precip, ['total_precipitation']),
-            lat_weighted_acc(precip_pred, precip, ['total_precipitation'])
+            lat_weighted_rmse(precip_pred, precip, ["total_precipitation"]),
+            lat_weighted_acc(precip_pred, precip, ["total_precipitation"]),
         ]
 
         loss_dict = {}
