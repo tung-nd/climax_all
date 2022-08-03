@@ -12,9 +12,8 @@
 
 import torch
 import torch.nn as nn
-from timm.models.vision_transformer import Block, PatchEmbed
-
 from src.utils.pos_embed import get_2d_sincos_pos_embed
+from timm.models.vision_transformer import Block, PatchEmbed
 
 
 class VisionTransformer(nn.Module):
@@ -113,7 +112,7 @@ class VisionTransformer(nn.Module):
 
         h = self.img_size[0] // p
         w = self.img_size[1] // p
-        c = self.n_channels
+        c = len(self.in_vars)
         x = imgs.reshape(shape=(imgs.shape[0], c, h, p, w, p))
         x = torch.einsum("nchpwq->nhwpqc", x)
         x = x.reshape(shape=(imgs.shape[0], h * w, p**2 * c))
@@ -125,7 +124,7 @@ class VisionTransformer(nn.Module):
         imgs: (N, 3, H, W)
         """
         p = self.patch_size
-        c = self.n_channels
+        c = len(self.out_vars)
         h = self.img_size[0] // p
         w = self.img_size[1] // p
         assert h * w == x.shape[1]
@@ -155,12 +154,12 @@ class VisionTransformer(nn.Module):
         pred: [N, L, p*p*3]
         """
         pred = self.unpatchify(pred)
-        return [m(pred, y, self.out_vars) for m in metric]
+        return [m(pred, y, self.out_vars) for m in metric], pred
 
     def forward(self, x, y, metric):
         embeddings = self.forward_encoder(x)
         preds = self.head(embeddings)
-        loss = self.forward_loss(y, preds, metric)
+        loss, preds = self.forward_loss(y, preds, metric)
         return loss, preds
 
     def predict(self, x):
@@ -175,7 +174,7 @@ class VisionTransformer(nn.Module):
             x = self.predict(x)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
-        return [m(preds, y, self.out_vars) for m in metric]
+        return [m(preds, y, self.out_vars) for m in metric], preds
 
 
 # model = VisionTransformer(depth=8).cuda()

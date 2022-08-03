@@ -277,7 +277,7 @@ class IndividualForecastPrecipDataIter(IterableDataset):
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.transforms(out[i]), self.transforms(tp[i])
+                    yield self.transforms(inp[i]), self.transforms(out[i]), tp[i]
                 else:
                     yield inp[i], out[i], tp[i]
 
