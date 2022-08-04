@@ -1,0 +1,52 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Single GPU training for MAE
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100-1-ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 1
+
+search:
+  job_template:
+    name: tokenized_mae_3vars_recon_all_{auto:10s} # ex: simple_job_lr_05
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      container_args:
+        shm_size: 650g
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_mae2.py --config configs/train_tokenized_mae.yaml
+        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind'] --model.net.learn_pos_emb=True
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.num_workers=4 --data.batch_size=64
+
+  type: grid
+  max_trials: 80
+  params:
+    - name: mask_ratio
+      spec: discrete
+      # values: [0.5, 0.75, 0.9]
+      values: [0.5]
