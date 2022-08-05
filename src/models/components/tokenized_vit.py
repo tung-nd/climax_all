@@ -13,9 +13,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedViT(nn.Module):
@@ -51,13 +54,9 @@ class TokenizedViT(nn.Module):
         # TODO: can generalize to different input resolutions
 
         # channel embedding and positional embedding
-        self.channel_embed = nn.Parameter(
-            torch.zeros(1, len(in_vars), embed_dim), requires_grad=learn_pos_emb
-        )
+        self.channel_embed = nn.Parameter(torch.zeros(1, len(in_vars), embed_dim), requires_grad=learn_pos_emb)
         # TODO: len(in_vars) --> max_num_vars
-        self.pos_embed = nn.Parameter(
-            torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb
-        )
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
 
         self.blocks = nn.ModuleList(
             [
@@ -123,8 +122,8 @@ class TokenizedViT(nn.Module):
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p))
         x = torch.einsum("nhwpq->nhpwq", x)
-        imgs = x.reshape(shape=(x.shape[0], h * p, w * p)) # (BxC, H, W)
-        imgs = imgs.unflatten(dim=0, sizes=(-1, len(self.in_vars))) # (B, C, H, W)
+        imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
+        imgs = imgs.unflatten(dim=0, sizes=(-1, len(self.in_vars)))  # (B, C, H, W)
         return imgs
 
     def forward_encoder(self, x):
@@ -133,10 +132,10 @@ class TokenizedViT(nn.Module):
         """
         # embed tokens
         b, c, _, _ = x.shape
-        x = x.flatten(0, 1) # BxC, H, W
-        x = x.unsqueeze(dim=1) # BxC, 1, H, W
-        x = self.token_embed(x) # BxC, L, D
-        x = x.unflatten(dim=0, sizes=(b, c)) # B, C, L, D
+        x = x.flatten(0, 1)  # BxC, H, W
+        x = x.unsqueeze(dim=1)  # BxC, 1, H, W
+        x = self.token_embed(x)  # BxC, L, D
+        x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         x = x + self.channel_embed.unsqueeze(2)
@@ -159,12 +158,12 @@ class TokenizedViT(nn.Module):
         """
         pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
-        pred = self.unpatchify(pred) # [B, C, H, W]
+        pred = self.unpatchify(pred)  # [B, C, H, W]
         return [m(pred, y, self.out_vars) for m in metric], pred
 
     def forward(self, x, y, metric):
-        embeddings = self.forward_encoder(x) # B, CxL, D
-        preds = self.head(embeddings) # B, CxL, p*p
+        embeddings = self.forward_encoder(x)  # B, CxL, D
+        preds = self.head(embeddings)  # B, CxL, p*p
         loss, preds = self.forward_loss(y, preds, metric)
         return loss, preds
 

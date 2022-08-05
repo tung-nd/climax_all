@@ -11,9 +11,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedMAE(nn.Module):
@@ -55,13 +58,9 @@ class TokenizedMAE(nn.Module):
         # TODO: can generalize to different input resolutions
 
         # channel embedding and positional embedding
-        self.channel_embed = nn.Parameter(
-            torch.zeros(1, len(in_vars), embed_dim), requires_grad=learn_pos_emb
-        )
+        self.channel_embed = nn.Parameter(torch.zeros(1, len(in_vars), embed_dim), requires_grad=learn_pos_emb)
         # TODO: len(in_vars) --> max_num_vars
-        self.pos_embed = nn.Parameter(
-            torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb
-        )
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
 
         self.blocks = nn.ModuleList(
             [
@@ -106,9 +105,7 @@ class TokenizedMAE(nn.Module):
         )
 
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(
-            decoder_embed_dim, patch_size**2, bias=True
-        )  # decoder to token
+        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2, bias=True)  # decoder to token
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -135,7 +132,9 @@ class TokenizedMAE(nn.Module):
             cls_token=False,
         )
         self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
-        decoder_channel_embed = get_1d_sincos_pos_embed_from_grid(self.decoder_channel_embed.shape[-1], np.arange(len(self.in_vars)))
+        decoder_channel_embed = get_1d_sincos_pos_embed_from_grid(
+            self.decoder_channel_embed.shape[-1], np.arange(len(self.in_vars))
+        )
         self.decoder_channel_embed.data.copy_(torch.from_numpy(decoder_channel_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
@@ -170,8 +169,8 @@ class TokenizedMAE(nn.Module):
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p))
         x = torch.einsum("nhwpq->nhpwq", x)
-        imgs = x.reshape(shape=(x.shape[0], h * p, w * p)) # (BxC, H, W)
-        imgs = imgs.unflatten(dim=0, sizes=(-1, len(self.in_vars))) # (B, C, H, W)
+        imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
+        imgs = imgs.unflatten(dim=0, sizes=(-1, len(self.in_vars)))  # (B, C, H, W)
         return imgs
 
     def random_masking(self, x, mask_ratio):
@@ -207,10 +206,10 @@ class TokenizedMAE(nn.Module):
         """
         # embed tokens
         b, c, _, _ = x.shape
-        x = x.flatten(0, 1) # BxC, H, W
-        x = x.unsqueeze(dim=1) # BxC, 1, H, W
-        x = self.token_embed(x) # BxC, L, D
-        x = x.unflatten(dim=0, sizes=(b, c)) # B, C, L, D
+        x = x.flatten(0, 1)  # BxC, H, W
+        x = x.unsqueeze(dim=1)  # BxC, 1, H, W
+        x = self.token_embed(x)  # BxC, L, D
+        x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         x = x + self.channel_embed.unsqueeze(2)
@@ -231,7 +230,7 @@ class TokenizedMAE(nn.Module):
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
-        x = self.decoder_embed(x) # B, C x L x mask_ratio, D
+        x = self.decoder_embed(x)  # B, C x L x mask_ratio, D
 
         # append mask tokens to sequence
         mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
