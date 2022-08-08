@@ -38,6 +38,7 @@ class TokenizedViT(nn.Module):
         num_heads=16,
         mlp_ratio=4.0,
         out_vars=None,
+        freeze_encoder=False,
     ):
         super().__init__()
 
@@ -47,6 +48,8 @@ class TokenizedViT(nn.Module):
         out_vars = out_vars if out_vars is not None else in_vars
         self.in_vars = in_vars
         self.out_vars = out_vars
+
+        self.freeze_encoder = freeze_encoder
 
         # linear layer to embed each token, which is 1xpxp
         self.token_embed = PatchEmbed(img_size, patch_size, 1, embed_dim)
@@ -163,7 +166,10 @@ class TokenizedViT(nn.Module):
 
     def forward(self, x, y, metric):
         embeddings = self.forward_encoder(x)  # B, CxL, D
-        preds = self.head(embeddings)  # B, CxL, p*p
+        if self.freeze_encoder:
+            preds = self.head(embeddings.detach())  # B, CxL, p*p
+        else:
+            preds = self.head(embeddings)
         loss, preds = self.forward_loss(y, preds, metric)
         return loss, preds
 
