@@ -286,12 +286,12 @@ class TokenizedMAE(nn.Module):
                 loss_dict[var] = (loss[:, i] * img_mask).sum() / img_mask.sum()
             loss_dict["loss"] = (loss.sum(dim=1) * img_mask).sum() / img_mask.sum()
 
-        return loss_dict
+        return loss_dict, img_pred, img_mask
 
     def forward(self, imgs, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [B, CxL, p*p]
-        loss = self.forward_loss(imgs, pred, mask, reconstruct_all)
+        loss, pred, mask = self.forward_loss(imgs, pred, mask, reconstruct_all)
         return loss, pred, mask
 
     def pred(self, imgs, mask_ratio):

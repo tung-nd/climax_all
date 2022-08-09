@@ -11,9 +11,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedVideoMAE(nn.Module):
@@ -278,7 +281,7 @@ class TokenizedVideoMAE(nn.Module):
         """
         b, t, c, h, w = imgs.shape
 
-        imgs = imgs.flatten(0, 1) # BxT, C, H, W
+        imgs = imgs.flatten(0, 1)  # BxT, C, H, W
 
         img_mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])  # [B, TxCxL, p*p]
         img_mask = img_mask.unflatten(dim=1, sizes=(self.timesteps, -1, self.num_patches))  # [B, T, C, L, p*p]
@@ -302,12 +305,12 @@ class TokenizedVideoMAE(nn.Module):
                 loss_dict[var] = (loss[:, i] * img_mask).sum() / img_mask.sum()
             loss_dict["loss"] = (loss.sum(dim=1) * img_mask).sum() / img_mask.sum()
 
-        return loss_dict
+        return loss_dict, img_pred, img_mask
 
     def forward(self, imgs, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [B, TxCxL, p*p]
-        loss = self.forward_loss(imgs, pred, mask, reconstruct_all)
+        loss, pred, mask = self.forward_loss(imgs, pred, mask, reconstruct_all)
         return loss, pred, mask
 
     def pred(self, imgs, mask_ratio):
