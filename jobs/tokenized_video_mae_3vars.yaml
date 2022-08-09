@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Multi GPU training for VideoMAE
+description: Training for TokenizedVideoMAE
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -26,30 +26,30 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 2
+  NODES: 1
   GPUS: 8
 
 search:
   job_template:
-    name: test_video_17_vars # ex: simple_job_lr_05
+    name: tokenized_video_mae_3vars_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
-      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
       container_args:
         shm_size: 650g
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae2.py --config configs/train_videomae.yaml
-        --trainer.devices=${GPUS} --trainer.strategy=ddp --trainer.num_nodes=${NODES}
-        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
-        --data.root_dir=/mnt/data/1.40625deg_equally_np_old --data.reader=npy --data.num_workers=1 --data.batch_size=16 --data.buffer_size=1000
-        # --data.root_dir=/mnt/data/1.40625deg_yearly --data.num_workers=${GPUS} --data.buffer_size=20000
+      - python src/train_mae2.py --config configs/train_tokenized_video_mae.yaml
+        --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
+        --model.reconstruct_all=True --model.mask_ratio={mask_ratio}
+        --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind'] --model.net.learn_pos_emb=True --model.net.timesteps=4
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.timesteps=4 --data.num_workers=1 --data.batch_size=16
 
   type: grid
   max_trials: 80
   params:
     - name: mask_ratio
       spec: discrete
+      # values: [0.5, 0.75, 0.9]
       values: [0.9]
