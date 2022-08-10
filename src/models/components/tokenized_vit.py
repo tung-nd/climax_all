@@ -83,6 +83,12 @@ class TokenizedViT(nn.Module):
 
         self.initialize_weights()
 
+        if freeze_encoder:
+            self.token_embed.requires_grad_(False)
+            self.channel_embed.requires_grad_(False)
+            self.pos_embed.requires_grad_(False)
+            self.blocks.requires_grad_(False)
+
     def initialize_weights(self):
         # initialization
         # initialize (and freeze) pos_embed by sin-cos embedding
@@ -166,10 +172,10 @@ class TokenizedViT(nn.Module):
 
     def forward(self, x, y, metric):
         embeddings = self.forward_encoder(x)  # B, CxL, D
-        if self.freeze_encoder:
-            preds = self.head(embeddings.detach())  # B, CxL, p*p
-        else:
-            preds = self.head(embeddings)
+        # if self.freeze_encoder:
+        #     preds = self.head(embeddings.detach())  # B, CxL, p*p
+        # else:
+        preds = self.head(embeddings)
         loss, preds = self.forward_loss(y, preds, metric)
         return loss, preds
 
