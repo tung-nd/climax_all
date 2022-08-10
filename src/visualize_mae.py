@@ -1,42 +1,12 @@
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from pytorch_lightning.utilities.cli import LightningCLI
 from torchvision.transforms import transforms
 
-from src.datamodules.era5_datamodule import ERA5DataModule
+from src.datamodules.era5_iterdataset_module import ERA5IterDatasetModule
 from src.models.mae_module import MAELitModule
-
-
-def get_data_traj(dataset, start_idx, steps):
-    # visualize a trajectory from the dataset, starting from start_idx
-    dataset_traj = []
-    inv_normalize = transforms.Normalize(
-        mean=[-277.0595 / 21.289722, 0.05025468 / 5.5454874, -0.18755548 / 4.764006],
-        std=[1 / 21.289722, 1 / 5.5454874, 1 / 4.764006],
-    )
-    for i in range(steps):
-        idx = start_idx + i
-        inp, _ = dataset[idx]
-        dataset_traj.append(inv_normalize(inp).numpy())
-    dataset_traj = np.array(dataset_traj)
-    return dataset_traj
-
-
-def get_model_traj(model, dataset, start_idx, steps):
-    inv_normalize = transforms.Normalize(
-        mean=[-277.0595 / 21.289722, 0.05025468 / 5.5454874, -0.18755548 / 4.764006],
-        std=[1 / 21.289722, 1 / 5.5454874, 1 / 4.764006],
-    )
-    x = dataset[start_idx][0].unsqueeze(0)
-    pred_traj = [inv_normalize(x.squeeze()).numpy()]
-    for _ in range(steps):
-        x = model.forward(x)
-        pred_traj.append(inv_normalize(x.squeeze()).numpy())
-    pred_traj = np.array(pred_traj)
-    return pred_traj
 
 
 def save_img(data, masked_data, pred, save_dir, filename):
@@ -126,7 +96,7 @@ class MyLightningCLI(LightningCLI):
         parser.add_argument(
             "--save_dir",
             type=str,
-            default="/home/t-tungnguyen/climate_pretraining/visualization_mae",
+            default="/home/t-tungnguyen/climate_pretraining/visualization_tokenized_mae",
         )
         parser.add_argument("--filename", type=str, default="model.png")
 
@@ -135,12 +105,9 @@ def main(model, dataset, args):
     os.makedirs(args.save_dir, exist_ok=True)
 
     dataset.setup()
-    dataset = dataset.data_test
+    test_dataset = dataset.data_test
 
-    rand_idx = np.random.randint(
-        low=0, high=len(dataset)
-    )  # choose a random index from the dataset
-    data_sample = dataset[rand_idx]
+    data_sample = next(iter(test_dataset))
 
     inv_normalize = transforms.Normalize(
         mean=[-277.0595 / 21.289722, 0.05025468 / 5.5454874, -0.18755548 / 4.764006],
@@ -151,14 +118,15 @@ def main(model, dataset, args):
     ground_truth = inv_normalize(data_sample)
 
     # prediction
+    # pred: 1, C, H, W, mask: 1, H, W
     pred, mask = model.forward(data_sample.unsqueeze(0))
-
-    mask = mask.squeeze().bool()
-    masked_data = ground_truth.clone()
-    masked_data[mask] = -1000.0
 
     pred = pred.squeeze()
     pred = inv_normalize(pred)
+
+    mask = mask.bool().repeat_interleave(pred.shape[0], dim=0)
+    masked_data = ground_truth.clone()
+    masked_data[mask] = -1000.0
 
     save_img(ground_truth, masked_data, pred, args.save_dir, args.filename)
 
@@ -166,7 +134,7 @@ def main(model, dataset, args):
 if __name__ == "__main__":
     cli = MyLightningCLI(
         model_class=MAELitModule,
-        datamodule_class=ERA5DataModule,
+        datamodule_class=ERA5IterDatasetModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,

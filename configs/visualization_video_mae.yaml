@@ -15,17 +15,22 @@ model:
   max_epochs: 30
   warmup_start_lr: 1e-8
   eta_min: 1e-8
-  mask_ratio: 0.5
+  mask_ratio: 0.75
   reconstruct_all: False
 
   net:
-    class_path: src.models.components.tokenized_mae.TokenizedMAE
+    class_path: src.models.components.tokenized_video_mae.TokenizedVideoMAE
     init_args:
+      timesteps: 4
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
       in_vars:
-        ["2m_temperature", "10m_u_component_of_wind", "10m_v_component_of_wind"]
+        [
+          "2m_temperature",
+          "10m_u_component_of_wind",
+          "10m_v_component_of_wind",
+        ]
       embed_dim: 1024
       depth: 8
       num_heads: 16
@@ -40,8 +45,9 @@ model:
 data:
   root_dir: /datadrive/1.40625deg_equally_np
   reader: npy # npy or zarr
-  dataset_type: image # pretrain or forecast (finetune)
+  dataset_type: video # pretrain or forecast (finetune)
   variables: ["t2m", "u10", "v10"]
+  timesteps: 4
   buffer_size: 20000
   batch_size: 128
   num_workers: 1

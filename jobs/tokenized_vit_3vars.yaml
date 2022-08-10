@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Multi GPU training for VideoMAE
+description: Single GPU training for ViT with only 3 variables
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-scus
+  name: v100x4ssh-sc
 
 storage:
   data:
@@ -26,14 +26,12 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 2
-  GPUS: 8
+  NODES: 1
+  GPUS: 4
 
-search:
-  job_template:
-    name: test_video_17_vars # ex: simple_job_lr_05
+jobs:
+  - name: tokenized_vit_finetune_vit_cmip6_freeze
     sku: ${NODES}x32G${GPUS} # ex: G1
-    process_count_per_node: ${GPUS}
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
       container_args:
@@ -41,15 +39,10 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae2.py --config configs/train_videomae.yaml
-        --trainer.devices=${GPUS} --trainer.strategy=ddp --trainer.num_nodes=${NODES}
-        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
-        --data.root_dir=/mnt/data/1.40625deg_equally_np_old --data.reader=npy --data.num_workers=1 --data.batch_size=16 --data.buffer_size=1000
-        # --data.root_dir=/mnt/data/1.40625deg_yearly --data.num_workers=${GPUS} --data.buffer_size=20000
-
-  type: grid
-  max_trials: 80
-  params:
-    - name: mask_ratio
-      spec: discrete
-      values: [0.9]
+      - python src/train_vit2.py --config configs/train_tokenized_vit.yaml
+        --trainer.strategy=ddp --trainer.devices=${GPUS}
+        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.num_workers=2 --data.predict_range=6 --data.predict_steps=4 --data.batch_size=32
+        --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind']
+        --model.net.learn_pos_emb=True
+        --model.pretrained_path=/mnt/data/checkpoints/vit/vit_cmip6/last.ckpt
+        --model.net.freeze_encoder=True

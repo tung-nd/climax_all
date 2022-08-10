@@ -1,12 +1,11 @@
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from pytorch_lightning.utilities.cli import LightningCLI
 from torchvision.transforms import transforms
 
-from src.datamodules.era5_datapipe_module import ERA5DataPipeModule
+from src.datamodules.era5_iterdataset_module import ERA5IterDatasetModule
 from src.models.mae_module import MAELitModule
 
 inv_normalize = transforms.Normalize(
@@ -102,7 +101,7 @@ class MyLightningCLI(LightningCLI):
         parser.add_argument(
             "--save_dir",
             type=str,
-            default="/home/t-tungnguyen/climate_pretraining/visualization_videomae",
+            default="/home/t-tungnguyen/climate_pretraining/visualization_tokenized_videomae",
         )
         parser.add_argument("--filename", type=str, default="model.png")
 
@@ -113,20 +112,21 @@ def main(model, dataset, args):
     dataset.setup()
     dataset = dataset.data_test
 
-    data_sample = next(iter(dataset))[0]  # 8, 3, 128, 256
+    data_sample = next(iter(dataset))  # 8, 3, 128, 256
 
     # ground-truth
     ground_truth = inv_normalize(data_sample)
 
     # prediction
+    # pred: T, C, H, W, mask: T, H, W
     pred, mask = model.forward(data_sample.unsqueeze(0))  # 8, 3, 128, 256
+    mask = mask.unsqueeze(1).repeat_interleave(pred.shape[1], dim=1)
 
-    mask = mask.squeeze().bool()
+    pred = inv_normalize(pred)
+
+    mask = mask.bool()
     masked_data = ground_truth.clone()
     masked_data[mask] = -1000.0
-
-    pred = pred.squeeze()
-    pred = inv_normalize(pred)
 
     for i in range(pred.shape[0]):
         save_img(
@@ -141,7 +141,7 @@ def main(model, dataset, args):
 if __name__ == "__main__":
     cli = MyLightningCLI(
         model_class=MAELitModule,
-        datamodule_class=ERA5DataPipeModule,
+        datamodule_class=ERA5IterDatasetModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,
