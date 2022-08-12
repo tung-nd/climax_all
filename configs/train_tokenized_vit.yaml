@@ -98,6 +98,7 @@ model:
         ]
       embed_dim: 1024
       depth: 8
+      decoder_depth: 0 # linear layer, if > 0 use transformer blocks
       num_heads: 16
       mlp_ratio: 4
       out_vars: null

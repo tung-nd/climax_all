@@ -91,7 +91,6 @@ class ViTLitModule(LightningModule):
             log_steps=steps,
             log_days=days,
         )
-        print(all_loss_dicts)
 
         loss_dict = {}
         for d in all_loss_dicts:
