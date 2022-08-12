@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x4ssh-sc
+  name: v100-1-ded
 
 storage:
   data:
@@ -27,10 +27,10 @@ storage:
 # some environment variables to ease up setting of jobs
 env_defaults:
   NODES: 1
-  GPUS: 4
+  GPUS: 1
 
 jobs:
-  - name: tokenized_vit_finetune_vit_cmip6_freeze
+  - name: tokenized_vit_finetune_videomae_0.9_5.625deg_direct_5days_freeze
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -40,9 +40,10 @@ jobs:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_tokenized_vit.yaml
-        --trainer.strategy=ddp --trainer.devices=${GPUS}
-        --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy --data.variables=['t2m','u10','v10'] --data.num_workers=2 --data.predict_range=6 --data.predict_steps=4 --data.batch_size=32
-        --model.net.in_vars=['2m_temperature','10m_u_component_of_wind','10m_v_component_of_wind']
+        --trainer.devices=${GPUS}
+        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy --data.variables=['z','t'] --data.num_workers=1 --data.predict_range=120 --data.predict_steps=1 --data.batch_size=128
+        --model.net.in_vars=['geopotential_1000','geopotential_850','geopotential_500','geopotential_50','temperature_850','temperature_500']
         --model.net.learn_pos_emb=True
-        --model.pretrained_path=/mnt/data/checkpoints/vit/vit_cmip6/last.ckpt
+        --model.net.img_size=[32,64]
+        --model.pretrained_path=/mnt/data/checkpoints/tokenized_video_mae/5.625deg/last.ckpt
         --model.net.freeze_encoder=True
