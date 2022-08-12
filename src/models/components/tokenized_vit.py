@@ -160,7 +160,7 @@ class TokenizedViT(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred, metric):  # metric is a list
+    def forward_loss(self, y, pred, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
         pred: [B, CxL, p*p]
@@ -168,15 +168,15 @@ class TokenizedViT(nn.Module):
         pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         pred = self.unpatchify(pred)  # [B, C, H, W]
-        return [m(pred, y, self.out_vars) for m in metric], pred
+        return [m(pred, y, self.out_vars, lat) for m in metric], pred
 
-    def forward(self, x, y, metric):
+    def forward(self, x, y, metric, lat):
         embeddings = self.forward_encoder(x)  # B, CxL, D
         # if self.freeze_encoder:
         #     preds = self.head(embeddings.detach())  # B, CxL, p*p
         # else:
         preds = self.head(embeddings)
-        loss, preds = self.forward_loss(y, preds, metric)
+        loss, preds = self.forward_loss(y, preds, metric, lat)
         return loss, preds
 
     def predict(self, x):
@@ -187,13 +187,16 @@ class TokenizedViT(nn.Module):
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         return self.unpatchify(pred)
 
-    def rollout(self, x, y, steps, metric):
+    def rollout(self, x, y, steps, metric, transform, lat, log_steps, log_days):
+        # transform: get back to the original range
         preds = []
         for _ in range(steps):
             x = self.predict(x)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
-        return [m(preds, y, self.out_vars) for m in metric], preds
+        preds = transform(preds)
+        y = transform(y)
+        return [m(preds, y, self.out_vars, lat, log_steps, log_days) for m in metric], preds
 
 
 # from src.utils.metrics import mse

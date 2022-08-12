@@ -19,6 +19,13 @@ def main():
     )
     os.makedirs(cli.trainer.default_root_dir, exist_ok=True)
 
+    normalization = cli.datamodule.get_normalize()
+    mean_norm, std_norm = normalization.mean, normalization.std
+    mean_denorm, std_denorm = -mean_norm / std_norm, 1 / std_norm
+    cli.model.set_denormalization(mean_denorm, std_denorm)
+    cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
+    cli.model.set_pred_range(cli.datamodule.hparams.predict_range)
+
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
 

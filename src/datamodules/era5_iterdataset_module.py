@@ -129,6 +129,11 @@ class ERA5IterDatasetModule(LightningDataModule):
         )
         return transforms.Normalize(normalize_mean, normalize_std)
 
+    def get_lat_lon(self):
+        lat = np.load(os.path.join(self.hparams.root_dir, "lat.npy"))
+        lon = np.load(os.path.join(self.hparams.root_dir, "lon.npy"))
+        return lat, lon
+
     def setup(self, stage: Optional[str] = None):
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
