@@ -76,7 +76,7 @@ model:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
-      in_vars:
+      default_vars:
         [
           "geopotential_1000",
           "geopotential_850",
@@ -101,7 +101,6 @@ model:
       decoder_depth: 0 # linear layer, if > 0 use transformer blocks
       num_heads: 16
       mlp_ratio: 4
-      out_vars: null
       freeze_encoder: False
   pretrained_path: ""
 

@@ -8,74 +8,47 @@
 # timm: https://github.com/rwightman/pytorch-image-models/tree/master/timm
 # DeiT: https://github.com/facebookresearch/deit
 # --------------------------------------------------------
-
-
-import numpy as np
 import torch
 import torch.nn as nn
-from timm.models.vision_transformer import Block, PatchEmbed
 
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
+from src.models.components.tokenized_base import TokenizedBase
 
 
-class TokenizedViT(nn.Module):
+class TokenizedViT(TokenizedBase):
     def __init__(
         self,
         img_size=[128, 256],
         patch_size=16,
         learn_pos_emb=False,
-        in_vars=[
+        default_vars=[
+            "geopotential_1000",
+            "geopotential_850",
+            "geopotential_500",
+            "geopotential_50",
+            "relative_humidity_850",
+            "relative_humidity_500",
+            "u_component_of_wind_1000",
+            "u_component_of_wind_850",
+            "u_component_of_wind_500",
+            "v_component_of_wind_1000",
+            "v_component_of_wind_850",
+            "v_component_of_wind_500",
+            "temperature_850",
+            "temperature_500",
             "2m_temperature",
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
         ],
-        # TODO: input max_num_vars, and a map from var -> var id (0, 1, 2, ...)
         embed_dim=1024,
         depth=24,
         decoder_depth=8,
         num_heads=16,
         mlp_ratio=4.0,
-        out_vars=None,
         freeze_encoder=False,
     ):
-        super().__init__()
-
-        self.img_size = img_size
-        self.patch_size = patch_size
-
-        out_vars = out_vars if out_vars is not None else in_vars
-        self.in_vars = in_vars
-        self.out_vars = out_vars
+        super().__init__(img_size, patch_size, learn_pos_emb, embed_dim, depth, num_heads, mlp_ratio, default_vars)
 
         self.freeze_encoder = freeze_encoder
-
-        # linear layer to embed each token, which is 1xpxp
-        self.token_embed = PatchEmbed(img_size, patch_size, 1, embed_dim)
-        self.num_patches = self.token_embed.num_patches  # assumed fixed because img_size is fixed
-        # TODO: can generalize to different input resolutions
-
-        # channel embedding and positional embedding
-        self.channel_embed = nn.Parameter(torch.zeros(1, len(in_vars), embed_dim), requires_grad=learn_pos_emb)
-        # TODO: len(in_vars) --> max_num_vars
-        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
-
-        self.blocks = nn.ModuleList(
-            [
-                Block(
-                    embed_dim,
-                    num_heads,
-                    mlp_ratio,
-                    qkv_bias=True,
-                    norm_layer=nn.LayerNorm,
-                )
-                for i in range(depth)
-            ]
-        )
-        self.norm = nn.LayerNorm(embed_dim)
-        # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
         # Decoder: either a linear or non linear prediction head
@@ -95,37 +68,7 @@ class TokenizedViT(nn.Module):
             self.pos_embed.requires_grad_(False)
             self.blocks.requires_grad_(False)
 
-    def initialize_weights(self):
-        # initialization
-        # initialize (and freeze) pos_embed by sin-cos embedding
-        pos_embed = get_2d_sincos_pos_embed(
-            self.pos_embed.shape[-1],
-            int(self.img_size[0] / self.patch_size),
-            int(self.img_size[1] / self.patch_size),
-            cls_token=False,
-        )
-        self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-        channel_embed = get_1d_sincos_pos_embed_from_grid(self.channel_embed.shape[-1], np.arange(len(self.in_vars)))
-        self.channel_embed.data.copy_(torch.from_numpy(channel_embed).float().unsqueeze(0))
-
-        # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        w = self.token_embed.proj.weight.data
-        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-
-        # initialize nn.Linear and nn.LayerNorm
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
-
-    def unpatchify(self, x):
+    def unpatchify(self, x, variables):
         """
         x: (BxC, L, patch_size**2)
         return: (B, C, H, W)
@@ -138,10 +81,10 @@ class TokenizedViT(nn.Module):
         x = x.reshape(shape=(x.shape[0], h, w, p, p))
         x = torch.einsum("nhwpq->nhpwq", x)
         imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
-        imgs = imgs.unflatten(dim=0, sizes=(-1, len(self.in_vars)))  # (B, C, H, W)
+        imgs = imgs.unflatten(dim=0, sizes=(-1, len(variables)))  # (B, C, H, W)
         return imgs
 
-    def forward_encoder(self, x):
+    def forward_encoder(self, x, variables):
         """
         x: B, C, H, W
         """
@@ -153,7 +96,8 @@ class TokenizedViT(nn.Module):
         x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
-        x = x + self.channel_embed.unsqueeze(2)
+        channel_embed = self.get_channel_emb(self.channel_embed, variables)
+        x = x + channel_embed.unsqueeze(2)
         # add pos embedding, pos_emb: 1, L, D
         x = x + self.pos_embed.unsqueeze(1)
 
@@ -166,40 +110,40 @@ class TokenizedViT(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred, metric, lat):  # metric is a list
+    def forward_loss(self, y, pred, variables, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
         pred: [B, CxL, p*p]
         """
         pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
-        pred = self.unpatchify(pred)  # [B, C, H, W]
-        return [m(pred, y, self.out_vars, lat) for m in metric], pred
+        pred = self.unpatchify(pred, variables)  # [B, C, H, W]
+        return [m(pred, y, variables, lat) for m in metric], pred
 
-    def forward(self, x, y, metric, lat):
-        embeddings = self.forward_encoder(x)  # B, CxL, D
+    def forward(self, x, y, variables, metric, lat):
+        embeddings = self.forward_encoder(x, variables)  # B, CxL, D
         preds = self.head(embeddings)
-        loss, preds = self.forward_loss(y, preds, metric, lat)
+        loss, preds = self.forward_loss(y, preds, variables, metric, lat)
         return loss, preds
 
-    def predict(self, x):
+    def predict(self, x, variables):
         with torch.no_grad():
-            embeddings = self.forward_encoder(x)
+            embeddings = self.forward_encoder(x, variables)
             pred = self.head(embeddings)
         pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
-        return self.unpatchify(pred)
+        return self.unpatchify(pred, variables)
 
-    def rollout(self, x, y, steps, metric, transform, lat, log_steps, log_days):
+    def rollout(self, x, y, variables, steps, metric, transform, lat, log_steps, log_days):
         # transform: get back to the original range
         preds = []
         for _ in range(steps):
-            x = self.predict(x)
+            x = self.predict(x, variables)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
         preds = transform(preds)
         y = transform(y)
-        return [m(preds, y, self.out_vars, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y, variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # from src.utils.metrics import mse
