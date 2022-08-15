@@ -9,12 +9,12 @@ def download_weatherbench(args):
     if args.dataset == 'era5':
         url = (
             "https://dataserv.ub.tum.de/s/m1524895"
-            "/download?path=%2FCMIP%2FMPI-ESM%2F{resolution}deg%2F{variable}&files={variable}_{resolution}deg.zip"
+            "/download?path=%2F{resolution}deg%2F{variable}&files={variable}_{resolution}deg.zip"
         ).format(resolution=resolution, variable=variable)
-    else:
+    else: # cmip6
         url = (
             "https://dataserv.ub.tum.de/s/m1524895"
-            "/download?path=%2F{resolution}deg%2F{variable}&files={variable}_{resolution}deg.zip"
+            "/download?path=%2FCMIP%2FMPI-ESM%2F{resolution}deg%2F{variable}&files={variable}_{resolution}deg.zip"
         ).format(resolution=resolution, variable=variable)
     cmd = ["wget", "--no-check-certificate", f'"{url}"', "-O", os.path.join(args.root, variable + ".zip")]
     # print (" ".join(cmd))
