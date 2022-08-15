@@ -5,29 +5,37 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from src.datamodules import VAR_TO_NAME
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                              ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
-                              ERA5Npy, ERA5Video, IndividualDataIter,
-                              IndividualForecastDataIter,
-                              IndividualForecastPrecipDataIter,
-                              ShuffleIterableDataset)
+from datamodules import VAR_TO_NAME, VAR_TO_NAME_LEVEL
+
+from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
+                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
+                               ERA5Npy, ERA5Video, IndividualDataIter,
+                               IndividualForecastDataIter,
+                               IndividualForecastPrecipDataIter,
+                               ShuffleIterableDataset)
+
+
+def list_var_to_list_name(vars):
+    names = []
+    for v in vars:
+        names += VAR_TO_NAME_LEVEL[v]
+    return names
 
 
 def collate_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     variables = batch[0][1]
-    return inp, variables
+    return inp, list_var_to_list_name(variables)
 
 
 def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     variables = batch[0][2]
-    return inp, out, variables
+    return inp, out, list_var_to_list_name(variables)
 
 
 def collate_forecast_precip_fn(batch):
@@ -35,7 +43,7 @@ def collate_forecast_precip_fn(batch):
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     tp = torch.stack([batch[i][2] for i in range(len(batch))])
     variables = batch[0][3]
-    return inp, out, tp, variables
+    return inp, out, tp, list_var_to_list_name(variables)
 
 
 class ERA5IterDatasetModule(LightningDataModule):

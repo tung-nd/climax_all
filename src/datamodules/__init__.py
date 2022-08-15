@@ -38,3 +38,26 @@ DEFAULT_PRESSURE_LEVELS = {
     "t": [850, 500],
     "r": [850, 500],
 }
+
+VAR_TO_NAME_LEVEL = {}
+for v in VAR_TO_NAME.keys():
+    var_name = VAR_TO_NAME[v]
+    if v not in DEFAULT_PRESSURE_LEVELS: # v is a single level variable
+        VAR_TO_NAME_LEVEL[v] = [var_name]
+    else:
+        VAR_TO_NAME_LEVEL[v] = []
+        for p in DEFAULT_PRESSURE_LEVELS[v]:
+            VAR_TO_NAME_LEVEL[v].append(f'{var_name}_{p}')
+# {
+#     't2m': ['2m_temperature'],
+#     'u10': ['10m_u_component_of_wind'],
+#     'v10': ['10m_v_component_of_wind'],
+#     'msl': ['mean_sea_level_pressure'],
+#     'sp': ['surface_pressure'],
+#     'u': ['u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500'],
+#     'v': ['v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500'],
+#     'z': ['geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50'],
+#     't': ['temperature_850', 'temperature_500'],
+#     'r': ['relative_humidity_850', 'relative_humidity_500'],
+#     'tp': ['total_precipitation']
+# }

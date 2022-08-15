@@ -107,7 +107,7 @@ def main(model, dataset, args):
     dataset.setup()
     test_dataset = dataset.data_test
 
-    data_sample = next(iter(test_dataset))
+    data_sample, variables = next(iter(test_dataset))
 
     inv_normalize = transforms.Normalize(
         mean=[-277.0595 / 21.289722, 0.05025468 / 5.5454874, -0.18755548 / 4.764006],
@@ -119,7 +119,7 @@ def main(model, dataset, args):
 
     # prediction
     # pred: 1, C, H, W, mask: 1, H, W
-    pred, mask = model.forward(data_sample.unsqueeze(0))
+    pred, mask = model.forward(data_sample.unsqueeze(0), variables)
 
     pred = pred.squeeze()
     pred = inv_normalize(pred)

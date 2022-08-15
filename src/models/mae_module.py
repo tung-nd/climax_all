@@ -3,14 +3,14 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
-
+from src.models.components.tokenized_mae import TokenizedMAE
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 
 class MAELitModule(LightningModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: TokenizedMAE,
         lr: float = 0.001,
         weight_decay: float = 0.005,
         warmup_epochs: int = 5,
@@ -24,13 +24,14 @@ class MAELitModule(LightningModule):
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
 
-    def forward(self, x):
+    def forward(self, x, variables):
         with torch.no_grad():
-            pred, mask = self.net.pred(x, self.hparams.mask_ratio)
+            pred, mask = self.net.pred(x, variables, self.hparams.mask_ratio)
         return pred, mask
 
     def training_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        x, variables = batch
+        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "train/" + var,
@@ -42,7 +43,8 @@ class MAELitModule(LightningModule):
         return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        x, variables = batch
+        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "val/" + var,
@@ -64,7 +66,8 @@ class MAELitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss_dict, _, _ = self.net.forward(batch, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        x, variables = batch
+        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
         for var in loss_dict.keys():
             self.log(
                 "test/" + var,
