@@ -78,25 +78,13 @@ class TokenizedViT(nn.Module):
         # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
-        # Decoder: either a linear layer or a stack of attention layers
-        if decoder_depth > 0:
-            self.decoder_layers = nn.ModuleList(
-                [
-                    Block(
-                        embed_dim,
-                        num_heads,
-                        mlp_ratio,
-                        qkv_bias=True,
-                        norm_layer=nn.LayerNorm,
-                    )
-                    for i in range(decoder_depth)
-                ]
-            )
-            self.decoder_layer_norm = nn.LayerNorm(embed_dim)
-        else:
-            self.decoder_layers = nn.ModuleList([nn.Identity()])
-            self.decoder_layer_norm = nn.Identity()
-        self.head = nn.Linear(embed_dim, patch_size**2)
+        # Decoder: either a linear or non linear prediction head
+        self.head = nn.ModuleList()
+        for i in range(decoder_depth):
+            self.head.append(nn.Linear(embed_dim, embed_dim))
+            self.head.append(nn.GELU())
+        self.head.append(nn.Linear(embed_dim, patch_size**2))
+        self.head = nn.Sequential(*self.head)
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -178,12 +166,6 @@ class TokenizedViT(nn.Module):
 
         return x
 
-    def forward_decoder(self, x):
-        for layer in self.decoder_layers:
-            x = layer(x)
-        x = self.decoder_layer_norm(x)
-        return x
-
     def forward_loss(self, y, pred, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
@@ -196,7 +178,6 @@ class TokenizedViT(nn.Module):
 
     def forward(self, x, y, metric, lat):
         embeddings = self.forward_encoder(x)  # B, CxL, D
-        embeddings = self.forward_decoder(embeddings)
         preds = self.head(embeddings)
         loss, preds = self.forward_loss(y, preds, metric, lat)
         return loss, preds
