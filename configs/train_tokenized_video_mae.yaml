@@ -83,7 +83,7 @@ model:
       img_size: [128, 256]
       patch_size: 16
       learn_pos_emb: False
-      in_vars:
+      default_vars:
         [
           "geopotential_1000",
           "geopotential_850",
@@ -109,9 +109,7 @@ model:
       decoder_embed_dim: 512
       decoder_depth: 4
       decoder_num_heads: 16
-      out_vars: null
       mlp_ratio: 4
-      norm_pix_loss: False
 
 # ---------------------------- DATA -------------------------------------------
 data:

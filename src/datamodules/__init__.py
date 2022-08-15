@@ -42,12 +42,12 @@ DEFAULT_PRESSURE_LEVELS = {
 VAR_TO_NAME_LEVEL = {}
 for v in VAR_TO_NAME.keys():
     var_name = VAR_TO_NAME[v]
-    if v not in DEFAULT_PRESSURE_LEVELS: # v is a single level variable
+    if v not in DEFAULT_PRESSURE_LEVELS:  # v is a single level variable
         VAR_TO_NAME_LEVEL[v] = [var_name]
     else:
         VAR_TO_NAME_LEVEL[v] = []
         for p in DEFAULT_PRESSURE_LEVELS[v]:
-            VAR_TO_NAME_LEVEL[v].append(f'{var_name}_{p}')
+            VAR_TO_NAME_LEVEL[v].append(f"{var_name}_{p}")
 # {
 #     't2m': ['2m_temperature'],
 #     'u10': ['10m_u_component_of_wind'],

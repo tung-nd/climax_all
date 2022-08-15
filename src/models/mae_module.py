@@ -2,15 +2,16 @@
 from typing import Any
 
 import torch
+import torch.nn as nn
 from pytorch_lightning import LightningModule
-from src.models.components.tokenized_mae import TokenizedMAE
+
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 
 class MAELitModule(LightningModule):
     def __init__(
         self,
-        net: TokenizedMAE,
+        net: nn.Module,
         lr: float = 0.001,
         weight_decay: float = 0.005,
         warmup_epochs: int = 5,

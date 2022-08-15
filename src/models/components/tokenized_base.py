@@ -11,16 +11,16 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedBase(nn.Module):
-    """
-    Base model for tokenized MAE and tokenized ViT
-    Including patch embedding and encoder
-    """
+    """Base model for tokenized MAE and tokenized ViT Including patch embedding and encoder."""
 
     def __init__(
         self,
@@ -32,23 +32,23 @@ class TokenizedBase(nn.Module):
         num_heads=16,
         mlp_ratio=4.0,
         default_vars=[
-          "geopotential_1000",
-          "geopotential_850",
-          "geopotential_500",
-          "geopotential_50",
-          "relative_humidity_850",
-          "relative_humidity_500",
-          "u_component_of_wind_1000",
-          "u_component_of_wind_850",
-          "u_component_of_wind_500",
-          "v_component_of_wind_1000",
-          "v_component_of_wind_850",
-          "v_component_of_wind_500",
-          "temperature_850",
-          "temperature_500",
-          "2m_temperature",
-          "10m_u_component_of_wind",
-          "10m_v_component_of_wind",
+            "geopotential_1000",
+            "geopotential_850",
+            "geopotential_500",
+            "geopotential_50",
+            "relative_humidity_850",
+            "relative_humidity_500",
+            "u_component_of_wind_1000",
+            "u_component_of_wind_850",
+            "u_component_of_wind_500",
+            "v_component_of_wind_1000",
+            "v_component_of_wind_850",
+            "v_component_of_wind_500",
+            "temperature_850",
+            "temperature_500",
+            "2m_temperature",
+            "10m_u_component_of_wind",
+            "10m_v_component_of_wind",
         ],
     ):
         super().__init__()
@@ -106,7 +106,9 @@ class TokenizedBase(nn.Module):
             cls_token=False,
         )
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-        channel_embed = get_1d_sincos_pos_embed_from_grid(self.channel_embed.shape[-1], np.arange(len(self.default_vars)))
+        channel_embed = get_1d_sincos_pos_embed_from_grid(
+            self.channel_embed.shape[-1], np.arange(len(self.default_vars))
+        )
         self.channel_embed.data.copy_(torch.from_numpy(channel_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
@@ -161,6 +163,7 @@ class TokenizedBase(nn.Module):
 
     def forward(self, x):
         pass
+
 
 # model = TokenizedMAE(depth=4, decoder_depth=2).cuda()
 # x = torch.randn(2, 3, 128, 256).cuda()

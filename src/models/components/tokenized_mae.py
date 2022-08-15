@@ -11,10 +11,13 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from timm.models.vision_transformer import Block
+
 from src.models.components.tokenized_base import TokenizedBase
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
-from timm.models.vision_transformer import Block, PatchEmbed
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedMAE(TokenizedBase):
@@ -26,23 +29,23 @@ class TokenizedMAE(TokenizedBase):
         patch_size=16,
         learn_pos_emb=False,
         default_vars=[
-          "geopotential_1000",
-          "geopotential_850",
-          "geopotential_500",
-          "geopotential_50",
-          "relative_humidity_850",
-          "relative_humidity_500",
-          "u_component_of_wind_1000",
-          "u_component_of_wind_850",
-          "u_component_of_wind_500",
-          "v_component_of_wind_1000",
-          "v_component_of_wind_850",
-          "v_component_of_wind_500",
-          "temperature_850",
-          "temperature_500",
-          "2m_temperature",
-          "10m_u_component_of_wind",
-          "10m_v_component_of_wind",
+            "geopotential_1000",
+            "geopotential_850",
+            "geopotential_500",
+            "geopotential_50",
+            "relative_humidity_850",
+            "relative_humidity_500",
+            "u_component_of_wind_1000",
+            "u_component_of_wind_850",
+            "u_component_of_wind_500",
+            "v_component_of_wind_1000",
+            "v_component_of_wind_850",
+            "v_component_of_wind_500",
+            "temperature_850",
+            "temperature_500",
+            "2m_temperature",
+            "10m_u_component_of_wind",
+            "10m_v_component_of_wind",
         ],
         embed_dim=1024,
         depth=24,
@@ -52,11 +55,7 @@ class TokenizedMAE(TokenizedBase):
         decoder_num_heads=16,
         mlp_ratio=4.0,
     ):
-        super(TokenizedMAE, self).__init__(
-            img_size, patch_size, learn_pos_emb,
-            embed_dim, depth, num_heads,
-            mlp_ratio, default_vars
-        )
+        super().__init__(img_size, patch_size, learn_pos_emb, embed_dim, depth, num_heads, mlp_ratio, default_vars)
 
         # --------------------------------------------------------------------------
         # MAE decoder specifics
@@ -91,7 +90,7 @@ class TokenizedMAE(TokenizedBase):
 
     def initialize_weights(self):
         # initialization
-        super(TokenizedMAE, self).initialize_weights()
+        super().initialize_weights()
 
         # initialize decoder components
         decoder_pos_embed = get_2d_sincos_pos_embed(
@@ -124,33 +123,6 @@ class TokenizedMAE(TokenizedBase):
         imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
         imgs = imgs.unflatten(dim=0, sizes=(-1, len(variables)))  # (B, C, H, W)
         return imgs
-
-    def random_masking(self, x, mask_ratio):
-        """Perform per-sample random masking by per-sample shuffling.
-
-        Per-sample shuffling is done by argsort random noise.
-        x: [N, L, D], sequence
-        """
-        N, L, D = x.shape  # batch, length, dim
-        len_keep = int(L * (1 - mask_ratio))
-
-        noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
-
-        # sort noise for each sample
-        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
-        ids_restore = torch.argsort(ids_shuffle, dim=1)
-
-        # keep the first subset
-        ids_keep = ids_shuffle[:, :len_keep]
-        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
-
-        # generate the binary mask: 0 is keep, 1 is remove
-        mask = torch.ones([N, L], device=x.device)
-        mask[:, :len_keep] = 0
-        # unshuffle to get the binary mask
-        mask = torch.gather(mask, dim=1, index=ids_restore)
-
-        return x_masked, mask, ids_restore
 
     def forward_encoder(self, x, variables, mask_ratio):
         """
