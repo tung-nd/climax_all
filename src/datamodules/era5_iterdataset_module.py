@@ -5,42 +5,37 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
+from src.datamodules import VAR_TO_NAME
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from datamodules import VAR_TO_NAME
-
-from .era5_iterdataset import (
-    ERA5,
-    ERA5Forecast,
-    ERA5ForecastMultiStep,
-    ERA5ForecastMultiStepPrecip,
-    ERA5ForecastPrecip,
-    ERA5Npy,
-    ERA5Video,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-    IndividualForecastPrecipDataIter,
-    ShuffleIterableDataset,
-)
+from era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
+                              ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
+                              ERA5Npy, ERA5Video, IndividualDataIter,
+                              IndividualForecastDataIter,
+                              IndividualForecastPrecipDataIter,
+                              ShuffleIterableDataset)
 
 
 def collate_fn(batch):
-    inp = torch.stack([batch[i] for i in range(len(batch))])
-    return inp
+    inp = torch.stack([batch[i][0] for i in range(len(batch))])
+    variables = batch[0][1]
+    return inp, variables
 
 
 def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
-    return inp, out
+    variables = batch[0][2]
+    return inp, out, variables
 
 
 def collate_forecast_precip_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     tp = torch.stack([batch[i][2] for i in range(len(batch))])
-    return inp, out, tp
+    variables = batch[0][3]
+    return inp, out, tp, variables
 
 
 class ERA5IterDatasetModule(LightningDataModule):
@@ -208,75 +203,55 @@ class ERA5IterDatasetModule(LightningDataModule):
 
 
 # era5 = ERA5IterDatasetModule(
-#     "/datadrive/1.40625deg_equally_np/",
-#     "npy",
-#     "forecast",
-#     ["t2m", "z", "t"],
-#     1000,
-#     64,
-#     2,
-#     False,
-# )
-# era5.setup()
-# for x, y in era5.train_dataloader():
-#     print(x.shape)
-#     print(y.shape)
-#     break
-# for x, y in era5.val_dataloader():
-#     print(x.shape)
-#     print(y.shape)
-#     break
-
-# era5 = ERA5DataPipeModule(
-#     "/datadrive/datasets/1.40625deg_monthly_np/",
+#     "/datadrive/5.625deg_equally_np/",
 #     "npy",
 #     "image",
-#     ["t2m", "z", "t"],
+#     ["t2m", "u10", "v10", "z"],
 #     1000,
-#     64,
-#     2,
-#     False,
+#     batch_size=64,
+#     num_workers=2,
+#     pin_memory=False,
 # )
 # era5.setup()
-# for x in era5.train_dataloader():
+# for x, variables in era5.train_dataloader():
 #     print(x.shape)
-#     print(x.mean(dim=(0, 2, 3)))
-#     print(x.std(dim=(0, 2, 3)))
+#     print (variables)
 #     break
 
-# era5 = ERA5DataPipeModule(
-#     "/mnt/weatherbench/tmp/_yearly_np",
+# era5 = ERA5IterDatasetModule(
+#     "/datadrive/5.625deg_equally_np/",
 #     "npy",
 #     "video",
-#     ["t2m", "z", "t"],
+#     ["t2m", "u10", "v10", "z"],
 #     1000,
-#     16,
-#     0,
-#     False,
+#     batch_size=64,
+#     num_workers=2,
+#     pin_memory=False,
 # )
 # era5.setup()
-# for x in era5.train_dataloader():
+# for x, variables in era5.train_dataloader():
 #     print(x.shape)
-#     print(x.mean(dim=(0, 2, 3)))
-#     print(x.std(dim=(0, 2, 3)))
+#     print (variables)
 #     break
 
-# era5 = ERA5DataPipeModule(
-#     "/mnt/weatherbench/tmp/_yearly_np",
+# era5 = ERA5IterDatasetModule(
+#     "/datadrive/5.625deg_equally_np/",
 #     "npy",
 #     "forecast",
-#     ["t2m", "z", "t"],
+#     ["t2m", "u10", "v10", "z"],
 #     1000,
-#     64,
-#     2,
-#     False,
+#     batch_size=64,
+#     num_workers=2,
+#     pin_memory=False,
 # )
 # era5.setup()
-# for x, y in era5.train_dataloader():
+# for x, y, variables in era5.train_dataloader():
 #     print(x.shape)
-#     print(x.mean(dim=(0, 2, 3)))
-#     print(x.std(dim=(0, 2, 3)))
 #     print(y.shape)
-#     print(y.mean(dim=(0, 2, 3)))
-#     print(y.std(dim=(0, 2, 3)))
+#     print (variables)
+#     break
+# for x, y, variables in era5.val_dataloader():
+#     print(x.shape)
+#     print(y.shape)
+#     print (variables)
 #     break
