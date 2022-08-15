@@ -146,7 +146,7 @@ class ERA5ForecastMultiStep(IterableDataset):
                 output_k = []
                 for step in range(pred_steps):
                     start = (step + 1) * pred_range
-                    end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else -1
+                    end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else x.shape[0]
                     output_k.append(x[start:end:interval])
 
                 output_k = np.stack(output_k, axis=1)
