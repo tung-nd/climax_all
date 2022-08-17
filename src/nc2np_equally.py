@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from datamodules import NAME_TO_VAR
+from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
 HOURS_PER_YEAR = 8760  # 365-day year
 
@@ -40,6 +40,7 @@ def nc2np(path, variables, years, save_dir, partition, num_shards_per_year):
             else:  # multiple-level variables, only use a subset
                 assert len(ds[code].shape) == 4
                 all_levels = ds["level"][:].to_numpy()
+                all_levels = np.intersect1d(all_levels, DEFAULT_PRESSURE_LEVELS[code])
                 for level in all_levels:
                     ds_level = ds.sel(level=[level])
                     level = int(level)

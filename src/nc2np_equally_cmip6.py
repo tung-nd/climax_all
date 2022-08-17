@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from datamodules import NAME_TO_VAR
+from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
 HOURS_PER_YEAR = 7304  # timesteps per file in CMIP6
 
@@ -37,10 +37,12 @@ def nc2np(path, variables, years, save_dir, num_shards_per_year):
                     normalize_std[var].append(var_std_yearly)
             else:  # multiple-level variables, only use a subset
                 assert len(ds[code].shape) == 4
-                all_levels = ds['plev'][:].to_numpy()
+                all_levels = ds['plev'][:].to_numpy() / 100 # 92500 --> 925
+                all_levels = all_levels.astype(int)
+                all_levels = np.intersect1d(all_levels, DEFAULT_PRESSURE_LEVELS[code])
                 for level in all_levels:
-                    ds_level = ds.sel(plev=[level])
-                    level = int(level / 100) # 92500 --> 925
+                    ds_level = ds.sel(plev=[level * 100.0])
+                    # level = int(level / 100) # 92500 --> 925
 
                     # remove the last 24 hours if this year has 366 days
                     np_vars[f"{code}_{level}"] = ds_level[code].to_numpy()[:HOURS_PER_YEAR]
