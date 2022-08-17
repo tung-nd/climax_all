@@ -12,7 +12,7 @@ HOURS_PER_YEAR = 7304  # timesteps per file in CMIP6
 
 
 def nc2np(path, variables, years, save_dir, num_shards_per_year):
-    os.makedirs(os.path.join(save_dir, 'train'), exist_ok=True)
+    os.makedirs(os.path.join(save_dir, "train"), exist_ok=True)
     normalize_mean = {}
     normalize_std = {}
     for year in tqdm(years):
@@ -37,7 +37,7 @@ def nc2np(path, variables, years, save_dir, num_shards_per_year):
                     normalize_std[var].append(var_std_yearly)
             else:  # multiple-level variables, only use a subset
                 assert len(ds[code].shape) == 4
-                all_levels = ds['plev'][:].to_numpy() / 100 # 92500 --> 925
+                all_levels = ds["plev"][:].to_numpy() / 100  # 92500 --> 925
                 all_levels = all_levels.astype(int)
                 all_levels = np.intersect1d(all_levels, DEFAULT_PRESSURE_LEVELS[code])
                 for level in all_levels:
@@ -63,7 +63,7 @@ def nc2np(path, variables, years, save_dir, num_shards_per_year):
             end_id = start_id + num_hrs_per_shard
             sharded_data = {k: np_vars[k][start_id:end_id] for k in np_vars.keys()}
             np.savez(
-                os.path.join(save_dir, 'train', f"{year}_{shard_id}.npz"),
+                os.path.join(save_dir, "train", f"{year}_{shard_id}.npz"),
                 **sharded_data,
             )
 
@@ -111,7 +111,7 @@ def main(
     num_shards,
 ):
     assert HOURS_PER_YEAR % num_shards == 0
-    year_strings = [f'{y}01010600-{y+5}01010000' for y in range(1850, 2015, 5)] # hard code for cmip6
+    year_strings = [f"{y}01010600-{y+5}01010000" for y in range(1850, 2015, 5)]  # hard code for cmip6
 
     if len(variables) <= 3:  # small dataset for testing new models
         yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_small_np")
@@ -120,6 +120,7 @@ def main(
     os.makedirs(yearly_datapath, exist_ok=True)
 
     nc2np(path, variables, year_strings, yearly_datapath, num_shards)
+
 
 if __name__ == "__main__":
     main()

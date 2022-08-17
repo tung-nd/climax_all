@@ -10,12 +10,19 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
-                               ERA5Npy, ERA5Video, IndividualDataIter,
-                               IndividualForecastDataIter,
-                               IndividualForecastPrecipDataIter,
-                               ShuffleIterableDataset)
+from .era5_iterdataset import (
+    ERA5,
+    ERA5Forecast,
+    ERA5ForecastMultiStep,
+    ERA5ForecastMultiStepPrecip,
+    ERA5ForecastPrecip,
+    ERA5Npy,
+    ERA5Video,
+    IndividualDataIter,
+    IndividualForecastDataIter,
+    IndividualForecastPrecipDataIter,
+    ShuffleIterableDataset,
+)
 
 
 def collate_fn(batch):
