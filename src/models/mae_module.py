@@ -6,6 +6,7 @@ import torch.nn as nn
 from pytorch_lightning import LightningModule
 
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import mse
 
 
 class MAELitModule(LightningModule):
@@ -30,9 +31,16 @@ class MAELitModule(LightningModule):
             pred, mask = self.net.pred(x, variables, self.hparams.mask_ratio)
         return pred, mask
 
+    def set_lat_lon(self, lat, lon):
+        self.lat = lat
+        self.lon = lon
+
     def training_step(self, batch: Any, batch_idx: int):
         x, variables = batch
-        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        # loss can either be mse or lat_weighted_mse
+        loss_dict, _, _ = self.net.forward(
+            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+        )
         for var in loss_dict.keys():
             self.log(
                 "train/" + var,
@@ -45,7 +53,10 @@ class MAELitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, variables = batch
-        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        # loss can either be mse or lat_weighted_mse
+        loss_dict, _, _ = self.net.forward(
+            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+        )
         for var in loss_dict.keys():
             self.log(
                 "val/" + var,
@@ -68,7 +79,10 @@ class MAELitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, variables = batch
-        loss_dict, _, _ = self.net.forward(x, variables, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+        # loss can either be mse or lat_weighted_mse
+        loss_dict, _, _ = self.net.forward(
+            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+        )
         for var in loss_dict.keys():
             self.log(
                 "test/" + var,

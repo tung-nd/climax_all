@@ -2,24 +2,28 @@ import numpy as np
 import torch
 
 
-def mse(pred, y, vars, lat=None):
+def mse(pred, y, vars, lat=None, mask=None):
     """
     y: [N, 3, H, W]
     pred: [N, L, p*p*3]
     vars: list of variable names
     """
     loss = (pred - y) ** 2
+
+    if mask is None:
+        mask = torch.ones_like(loss)[:, 0]
+
     loss_dict = {}
 
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[var] = torch.mean(loss[:, i])
-    loss_dict["loss"] = torch.mean(torch.sum(loss, dim=1))
+            loss_dict[var] = (loss[:, i] * mask).sum() / mask.sum()
+    loss_dict["loss"] = (loss.sum(dim=1) * mask).sum() / mask.sum()
 
     return loss_dict
 
 
-def lat_weighted_mse(pred, y, vars, lat):
+def lat_weighted_mse(pred, y, vars, lat, mask=None):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -34,12 +38,15 @@ def lat_weighted_mse(pred, y, vars, lat):
     w_lat = w_lat / w_lat.mean()  # (H, )
     w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(error.device)  # (1, H, 1)
 
+    if mask is None:
+        mask = torch.ones_like(error)[:, 0]
+
     loss_dict = {}
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[var] = torch.mean(error[:, i] * w_lat)
+            loss_dict[var] = (error[:, i] * w_lat * mask).sum() / mask.sum()
 
-    loss_dict["loss"] = torch.mean(torch.sum(error * w_lat.unsqueeze(1), dim=1))
+    loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).sum(dim=1) * mask).sum() / mask.sum()
     return loss_dict
 
 

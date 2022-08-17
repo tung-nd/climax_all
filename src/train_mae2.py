@@ -19,6 +19,8 @@ def main():
     )
     os.makedirs(cli.trainer.default_root_dir, exist_ok=True)
 
+    cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
+
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
 

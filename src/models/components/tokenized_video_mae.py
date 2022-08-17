@@ -203,7 +203,7 @@ class TokenizedVideoMAE(TokenizedBase):
 
         return x
 
-    def forward_loss(self, imgs, pred, variables, mask, reconstruct_all):
+    def forward_loss(self, imgs, pred, variables, metric, lat, mask, reconstruct_all):
         """
         imgs: [B, T, C, H, W]
         pred: [B, TxCxL, p*p]
@@ -223,28 +223,24 @@ class TokenizedVideoMAE(TokenizedBase):
         img_pred = self.unpatchify(pred, variables)  # [BxT, C, H, W]
         img_mask = self.unpatchify(img_mask, variables)[:, 0]  # [BxT, H, W]
 
-        loss = (img_pred - imgs) ** 2  # [BxT, C, H, W]
-        loss_dict = {}
+        if metric is None:
+            return None, img_pred, img_mask
 
         if reconstruct_all:
-            for i, var in enumerate(variables):
-                loss_dict[var] = torch.mean(loss[:, i])
-            loss_dict["loss"] = torch.mean(torch.sum(loss, dim=1))
+            loss_dict = metric(img_pred, imgs, variables, lat, None)
         else:
-            for i, var in enumerate(variables):
-                loss_dict[var] = (loss[:, i] * img_mask).sum() / img_mask.sum()
-            loss_dict["loss"] = (loss.sum(dim=1) * img_mask).sum() / img_mask.sum()
+            loss_dict = metric(img_pred, imgs, variables, lat, img_mask)
 
         return loss_dict, img_pred, img_mask
 
-    def forward(self, imgs, variables, mask_ratio=0.75, reconstruct_all=False):
+    def forward(self, imgs, variables, metric, lat, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, variables, mask_ratio)
         pred = self.forward_decoder(latent, variables, ids_restore)  # [B, TxCxL, p*p]
-        loss, pred, mask = self.forward_loss(imgs, pred, variables, mask, reconstruct_all)
+        loss, pred, mask = self.forward_loss(imgs, pred, variables, metric, lat, mask, reconstruct_all)
         return loss, pred, mask
 
     def pred(self, imgs, variables, mask_ratio):
-        _, pred, mask = self.forward(imgs, variables, mask_ratio)
+        _, pred, mask = self.forward(imgs, variables, None, None, mask_ratio)
         return pred, mask
 
 
