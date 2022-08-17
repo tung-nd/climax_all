@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
+from datamodules import NAME_TO_VAR
 
 HOURS_PER_YEAR = 8760  # 365-day year
 
@@ -25,22 +25,36 @@ def nc2np(path, variables, years, save_dir, partition, num_shards_per_year):
 
             if len(ds[code].shape) == 3:  # surface level variables
                 ds[code] = ds[code].expand_dims("val", axis=1)
+                # remove the last 24 hours if this year has 366 days
+                np_vars[code] = ds[code].to_numpy()[:HOURS_PER_YEAR]
+
+                if partition == "train":  # compute mean and std of each var in each year
+                    var_mean_yearly = np_vars[code].mean(axis=(0, 2, 3))
+                    var_std_yearly = np_vars[code].std(axis=(0, 2, 3))
+                    if var not in normalize_mean:
+                        normalize_mean[var] = [var_mean_yearly]
+                        normalize_std[var] = [var_std_yearly]
+                    else:
+                        normalize_mean[var].append(var_mean_yearly)
+                        normalize_std[var].append(var_std_yearly)
             else:  # multiple-level variables, only use a subset
                 assert len(ds[code].shape) == 4
-                ds = ds.sel(level=DEFAULT_PRESSURE_LEVELS[code])
+                all_levels = ds["level"][:].to_numpy()
+                for level in all_levels:
+                    ds_level = ds.sel(level=[level])
+                    level = int(level)
+                    # remove the last 24 hours if this year has 366 days
+                    np_vars[f"{code}_{level}"] = ds_level[code].to_numpy()[:HOURS_PER_YEAR]
 
-            # remove the last 24 hours if this year has 366 days
-            np_vars[code] = ds[code].to_numpy()[:HOURS_PER_YEAR]
-
-            if partition == "train":  # compute mean and std of each var in each year
-                var_mean_yearly = np_vars[code].mean(axis=(0, 2, 3))
-                var_std_yearly = np_vars[code].std(axis=(0, 2, 3))
-                if var not in normalize_mean:
-                    normalize_mean[var] = [var_mean_yearly]
-                    normalize_std[var] = [var_std_yearly]
-                else:
-                    normalize_mean[var].append(var_mean_yearly)
-                    normalize_std[var].append(var_std_yearly)
+                    if partition == "train":  # compute mean and std of each var in each year
+                        var_mean_yearly = np_vars[f"{code}_{level}"].mean(axis=(0, 2, 3))
+                        var_std_yearly = np_vars[f"{code}_{level}"].std(axis=(0, 2, 3))
+                        if var not in normalize_mean:
+                            normalize_mean[f"{var}_{level}"] = [var_mean_yearly]
+                            normalize_std[f"{var}_{level}"] = [var_std_yearly]
+                        else:
+                            normalize_mean[f"{var}_{level}"].append(var_mean_yearly)
+                            normalize_std[f"{var}_{level}"].append(var_std_yearly)
 
         assert HOURS_PER_YEAR % num_shards_per_year == 0
         num_hrs_per_shard = HOURS_PER_YEAR // num_shards_per_year

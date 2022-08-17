@@ -31,6 +31,29 @@ NAME_TO_VAR = {
 
 VAR_TO_NAME = {v: k for k, v in NAME_TO_VAR.items()}
 
+NAME_LEVEL_TO_VAR_LEVEL = {
+    "geopotential_1000": "z_1000",
+    "geopotential_850": "z_850",
+    "geopotential_500": "z_500",
+    "geopotential_50": "z_50",
+    "relative_humidity_850": "r_850",
+    "relative_humidity_500": "r_500",
+    "u_component_of_wind_1000": "u_1000",
+    "u_component_of_wind_850": "u_850",
+    "u_component_of_wind_500": "u_500",
+    "v_component_of_wind_1000": "v_1000",
+    "v_component_of_wind_850": "v_850",
+    "v_component_of_wind_500": "v_500",
+    "temperature_850": "t_850",
+    "temperature_500": "t_500",
+    "2m_temperature": "t2m",
+    "10m_u_component_of_wind": "u10",
+    "10m_v_component_of_wind": "v10",
+    "total_precipitation": "tp",
+}
+
+VAR_LEVEL_TO_NAME_LEVEL = {v: k for k, v in NAME_LEVEL_TO_VAR_LEVEL.items()}
+
 DEFAULT_PRESSURE_LEVELS = {
     "u": [1000, 850, 500],
     "v": [1000, 850, 500],
@@ -38,26 +61,3 @@ DEFAULT_PRESSURE_LEVELS = {
     "t": [850, 500],
     "r": [850, 500],
 }
-
-VAR_TO_NAME_LEVEL = {}
-for v in VAR_TO_NAME.keys():
-    var_name = VAR_TO_NAME[v]
-    if v not in DEFAULT_PRESSURE_LEVELS:  # v is a single level variable
-        VAR_TO_NAME_LEVEL[v] = [var_name]
-    else:
-        VAR_TO_NAME_LEVEL[v] = []
-        for p in DEFAULT_PRESSURE_LEVELS[v]:
-            VAR_TO_NAME_LEVEL[v].append(f"{var_name}_{p}")
-# {
-#     't2m': ['2m_temperature'],
-#     'u10': ['10m_u_component_of_wind'],
-#     'v10': ['10m_v_component_of_wind'],
-#     'msl': ['mean_sea_level_pressure'],
-#     'sp': ['surface_pressure'],
-#     'u': ['u_component_of_wind_1000', 'u_component_of_wind_850', 'u_component_of_wind_500'],
-#     'v': ['v_component_of_wind_1000', 'v_component_of_wind_850', 'v_component_of_wind_500'],
-#     'z': ['geopotential_1000', 'geopotential_850', 'geopotential_500', 'geopotential_50'],
-#     't': ['temperature_850', 'temperature_500'],
-#     'r': ['relative_humidity_850', 'relative_humidity_500'],
-#     'tp': ['total_precipitation']
-# }

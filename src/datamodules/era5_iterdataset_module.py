@@ -8,41 +8,27 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from datamodules import VAR_TO_NAME, VAR_TO_NAME_LEVEL
+from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (
-    ERA5,
-    ERA5Forecast,
-    ERA5ForecastMultiStep,
-    ERA5ForecastMultiStepPrecip,
-    ERA5ForecastPrecip,
-    ERA5Npy,
-    ERA5Video,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-    IndividualForecastPrecipDataIter,
-    ShuffleIterableDataset,
-)
-
-
-def list_var_to_list_name(vars):
-    names = []
-    for v in vars:
-        names += VAR_TO_NAME_LEVEL[v]
-    return names
+from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
+                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
+                               ERA5Npy, ERA5Video, IndividualDataIter,
+                               IndividualForecastDataIter,
+                               IndividualForecastPrecipDataIter,
+                               ShuffleIterableDataset)
 
 
 def collate_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     variables = batch[0][1]
-    return inp, list_var_to_list_name(variables)
+    return inp, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables]
 
 
 def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     variables = batch[0][2]
-    return inp, out, list_var_to_list_name(variables)
+    return inp, out, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables]
 
 
 def collate_forecast_precip_fn(batch):
@@ -50,7 +36,7 @@ def collate_forecast_precip_fn(batch):
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     tp = torch.stack([batch[i][2] for i in range(len(batch))])
     variables = batch[0][3]
-    return inp, out, tp, list_var_to_list_name(variables)
+    return inp, out, tp, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables]
 
 
 class ERA5IterDatasetModule(LightningDataModule):
@@ -80,8 +66,11 @@ class ERA5IterDatasetModule(LightningDataModule):
             if pct_train < 1.0:
                 train_len = int(pct_train * len(self.lister_train))
                 self.lister_train = self.lister_train[:train_len]
-            self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
-            self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
+            self.lister_val = None
+            self.lister_test = None
+            if os.path.exists(os.path.join(root_dir, "val")):
+                self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
+                self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
         else:
             raise NotImplementedError(f"Only support npy or zarr")
 
@@ -131,11 +120,11 @@ class ERA5IterDatasetModule(LightningDataModule):
     def get_normalize(self):
         normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
         normalize_mean = np.concatenate(
-            [normalize_mean[VAR_TO_NAME[var]] for var in self.hparams.variables if var != "tp"]
+            [normalize_mean[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in self.hparams.variables if var != "tp"]
         )
         normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
         normalize_std = np.concatenate(
-            [normalize_std[VAR_TO_NAME[var]] for var in self.hparams.variables if var != "tp"]
+            [normalize_std[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in self.hparams.variables if var != "tp"]
         )
         return transforms.Normalize(normalize_mean, normalize_std)
 
@@ -162,27 +151,29 @@ class ERA5IterDatasetModule(LightningDataModule):
                 self.hparams.buffer_size,
             )
 
-            self.data_val = self.data_iter(
-                self.val_dataset_class(
-                    self.reader(
-                        self.lister_val,
-                        variables=self.hparams.variables,
+            if self.lister_val is not None:
+                self.data_val = self.data_iter(
+                    self.val_dataset_class(
+                        self.reader(
+                            self.lister_val,
+                            variables=self.hparams.variables,
+                        ),
+                        **self.val_dataset_args,
                     ),
-                    **self.val_dataset_args,
-                ),
-                self.transforms,
-            )
+                    self.transforms,
+                )
 
-            self.data_test = self.data_iter(
-                self.val_dataset_class(
-                    self.reader(
-                        self.lister_test,
-                        variables=self.hparams.variables,
+            if self.lister_test is not None:
+                self.data_test = self.data_iter(
+                    self.val_dataset_class(
+                        self.reader(
+                            self.lister_test,
+                            variables=self.hparams.variables,
+                        ),
+                        **self.val_dataset_args,
                     ),
-                    **self.val_dataset_args,
-                ),
-                self.transforms,
-            )
+                    self.transforms,
+                )
 
     def train_dataloader(self):
         return DataLoader(
@@ -196,25 +187,27 @@ class ERA5IterDatasetModule(LightningDataModule):
         )
 
     def val_dataloader(self):
-        return DataLoader(
-            self.data_val,
-            batch_size=self.hparams.batch_size,
-            shuffle=False,
-            drop_last=True,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            collate_fn=self.collate_fn,
-        )
+        if self.lister_val is not None:
+            return DataLoader(
+                self.data_val,
+                batch_size=self.hparams.batch_size,
+                shuffle=False,
+                drop_last=True,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                collate_fn=self.collate_fn,
+            )
 
     def test_dataloader(self):
-        return DataLoader(
-            self.data_test,
-            batch_size=self.hparams.batch_size,
-            shuffle=False,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            collate_fn=self.collate_fn,
-        )
+        if self.lister_test is not None:
+            return DataLoader(
+                self.data_test,
+                batch_size=self.hparams.batch_size,
+                shuffle=False,
+                num_workers=self.hparams.num_workers,
+                pin_memory=self.hparams.pin_memory,
+                collate_fn=self.collate_fn,
+            )
 
 
 # era5 = ERA5IterDatasetModule(

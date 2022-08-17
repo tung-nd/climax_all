@@ -116,7 +116,26 @@ data:
   root_dir: /datadrive/1.40625deg_equally_np
   reader: npy # npy or zarr
   dataset_type: video # pretrain or forecast (finetune)
-  variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
+  variables:
+    [
+      "z_1000",
+      "z_850",
+      "z_500",
+      "z_50",
+      "r_850",
+      "r_500",
+      "u_1000",
+      "u_850",
+      "u_500",
+      "v_1000",
+      "v_850",
+      "v_500",
+      "t_850",
+      "t_500",
+      "t2m",
+      "u10",
+      "v10",
+    ]
   timesteps: 8
   buffer_size: 20000
   batch_size: 128
