@@ -41,10 +41,11 @@ search:
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_tokenized_mae.yaml
         --trainer.devices=${GPUS}
-        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True
-        --model.net.in_vars=['geopotential_1000','geopotential_850','geopotential_500','geopotential_50','temperature_850','temperature_500']
-        --model.net.img_size=[32,64]
-        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy --data.variables=['z','t'] --data.num_workers=4 --data.batch_size=32
+        --model.reconstruct_all=True --model.mask_ratio={mask_ratio}
+        --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
+        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
+        --data.variables=['z_1000','z_850','z_500','z_50','t_850','t_500']
+        --data.num_workers=4 --data.batch_size=64
 
   type: grid
   max_trials: 80

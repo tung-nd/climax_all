@@ -42,10 +42,12 @@ search:
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_tokenized_video_mae.yaml
         --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
-        --model.reconstruct_all=True --model.mask_ratio={mask_ratio} --model.net.learn_pos_emb=True --model.net.timesteps=8
-        --model.net.in_vars=['geopotential_1000','geopotential_850','geopotential_500','geopotential_50','temperature_850','temperature_500']
+        --model.reconstruct_all=True --model.mask_ratio={mask_ratio}
+        --model.net.learn_pos_emb=True --model.net.timesteps=8
         --model.net.img_size=[32,64]
-        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy --data.variables=['z','t'] --data.timesteps=8 --data.num_workers=1 --data.batch_size=16
+        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
+        --data.variables=['z_1000','z_850','z_500','z_50','t_850','t_500']
+        --data.timesteps=8 --data.num_workers=1 --data.batch_size=16
 
   type: grid
   max_trials: 80

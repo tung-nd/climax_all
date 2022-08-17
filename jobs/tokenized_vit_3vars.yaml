@@ -29,8 +29,9 @@ env_defaults:
   NODES: 1
   GPUS: 1
 
-jobs:
-  - name: tokenized_vit_videomae_0.9_5.625deg_direct_5days_2layer_head_freeze
+search:
+  job_template:
+    name: tokenized_vit_5.625deg_finetune_mae_0.9_direct_5days_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -41,10 +42,19 @@ jobs:
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_tokenized_vit.yaml
         --trainer.devices=${GPUS}
-        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy --data.variables=['z','t'] --data.num_workers=1 --data.predict_range=120 --data.predict_steps=1 --data.batch_size=128
-        --model.net.in_vars=['geopotential_1000','geopotential_850','geopotential_500','geopotential_50','temperature_850','temperature_500']
+        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
+        --data.variables=['z_1000','z_850','z_500','z_50','t_850','t_500']
+        --data.predict_range=120 --data.predict_steps=1
+        --data.num_workers=1 --data.batch_size=128
         --model.net.decoder_depth=2
         --model.net.learn_pos_emb=True
         --model.net.img_size=[32,64]
-        --model.pretrained_path=/mnt/data/checkpoints/tokenized_video_mae/5.625deg/last.ckpt
-        --model.net.freeze_encoder=True
+        --model.pretrained_path=/mnt/data/checkpoints/tokenized_mae/5.625deg_6vars_0.9/last.ckpt
+        --model.net.freeze_encoder={freeze}
+
+  type: grid
+  max_trials: 80
+  params:
+    - name: freeze
+      spec: discrete
+      values: [False, True]
