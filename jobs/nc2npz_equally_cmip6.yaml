@@ -1,0 +1,31 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Extracting equally npz files
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: d14ded
+
+storage:
+  my_data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    is_output: True
+
+jobs:
+  - name: extract_equally_npz
+    sku: 1xC16
+    command:
+      - python src/nc2np_equally_cmip6.py /mnt/data/CMIP6/MPI-ESM/5.625deg --num_shards=11
