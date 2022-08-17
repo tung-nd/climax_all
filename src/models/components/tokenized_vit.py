@@ -110,7 +110,7 @@ class TokenizedViT(TokenizedBase):
 
         return x
 
-    def forward_loss(self, y, pred, variables, metric, lat):  # metric is a list
+    def forward_loss(self, y, pred, variables, out_variables, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
         pred: [B, CxL, p*p]
@@ -118,12 +118,19 @@ class TokenizedViT(TokenizedBase):
         pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         pred = self.unpatchify(pred, variables)  # [B, C, H, W]
-        return [m(pred, y, variables, lat) for m in metric], pred
 
-    def forward(self, x, y, variables, metric, lat):
+        # only compute loss over the variables in out_variables
+        in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
+        out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
+        ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
+        pred = pred[:, ids]
+
+        return [m(pred, y, out_variables, lat) for m in metric], pred
+
+    def forward(self, x, y, variables, out_variables, metric, lat):
         embeddings = self.forward_encoder(x, variables)  # B, CxL, D
         preds = self.head(embeddings)
-        loss, preds = self.forward_loss(y, preds, variables, metric, lat)
+        loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
     def predict(self, x, variables):
@@ -134,16 +141,27 @@ class TokenizedViT(TokenizedBase):
         pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         return self.unpatchify(pred, variables)
 
-    def rollout(self, x, y, variables, steps, metric, transform, lat, log_steps, log_days):
+    def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
         # transform: get back to the original range
+        if steps > 1:
+            # can only rollout for more than 1 step if input variables and output variables are the same
+            assert len(variables) == len(out_variables)
         preds = []
         for _ in range(steps):
             x = self.predict(x, variables)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
+
+        # only compute loss over the variables in out_variables
+        in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
+        out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
+        ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
+        preds = preds[:, :, ids]
+
         preds = transform(preds)
         y = transform(y)
-        return [m(preds, y, variables, lat, log_steps, log_days) for m in metric], preds
+
+        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # from src.utils.metrics import mse

@@ -7,10 +7,11 @@ from torch.utils.data import IterableDataset
 
 
 class ERA5Npy(IterableDataset):
-    def __init__(self, file_list, variables, shuffle: bool = False) -> None:
+    def __init__(self, file_list, variables, out_variables, shuffle: bool = False) -> None:
         super().__init__()
         self.file_list = file_list
         self.variables = variables
+        self.out_variables = out_variables if out_variables is not None else variables
         self.shuffle = shuffle
 
     def __iter__(self):
@@ -54,7 +55,7 @@ class ERA5Npy(IterableDataset):
         for idx in range(iter_start, iter_end):
             path = self.file_list[idx]
             data = np.load(path)
-            yield {k: data[k] for k in self.variables}, self.variables
+            yield {k: data[k] for k in self.variables}, self.variables, self.out_variables
 
 
 class ERA5(IterableDataset):
@@ -63,13 +64,13 @@ class ERA5(IterableDataset):
         self.dataset = dataset
 
     def __iter__(self):
-        for data, variables in self.dataset:
+        for data, variables, _ in self.dataset:
             np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
             yield torch.from_numpy(np_data), variables
 
 
 class IndividualDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5, transforms: torch.nn.Module) -> None:
+    def __init__(self, dataset: ERA5, transforms: torch.nn.Module, output_transforms: torch.nn.Module) -> None:
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
@@ -90,7 +91,7 @@ class ERA5Video(IterableDataset):
         self.timesteps = timesteps
 
     def __iter__(self):
-        for data, variables in self.dataset:
+        for data, variables, _ in self.dataset:
             np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
             torch_data = torch.from_numpy(np_data)
             yield self.construct_video(torch_data), variables
@@ -114,16 +115,16 @@ class ERA5Forecast(IterableDataset):
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
-        for data, variables in self.dataset:
+        for data, variables, out_variables in self.dataset:
             inputs = np.concatenate(
                 [data[k][0 : -self.predict_range : self.predict_range] for k in data.keys()],
                 axis=1,
             )
             outputs = np.concatenate(
-                [data[k][self.predict_range :: self.predict_range] for k in data.keys()],
+                [data[k][self.predict_range :: self.predict_range] for k in out_variables],
                 axis=1,
             )
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
@@ -138,7 +139,7 @@ class ERA5ForecastMultiStep(IterableDataset):
         # i.e. where inputs are from previous years and output from next
         pred_range = self.pred_range
         pred_steps = self.pred_steps
-        for data, variables in self.dataset:
+        for data, variables, out_variables in self.dataset:
             inputs = {}
             outputs = {}
             for k in data.keys():
@@ -161,27 +162,28 @@ class ERA5ForecastMultiStep(IterableDataset):
                 axis=1,
             )
             outputs = np.concatenate(
-                [outputs[k] for k in outputs.keys()],
+                [outputs[k] for k in out_variables],
                 axis=2,
             )
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables, out_variables
 
 
 class IndividualForecastDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module):
+    def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module, output_transforms: torch.nn.Module):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
+        self.output_transforms = output_transforms
 
     def __iter__(self):
-        for (inp, out, variables) in self.dataset:
+        for (inp, out, variables, out_variables) in self.dataset:
             assert inp.shape[0] == out.shape[0]
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.transforms(out[i]), variables
+                    yield self.transforms(inp[i]), self.output_transforms(out[i]), variables, out_variables
                 else:
-                    yield inp[i], out[i], variables
+                    yield inp[i], out[i], variables, out_variables
 
 
 class ERA5ForecastPrecip(IterableDataset):
@@ -200,7 +202,7 @@ class ERA5ForecastPrecip(IterableDataset):
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
-        for data, variables in self.dataset:
+        for data, variables, out_variables in self.dataset:
             min_len = np.min([data[k].shape[0] for k in data.keys()])
             inputs = np.concatenate(
                 [data[k][0 : min_len - self.predict_range : self.predict_range] for k in data.keys() if k != "tp"],
@@ -211,7 +213,7 @@ class ERA5ForecastPrecip(IterableDataset):
                 axis=1,
             )
             tp = self.get_tp(data, outputs.shape[0])
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), torch.from_numpy(tp), variables
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs), torch.from_numpy(tp), variables, out_variables
 
 
 class ERA5ForecastMultiStepPrecip(IterableDataset):
@@ -237,7 +239,7 @@ class ERA5ForecastMultiStepPrecip(IterableDataset):
         pred_range = self.pred_range
         pred_steps = self.pred_steps
         interval = pred_range * pred_steps
-        for data, variables in self.dataset:
+        for data, variables, out_variables in self.dataset:
             inputs = {}
             outputs = {}
             min_len = np.min([data[k].shape[0] for k in data.keys()])
@@ -266,24 +268,25 @@ class ERA5ForecastMultiStepPrecip(IterableDataset):
                 axis=2,
             )
             tp = self.get_tp(data, inputs.shape[0])
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), torch.from_numpy(tp), variables
+            yield torch.from_numpy(inputs), torch.from_numpy(outputs), torch.from_numpy(tp), variables, out_variables
 
 
 class IndividualForecastPrecipDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5ForecastPrecip, transforms: torch.nn.Module):
+    def __init__(self, dataset: ERA5ForecastPrecip, transforms: torch.nn.Module, output_transforms: torch.nn.Module):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
+        self.output_transforms = output_transforms
 
     def __iter__(self):
-        for (inp, out, tp, variables) in self.dataset:
+        for (inp, out, tp, variables, out_variables) in self.dataset:
             assert inp.shape[0] == out.shape[0] and inp.shape[0] == tp.shape[0]
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.transforms(out[i]), tp[i]
+                    yield self.transforms(inp[i]), self.output_transforms(out[i]), tp[i]
                 else:
-                    yield inp[i], out[i], tp[i], variables
+                    yield inp[i], out[i], tp[i], variables, out_variables
 
 
 class ShuffleIterableDataset(IterableDataset):

@@ -57,8 +57,8 @@ class ViTLitModule(LightningModule):
         self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
-        x, y, variables = batch
-        loss_dict, _ = self.net.forward(x, y, variables, [lat_weighted_mse], lat=self.lat)
+        x, y, variables, out_variables = batch
+        loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
@@ -71,7 +71,7 @@ class ViTLitModule(LightningModule):
         return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
-        x, y, variables = batch
+        x, y, variables, out_variables = batch
         pred_steps = y.shape[1]
         pred_range = self.pred_range
 
@@ -85,6 +85,7 @@ class ViTLitModule(LightningModule):
             x,
             y,
             variables,
+            out_variables,
             pred_steps,
             [lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,
@@ -119,7 +120,7 @@ class ViTLitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        x, y, variables = batch
+        x, y, variables, out_variables = batch
         pred_steps = y.shape[1]
         pred_range = self.pred_range
 
@@ -133,6 +134,7 @@ class ViTLitModule(LightningModule):
             x,
             y,
             variables,
+            out_variables,
             pred_steps,
             [lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,

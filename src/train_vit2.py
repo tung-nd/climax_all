@@ -19,7 +19,7 @@ def main():
     )
     os.makedirs(cli.trainer.default_root_dir, exist_ok=True)
 
-    normalization = cli.datamodule.get_normalize()
+    normalization = cli.datamodule.output_transforms
     mean_norm, std_norm = normalization.mean, normalization.std
     mean_denorm, std_denorm = -mean_norm / std_norm, 1 / std_norm
     cli.model.set_denormalization(mean_denorm, std_denorm)

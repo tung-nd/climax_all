@@ -91,9 +91,12 @@ class TokenizedBase(nn.Module):
             idx += 1
         return channel_embed, channel_map
 
-    def get_channel_emb(self, channel_emb, vars):
+    def get_channel_ids(self, vars):
         ids = np.array([self.channel_map[var] for var in vars])
-        ids = torch.from_numpy(ids)
+        return torch.from_numpy(ids)
+
+    def get_channel_emb(self, channel_emb, vars):
+        ids = self.get_channel_ids(vars)
         return channel_emb[:, ids, :]
 
     def initialize_weights(self):

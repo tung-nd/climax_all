@@ -35,7 +35,13 @@ def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     variables = batch[0][2]
-    return inp, out, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables]
+    out_variables = batch[0][3]
+    return (
+        inp,
+        out,
+        [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables],
+        [VAR_LEVEL_TO_NAME_LEVEL[v] for v in out_variables],
+    )
 
 
 def collate_forecast_precip_fn(batch):
@@ -54,6 +60,7 @@ class ERA5IterDatasetModule(LightningDataModule):
         dataset_type,  # image, video, or forecast (finetune)
         variables,
         buffer_size,
+        out_variables=None,
         timesteps: int = 8,  # only used for video
         predict_range: int = 6,  # only used for forecast
         predict_steps: int = 4,  # only used for forecast
@@ -66,6 +73,9 @@ class ERA5IterDatasetModule(LightningDataModule):
 
         # this line allows to access init params with 'self.hparams' attribute
         self.save_hyperparameters(logger=False)
+
+        if out_variables is not None:
+            assert dataset_type == "forecast"
 
         if reader == "npy":
             self.reader = ERA5Npy
@@ -119,19 +129,22 @@ class ERA5IterDatasetModule(LightningDataModule):
             raise NotImplementedError("Only support image, video, or forecast dataset")
 
         self.transforms = self.get_normalize()
+        self.output_transforms = self.get_normalize(out_variables)
 
         self.data_train: Optional[IterableDataset] = None
         self.data_val: Optional[IterableDataset] = None
         self.data_test: Optional[IterableDataset] = None
 
-    def get_normalize(self):
+    def get_normalize(self, variables=None):
+        if variables is None:
+            variables = self.hparams.variables
         normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
         normalize_mean = np.concatenate(
-            [normalize_mean[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in self.hparams.variables if var != "tp"]
+            [normalize_mean[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in variables if var != "tp"]
         )
         normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
         normalize_std = np.concatenate(
-            [normalize_std[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in self.hparams.variables if var != "tp"]
+            [normalize_std[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in variables if var != "tp"]
         )
         return transforms.Normalize(normalize_mean, normalize_std)
 
@@ -149,11 +162,13 @@ class ERA5IterDatasetModule(LightningDataModule):
                         self.reader(
                             self.lister_train,
                             variables=self.hparams.variables,
+                            out_variables=self.hparams.out_variables,
                             shuffle=True,
                         ),
                         **self.train_dataset_args,
                     ),
                     self.transforms,
+                    self.output_transforms,
                 ),
                 self.hparams.buffer_size,
             )
@@ -164,10 +179,12 @@ class ERA5IterDatasetModule(LightningDataModule):
                         self.reader(
                             self.lister_val,
                             variables=self.hparams.variables,
+                            out_variables=self.hparams.out_variables,
                         ),
                         **self.val_dataset_args,
                     ),
                     self.transforms,
+                    self.output_transforms,
                 )
 
             if self.lister_test is not None:
@@ -176,10 +193,12 @@ class ERA5IterDatasetModule(LightningDataModule):
                         self.reader(
                             self.lister_test,
                             variables=self.hparams.variables,
+                            out_variables=self.hparams.out_variables,
                         ),
                         **self.val_dataset_args,
                     ),
                     self.transforms,
+                    self.output_transforms,
                 )
 
     def train_dataloader(self):
@@ -218,10 +237,10 @@ class ERA5IterDatasetModule(LightningDataModule):
 
 
 # era5 = ERA5IterDatasetModule(
-#     "/datadrive/5.625deg_equally_np/",
+#     "/datadrive/datasets/5.625deg_equally_np/",
 #     "npy",
 #     "image",
-#     ["t2m", "u10", "v10", "z"],
+#     ["t2m", "u10", "v10", "z_850", "z_500"],
 #     1000,
 #     batch_size=64,
 #     num_workers=2,
@@ -234,7 +253,7 @@ class ERA5IterDatasetModule(LightningDataModule):
 #     break
 
 # era5 = ERA5IterDatasetModule(
-#     "/datadrive/5.625deg_equally_np/",
+#     "/datadrive/datasets/5.625deg_equally_np/",
 #     "npy",
 #     "video",
 #     ["t2m", "u10", "v10", "z"],
@@ -250,20 +269,22 @@ class ERA5IterDatasetModule(LightningDataModule):
 #     break
 
 # era5 = ERA5IterDatasetModule(
-#     "/datadrive/5.625deg_equally_np/",
+#     "/datadrive/datasets/5.625deg_equally_np/",
 #     "npy",
 #     "forecast",
-#     ["t2m", "u10", "v10", "z"],
+#     ["t2m", "u10", "v10", "z_850", "z_500"],
 #     1000,
+#     out_variables=["t2m", "z_850", "z_500"],
 #     batch_size=64,
 #     num_workers=2,
 #     pin_memory=False,
 # )
 # era5.setup()
-# for x, y, variables in era5.train_dataloader():
+# for x, y, variables, out_variables in era5.train_dataloader():
 #     print(x.shape)
 #     print(y.shape)
 #     print (variables)
+#     print (out_variables)
 #     break
 # for x, y, variables in era5.val_dataloader():
 #     print(x.shape)
