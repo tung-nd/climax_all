@@ -358,4 +358,13 @@ class Unet(nn.Module):
         x = self.final(self.activation(self.norm(x)))
         return x.reshape(orig_shape[0], -1, *orig_shape[2:])
 
+    def predict(self, x):
+        pass
+
+    def compute_loss(self, x, y, variables, out_variables, metric, lat):
+        pass
+
+    def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
+        pass
+
 
