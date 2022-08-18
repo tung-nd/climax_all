@@ -2,20 +2,23 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
-from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_rmse)
 from torchvision.transforms import transforms
+
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import lat_weighted_acc, lat_weighted_mse, lat_weighted_rmse
 
 
 class UnetLitModule(LightningModule):
-    def __init__(self, net: torch.nn.Module, pretrained_path: str,
+    def __init__(
+        self,
+        net: torch.nn.Module,
+        pretrained_path: str,
         lr: float = 0.001,
         weight_decay: float = 0.005,
         warmup_epochs: int = 5,
         max_epochs: int = 30,
         warmup_start_lr: float = 1e-8,
-        eta_min: float = 1e-8,    
+        eta_min: float = 1e-8,
     ) -> None:
         super().__init__()
         super().__init__()
@@ -35,11 +38,11 @@ class UnetLitModule(LightningModule):
         self.lon = lon
 
     def set_pred_range(self, r):
-        self.pred_range = r        
+        self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        loss_dict, _ = self.net.compute_loss(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+        x, y, _, out_variables = batch
+        loss_dict, _ = self.net.forward(x, y, out_variables, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
@@ -49,7 +52,7 @@ class UnetLitModule(LightningModule):
                 on_epoch=False,
                 prog_bar=True,
             )
-        return loss_dict    
+        return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, variables, out_variables = batch
@@ -88,7 +91,7 @@ class UnetLitModule(LightningModule):
                 prog_bar=False,
                 sync_dist=True,
             )
-        return loss_dict        
+        return loss_dict
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y, variables, out_variables = batch

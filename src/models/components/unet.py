@@ -51,13 +51,9 @@ class ResidualBlock(nn.Module):
         return h + self.shortcut(x)
 
 
-
-
 class AttentionBlock(nn.Module):
-    """
-    ### Attention block
-    This is similar to [transformer multi-head attention](../../transformers/mha.html).
-    """
+    """### Attention block This is similar to [transformer multi-head
+    attention](../../transformers/mha.html)."""
 
     def __init__(self, n_channels: int, n_heads: int = 1, d_k: int = None, n_groups: int = 1):
         """
@@ -112,9 +108,9 @@ class AttentionBlock(nn.Module):
 
 
 class DownBlock(nn.Module):
-    """
-    ### Down block
-    This combines `ResidualBlock` and `AttentionBlock`. These are used in the first half of U-Net at each resolution.
+    """### Down block This combines `ResidualBlock` and `AttentionBlock`.
+
+    These are used in the first half of U-Net at each resolution.
     """
 
     def __init__(
@@ -138,11 +134,10 @@ class DownBlock(nn.Module):
         return x
 
 
-
 class UpBlock(nn.Module):
-    """
-    ### Up block
-    This combines `ResidualBlock` and `AttentionBlock`. These are used in the second half of U-Net at each resolution.
+    """### Up block This combines `ResidualBlock` and `AttentionBlock`.
+
+    These are used in the second half of U-Net at each resolution.
     """
 
     def __init__(
@@ -156,9 +151,7 @@ class UpBlock(nn.Module):
         super().__init__()
         # The input has `in_channels + out_channels` because we concatenate the output of the same resolution
         # from the first half of the U-Net
-        self.res = ResidualBlock(
-            in_channels + out_channels, out_channels, activation=activation, norm=norm
-        )
+        self.res = ResidualBlock(in_channels + out_channels, out_channels, activation=activation, norm=norm)
         if has_attn:
             self.attn = AttentionBlock(out_channels)
         else:
@@ -170,17 +163,14 @@ class UpBlock(nn.Module):
         return x
 
 
-
 class MiddleBlock(nn.Module):
-    """
-    ### Middle block
-    It combines a `ResidualBlock`, `AttentionBlock`, followed by another `ResidualBlock`.
+    """### Middle block It combines a `ResidualBlock`, `AttentionBlock`, followed by another
+    `ResidualBlock`.
+
     This block is applied at the lowest resolution of the U-Net.
     """
 
-    def __init__(
-        self, n_channels: int, has_attn: bool = False, activation: str = "gelu", norm: bool = False
-    ):
+    def __init__(self, n_channels: int, has_attn: bool = False, activation: str = "gelu", norm: bool = False):
         super().__init__()
         self.res1 = ResidualBlock(n_channels, n_channels, activation=activation, norm=norm)
         self.attn = AttentionBlock(n_channels) if has_attn else nn.Identity()
@@ -194,9 +184,7 @@ class MiddleBlock(nn.Module):
 
 
 class Upsample(nn.Module):
-    """
-    ### Scale up the feature map by $2 \times$
-    """
+    """### Scale up the feature map by $2 \times$"""
 
     def __init__(self, n_channels: int):
         super().__init__()
@@ -207,9 +195,7 @@ class Upsample(nn.Module):
 
 
 class Downsample(nn.Module):
-    """
-    ### Scale down the feature map by $\frac{1}{2} \times$
-    """
+    """### Scale down the feature map by $\frac{1}{2} \times$"""
 
     def __init__(self, n_channels):
         super().__init__()
@@ -310,11 +296,7 @@ class Unet(nn.Module):
                 )
             # Final block to reduce the number of channels
             out_channels = in_channels // ch_mults[i]
-            up.append(
-                UpBlock(
-                    in_channels, out_channels, has_attn=is_attn[i], activation=activation, norm=norm
-                )
-            )
+            up.append(UpBlock(in_channels, out_channels, has_attn=is_attn[i], activation=activation, norm=norm))
             in_channels = out_channels
             # Up sample at all resolutions except last
             if i > 0:
@@ -330,11 +312,7 @@ class Unet(nn.Module):
         out_channels = time_future * self.out_channels
         self.final = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=(1, 1))
 
-    def forward(self, x: torch.Tensor):
-        # B, T, C, H, W
-        assert x.dim() == 5 
-        orig_shape = x.shape
-        x = x.reshape(x.size(0), -1, *x.shape[3:])  # collapse T,C
+    def predict(self, x):
         x = self.image_proj(x)
 
         h = [x]
@@ -351,30 +329,33 @@ class Unet(nn.Module):
                 # Get the skip connection from first half of U-Net and concatenate
                 s = h.pop()
                 x = torch.cat((x, s), dim=1)
-                #
                 x = m(x)
 
-        x = self.final(self.activation(self.norm(x)))
-        return x.reshape(orig_shape[0], -1, *orig_shape[2:])
+        return self.final(self.activation(self.norm(x)))
 
-    def predict(self, x, variables):
-        if x.dim() == 4:
-            x = x.unsqueeze(dim=1)
-        return self.forward(x)
-
-    def compute_loss(self, x, y, variables, out_variables, metric, lat):
-        pred = self.predict(x, variables)
-        return [m(pred, y, out_variables, lat) for m in metric], pred
+    def forward(self, x: torch.Tensor, y: torch.Tensor, out_variables, metric, lat):
+        # B, C, H, W
+        pred = self.predict(x)
+        return [m(pred, y, out_variables, lat) for m in metric], x
 
     def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
         if steps > 1:
             assert len(variables) == len(out_variables)
-        
+
         preds = []
         for _ in range(steps):
-            x = self.predict(x, variables)
+            x = self.predict(x)
             preds.append(x)
-        
         preds = torch.stack(preds, dim=1)
 
+        preds = transform(preds)
+        y = transform(y)
 
+        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
+
+
+# model = Unet(in_channels=2, out_channels=2).cuda()
+# x = torch.randn((2, 2, 32, 64)).cuda()
+# loss, y = model(x)
+# print (loss)
+# print (y.shape)

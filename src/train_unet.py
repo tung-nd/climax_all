@@ -15,7 +15,6 @@ def main():
         run=False,
         auto_registry=True,
         parser_kwargs={"parser_mode": "omegaconf", "error_handler": None},
-
     )
     os.makedirs(cli.trainer.default_root_dir, exist_ok=True)
 
@@ -28,6 +27,7 @@ def main():
 
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
+
 
 if __name__ == "__main__":
     main()
