@@ -11,12 +11,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed
-
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
 
 
 class TokenizedBase(nn.Module):
@@ -26,6 +23,7 @@ class TokenizedBase(nn.Module):
         self,
         img_size=[128, 256],
         patch_size=16,
+        drop_path=0.0,
         learn_pos_emb=False,
         embed_dim=1024,
         depth=24,
@@ -66,6 +64,7 @@ class TokenizedBase(nn.Module):
         self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
         self.channel_embed, self.channel_map = self.create_channel_embedding(learn_pos_emb, embed_dim)
 
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
             [
                 Block(
@@ -73,6 +72,7 @@ class TokenizedBase(nn.Module):
                     num_heads,
                     mlp_ratio,
                     qkv_bias=True,
+                    drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
                 )
                 for i in range(depth)

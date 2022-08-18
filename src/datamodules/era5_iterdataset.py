@@ -107,37 +107,40 @@ class ERA5Video(IterableDataset):
 
 
 class ERA5Forecast(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, predict_range: int = 6) -> None:
+    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, skip_steps: int = 1) -> None:
         super().__init__()
         self.dataset = dataset
         self.predict_range = predict_range
+        self.skip_steps = skip_steps
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
             inputs = np.concatenate(
-                [data[k][0 : -self.predict_range : self.predict_range] for k in data.keys()],
+                [data[k][0 : -self.predict_range : self.skip_steps] for k in data.keys()],
                 axis=1,
             )
             outputs = np.concatenate(
-                [data[k][self.predict_range :: self.predict_range] for k in out_variables],
+                [data[k][self.predict_range :: self.skip_steps] for k in out_variables],
                 axis=1,
             )
             yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, pred_range: int = 6, pred_steps: int = 4) -> None:
+    def __init__(self, dataset: ERA5Npy, pred_range: int = 6, skip_steps: int = 1, pred_steps: int = 4) -> None:
         super().__init__()
         self.dataset = dataset
         self.pred_range = pred_range
+        self.skip_steps = skip_steps
         self.pred_steps = pred_steps
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         pred_range = self.pred_range
+        skip_steps = self.skip_steps
         pred_steps = self.pred_steps
         for data, variables, out_variables in self.dataset:
             inputs = {}
@@ -146,13 +149,13 @@ class ERA5ForecastMultiStep(IterableDataset):
                 x = data[k]  # (730, d, 128, 256)
                 interval = pred_range * pred_steps
 
-                inputs[k] = x[0:-interval:interval]
+                inputs[k] = x[0:-interval:skip_steps]
 
                 output_k = []
                 for step in range(pred_steps):
                     start = (step + 1) * pred_range
                     end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else x.shape[0]
-                    output_k.append(x[start:end:interval])
+                    output_k.append(x[start:end:skip_steps])
 
                 output_k = np.stack(output_k, axis=1)
                 outputs[k] = output_k

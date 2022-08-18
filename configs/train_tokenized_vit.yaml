@@ -75,6 +75,7 @@ model:
     init_args:
       img_size: [128, 256]
       patch_size: 16
+      drop_path: 0.0
       learn_pos_emb: False
       default_vars:
         [
@@ -130,6 +131,7 @@ data:
       "v10",
     ]
   predict_range: 6
+  skip_steps: 1
   predict_steps: 4
   pct_train: 1.0
   buffer_size: 20000
