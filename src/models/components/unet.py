@@ -223,10 +223,10 @@ class Unet(nn.Module):
     def __init__(
         self,
         in_channels,
-        time_history,
-        time_future,
-        hidden_channels,
-        activation,
+        hidden_channels=64,
+        activation="silu",
+        time_history=1,
+        time_future=1,
         out_channels=None,
         norm: bool = True,
         ch_mults: Union[Tuple[int, ...], List[int]] = (1, 2, 2, 4),
@@ -242,7 +242,15 @@ class Unet(nn.Module):
         self.time_history = time_history
         self.time_future = time_future
         self.hidden_channels = hidden_channels
-        self.activation = activation
+
+        if activation == "gelu":
+            self.activation = nn.GELU()
+        elif activation == "relu":
+            self.activation = nn.ReLU()
+        elif activation == "silu":
+            self.activation = nn.SiLU()
+        else:
+            raise NotImplementedError(f"Activation {activation} not implemented")
 
         # Number of resolutions
         n_resolutions = len(ch_mults)
@@ -315,15 +323,6 @@ class Unet(nn.Module):
         # Combine the set of modules
         self.up = nn.ModuleList(up)
 
-        if activation == "gelu":
-            self.activation = nn.GELU()
-        elif activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "silu":
-            self.activation = nn.SiLU()
-        else:
-            raise NotImplementedError(f"Activation {activation} not implemented")
-
         if norm:
             self.norm = nn.GroupNorm(8, n_channels)
         else:
@@ -358,13 +357,24 @@ class Unet(nn.Module):
         x = self.final(self.activation(self.norm(x)))
         return x.reshape(orig_shape[0], -1, *orig_shape[2:])
 
-    def predict(self, x):
-        pass
+    def predict(self, x, variables):
+        if x.dim() == 4:
+            x = x.unsqueeze(dim=1)
+        return self.forward(x)
 
     def compute_loss(self, x, y, variables, out_variables, metric, lat):
-        pass
+        pred = self.predict(x, variables)
+        return [m(pred, y, out_variables, lat) for m in metric], pred
 
     def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
-        pass
+        if steps > 1:
+            assert len(variables) == len(out_variables)
+        
+        preds = []
+        for _ in range(steps):
+            x = self.predict(x, variables)
+            preds.append(x)
+        
+        preds = torch.stack(preds, dim=1)
 
 
