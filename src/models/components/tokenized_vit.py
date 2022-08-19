@@ -10,6 +10,7 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
+
 from src.models.components.tokenized_base import TokenizedBase
 
 
@@ -44,9 +45,21 @@ class TokenizedViT(TokenizedBase):
         decoder_depth=8,
         num_heads=16,
         mlp_ratio=4.0,
+        init_mode="xavier",
         freeze_encoder=False,
     ):
-        super().__init__(img_size, patch_size, drop_path, learn_pos_emb, embed_dim, depth, num_heads, mlp_ratio, default_vars)
+        super().__init__(
+            img_size,
+            patch_size,
+            drop_path,
+            learn_pos_emb,
+            embed_dim,
+            depth,
+            num_heads,
+            mlp_ratio,
+            init_mode,
+            default_vars,
+        )
 
         self.freeze_encoder = freeze_encoder
 

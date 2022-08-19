@@ -11,9 +11,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
-from timm.models.vision_transformer import Block, PatchEmbed
+from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class TokenizedBase(nn.Module):
@@ -29,6 +32,7 @@ class TokenizedBase(nn.Module):
         depth=24,
         num_heads=16,
         mlp_ratio=4.0,
+        init_mode="xavier",  # xavier or small
         default_vars=[
             "geopotential_1000",
             "geopotential_850",
@@ -53,6 +57,7 @@ class TokenizedBase(nn.Module):
 
         self.img_size = img_size
         self.patch_size = patch_size
+        self.init_mode = init_mode
         self.default_vars = default_vars
 
         # linear layer to embed each token, which is 1xpxp
@@ -116,16 +121,21 @@ class TokenizedBase(nn.Module):
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.token_embed.proj.weight.data
-        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        if self.init_mode == "xavier":
+            torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        else:
+            trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
 
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
+            if self.init_mode == "xavier":
+                torch.nn.init.xavier_uniform_(m.weight)
+            else:
+                trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)

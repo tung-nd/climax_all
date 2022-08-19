@@ -27,6 +27,7 @@ class TokenizedMAE(TokenizedBase):
         self,
         img_size=[128, 256],
         patch_size=16,
+        drop_path=0.0,
         learn_pos_emb=False,
         default_vars=[
             "geopotential_1000",
@@ -54,8 +55,20 @@ class TokenizedMAE(TokenizedBase):
         decoder_depth=8,
         decoder_num_heads=16,
         mlp_ratio=4.0,
+        init_mode="xavier",
     ):
-        super().__init__(img_size, patch_size, learn_pos_emb, embed_dim, depth, num_heads, mlp_ratio, default_vars)
+        super().__init__(
+            img_size,
+            patch_size,
+            drop_path,
+            learn_pos_emb,
+            embed_dim,
+            depth,
+            num_heads,
+            mlp_ratio,
+            init_mode,
+            default_vars,
+        )
 
         # --------------------------------------------------------------------------
         # MAE decoder specifics
