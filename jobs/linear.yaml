@@ -1,0 +1,67 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Train Linear Regression
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100-1-ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 1
+
+search:
+  job_template:
+    name: forecast_5.625deg_3days_linear_{auto:10s} # ex: simple_job_lr_05
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+      container_args:
+        shm_size: 650g
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_linear.py --config configs/train_linear.yaml
+        --trainer.devices=${GPUS}
+        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
+        --data.variables=["z_500","t_850"]
+        --data.out_variables=["z_500","t_850"]
+        --data.predict_range=72 --data.skip_steps={skip_steps} --data.predict_steps=1
+        --data.num_workers=1 --data.batch_size={bs}
+        --model.lr={lr}
+        --model.weight_decay={decay}
+
+  type: grid
+  max_trials: 80
+  params:
+    - name: skip_steps
+      spec: discrete
+      values: [1]
+    - name: decay
+      spec: discrete
+      values: [0.05]
+    - name: lr
+      spec: discrete
+      values: [5e-3]
+    - name: bs
+      spec: discrete
+      values: [8192]
