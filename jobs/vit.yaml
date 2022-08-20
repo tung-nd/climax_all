@@ -29,10 +29,68 @@ env_defaults:
   NODES: 1
   GPUS: 1
 
-jobs:
-  - name: vit_scratch_17_variables
+search:
+  job_template:
+    name: vit_17vars_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+      container_args:
+        shm_size: 650g
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_vit2.py --config configs/train_vit.yaml --data.root_dir=/mnt/data/1.40625deg_equally_np --data.reader=npy
+      - python src/train_vit2.py --config configs/train_vit.yaml
+        --trainer.devices=${GPUS}
+        --trainer.max_epochs=20
+        --data.root_dir=/mnt/data/5.625deg_equally_np/ --data.reader=npy
+        --data.out_variables=['z_500','t_850']
+        --data.predict_range=72 --data.predict_steps=1
+        --data.num_workers=8 --data.batch_size=128
+        --model.net.in_vars=["geopotential_1000","geopotential_850","geopotential_500","geopotential_50","relative_humidity_850","relative_humidity_500","u_component_of_wind_1000","u_component_of_wind_850","u_component_of_wind_500","v_component_of_wind_1000","v_component_of_wind_850","v_component_of_wind_500","temperature_850","temperature_500","2m_temperature","10m_u_component_of_wind","10m_v_component_of_wind"]
+        --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
+        --model.max_epochs=30
+        --model.net.init_mode='small' --model.net.out_vars=["z_500","t_850"]
+        --model.net.init_mode={init}
+        --model.net.drop_path={drop}
+        --model.lr=5e-4
+        --model.weight_decay={decay}
+        # --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/era5_5.625deg_1h_xavier/last.ckpt
+        # --model.net.freeze_encoder={freeze}
+
+  type: grid
+  max_trials: 80
+  params:
+    # - name: skip_steps
+    #   spec: discrete
+    #   values: [1]
+    - name: init
+      spec: discrete
+      values: ["small"]
+    - name: drop
+      spec: discrete
+      values: [0.1, 0.2, 0.3, 0.4, 0.5]
+    - name: decay
+      spec: discrete
+      values: [0.1, 0.2, 0.3, 0.4, 0.5]
+    # - name: heads
+    #   spec: discrete
+    #   values: [8, 16, 32]
+    # - name: lr
+    #   spec: discrete
+    #   values: [5e-4]
+    # - name: learnable
+    #   spec: discrete
+    #   values: [True, False]
+    # - name: patch_size
+    #   spec: discrete
+    #   values: [4, 8, 16]
+    # - name: depth
+    #   spec: discrete
+    #   values: [1, 2, 4]
+    # - name: dim
+    #   spec: discrete
+    #   values: [2048]
+    # - name: freeze
+    #   spec: discrete
+    #   values: [False, True]

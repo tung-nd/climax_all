@@ -12,7 +12,7 @@
 
 import torch
 import torch.nn as nn
-from timm.models.vision_transformer import Block, PatchEmbed
+from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
 
 from src.utils.pos_embed import get_2d_sincos_pos_embed
 
@@ -22,6 +22,7 @@ class VisionTransformer(nn.Module):
         self,
         img_size=[128, 256],
         patch_size=16,
+        drop_path=0.1,
         learn_pos_emb=False,
         in_vars=[
             "2m_temperature",
@@ -30,15 +31,18 @@ class VisionTransformer(nn.Module):
         ],
         embed_dim=1024,
         depth=24,
+        decoder_depth=8,
         num_heads=16,
         mlp_ratio=4.0,
         out_vars=None,
+        init_mode="xavier",
     ):
         super().__init__()
 
         self.img_size = img_size
         self.n_channels = len(in_vars)
         self.patch_size = patch_size
+        self.init_mode = init_mode
 
         out_vars = out_vars if out_vars is not None else in_vars
         self.in_vars = in_vars
@@ -53,6 +57,7 @@ class VisionTransformer(nn.Module):
             torch.zeros(1, num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
 
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
             [
                 Block(
@@ -60,6 +65,7 @@ class VisionTransformer(nn.Module):
                     num_heads,
                     mlp_ratio,
                     qkv_bias=True,
+                    drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
                 )
                 for i in range(depth)
@@ -70,7 +76,12 @@ class VisionTransformer(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.head = nn.Linear(embed_dim, len(self.out_vars) * patch_size**2)
+        self.head = nn.ModuleList()
+        for i in range(decoder_depth):
+            self.head.append(nn.Linear(embed_dim, embed_dim))
+            self.head.append(nn.GELU())
+        self.head.append(nn.Linear(embed_dim, len(self.out_vars) * patch_size**2))
+        self.head = nn.Sequential(*self.head)
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -88,16 +99,21 @@ class VisionTransformer(nn.Module):
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.patch_embed.proj.weight.data
-        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        if self.init_mode == "xavier":
+            torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        else:
+            trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
 
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
+            if self.init_mode == "xavier":
+                torch.nn.init.xavier_uniform_(m.weight)
+            else:
+                trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
@@ -149,33 +165,37 @@ class VisionTransformer(nn.Module):
 
         return x
 
-    def forward_loss(self, y, pred, metric):  # metric is a list
+    def forward_loss(self, y, pred, variables, out_variables, metric, lat):  # metric is a list
         """
         y: [N, 3, H, W]
         pred: [N, L, p*p*3]
         """
         pred = self.unpatchify(pred)
-        return [m(pred, y, self.out_vars) for m in metric], pred
+        return [m(pred, y, out_variables, lat) for m in metric], pred
 
-    def forward(self, x, y, metric):
+    def forward(self, x, y, variables, out_variables, metric, lat):
         embeddings = self.forward_encoder(x)
         preds = self.head(embeddings)
-        loss, preds = self.forward_loss(y, preds, metric)
+        loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
-    def predict(self, x):
+    def predict(self, x, variables):
         with torch.no_grad():
             embeddings = self.forward_encoder(x)
             pred = self.head(embeddings)
         return self.unpatchify(pred)
 
-    def rollout(self, x, y, steps, metric):
+    def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
         preds = []
         for _ in range(steps):
-            x = self.predict(x)
+            x = self.predict(x, variables)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
-        return [m(preds, y, self.out_vars) for m in metric], preds
+
+        preds = transform(preds)
+        y = transform(y)
+
+        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # model = VisionTransformer(depth=8).cuda()
