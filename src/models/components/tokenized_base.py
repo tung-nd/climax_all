@@ -30,6 +30,7 @@ class TokenizedBase(nn.Module):
         learn_pos_emb=False,
         embed_dim=1024,
         depth=24,
+        channel_att_depth=4,
         num_heads=16,
         mlp_ratio=4.0,
         init_mode="xavier",  # xavier or small
@@ -68,6 +69,20 @@ class TokenizedBase(nn.Module):
         # positional embedding and channel embedding
         self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
         self.channel_embed, self.channel_map = self.create_channel_embedding(learn_pos_emb, embed_dim)
+
+        self.channel_blocks = nn.ModuleList(
+            [
+                Block(
+                    embed_dim,
+                    num_heads,
+                    mlp_ratio,
+                    qkv_bias=True,
+                    norm_layer=nn.LayerNorm,
+                )
+                for i in range(channel_att_depth)
+            ]
+        )
+        self.channel_norm = nn.LayerNorm(embed_dim)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
