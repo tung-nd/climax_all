@@ -2,10 +2,10 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
-from torchvision.transforms import transforms
-
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import lat_weighted_acc, lat_weighted_mse, lat_weighted_rmse
+from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
+                               lat_weighted_rmse)
+from torchvision.transforms import transforms
 
 
 class UnetLitModule(LightningModule):
@@ -25,7 +25,23 @@ class UnetLitModule(LightningModule):
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
-            raise NotImplementedError("Loading pretrained weights not implemented yet")
+            self.load_pretrain_weights(pretrained_path)
+
+    def load_pretrain_weights(self, pretrained_path):
+        checkpoint = torch.load(pretrained_path)
+
+        print("Loading pre-trained checkpoint from: %s" % pretrained_path)
+        checkpoint_model = checkpoint["state_dict"]
+        state_dict = self.state_dict()
+        checkpoint_keys = list(checkpoint_model.keys())
+        for k in checkpoint_keys:
+            if k not in state_dict.keys() or checkpoint_model[k].shape != state_dict[k].shape:
+                print(f"Removing key {k} from pretrained checkpoint")
+                del checkpoint_model[k]
+
+        # load pre-trained model
+        msg = self.load_state_dict(checkpoint_model, strict=False)
+        print(msg)
 
     def forward(self, x):
         return self.net.predict(x)
