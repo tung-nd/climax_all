@@ -10,7 +10,6 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
-
 from src.models.components.tokenized_base import TokenizedBase
 
 
@@ -126,11 +125,14 @@ class TokenizedViT(TokenizedBase):
         x = torch.einsum("bcld->blcd", x)
         x = x.flatten(0, 1)  # BxL, C, D
 
-        for blk in self.channel_blocks:
-            x = blk(x)
-        x = self.channel_norm(x)
+        # for blk in self.channel_blocks:
+        #     x = blk(x)
 
-        x = torch.mean(x, dim=1)  # BxL, D
+        # x = torch.mean(x, dim=1)  # BxL, D
+        channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
+        x, _ = self.channel_aggregator(channel_query, x, x)
+        x = x.squeeze()
+        # x = self.channel_decoder(x)
         x = x.unflatten(dim=0, sizes=(b, l))  # B, L, D
         return x
 
@@ -140,15 +142,27 @@ class TokenizedViT(TokenizedBase):
         """
         # embed tokens
         b, c, _, _ = x.shape
-        x = x.flatten(0, 1)  # BxC, H, W
-        x = x.unsqueeze(dim=1)  # BxC, 1, H, W
-        x = self.token_embed(x)  # BxC, L, D
-        x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
+
+        # x = x.flatten(0, 1)  # BxC, H, W
+        # x = x.unsqueeze(dim=1)  # BxC, 1, H, W
+        # x = self.token_embed(x)  # BxC, L, D
+        # x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
+
+        embeds = []
+        var_ids = self.get_channel_ids(variables)
+        for i in range(len(var_ids)):
+            id = var_ids[i]
+            embeds.append(self.token_embeds[id](x[:, i:i+1]))
+        x = torch.stack(embeds, dim=1) # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
         x = x + channel_embed.unsqueeze(2)
+
+        # x = self.aggregate_channel(x)  # B, L, D
+
         # add pos embedding, pos_emb: 1, L, D
+        # x = x + self.pos_embed
         x = x + self.pos_embed.unsqueeze(1)
 
         x = self.aggregate_channel(x)  # B, L, D

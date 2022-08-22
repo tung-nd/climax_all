@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: forecast_vit_3days_5.625deg_17vars_channel_aggregation_{auto:10s} # ex: simple_job_lr_05
+    name: forecast_vit_sep_emb_no_channel_emb_channel_query_after_pe_no_decode_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -41,7 +41,7 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_tokenized_vit.yaml
-        --trainer.devices=${GPUS}
+        --trainer.devices=${GPUS} --trainer.strategy=ddp
         --trainer.max_epochs=20
         --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
         --data.variables=["z_1000","z_850","z_500","z_50","r_850","r_500","u_1000","u_850","u_500","v_1000","v_850","v_500","t_850","t_500","t2m","u10","v10"]
@@ -50,33 +50,37 @@ search:
         --data.num_workers=8 --data.batch_size=128
         --model.max_epochs=30
         --model.net.decoder_depth=2
-        --model.net.learn_pos_emb=False
+        --model.net.learn_pos_emb={learn_emb}
         --model.net.img_size=[32,64]
         --model.net.depth=8
-        --model.net.init_mode={init}
-        --model.net.drop_path={drop}
+        --model.net.init_mode='small'
+        --model.net.drop_path=0.0
         --model.lr=5e-4
-        --model.weight_decay={decay}
+        --model.weight_decay=0.05
         --model.net.out_vars=['z_500','t_850']
         --model.net.channel_att_depth=2
+        --model.net.patch_size=8
         # --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/era5_5.625deg_1h_xavier/last.ckpt
         # --model.net.freeze_encoder={freeze}
 
   type: grid
   max_trials: 80
   params:
+    - name: learn_emb
+      spec: discrete
+      values: [True]
     # - name: skip_steps
     #   spec: discrete
     #   values: [1]
-    - name: init
-      spec: discrete
-      values: ["small"]
-    - name: drop
-      spec: discrete
-      values: [0.0]
-    - name: decay
-      spec: discrete
-      values: [0.05]
+    # - name: init
+    #   spec: discrete
+    #   values: ["small"]
+    # - name: drop
+    #   spec: discrete
+    #   values: [0.0]
+    # - name: decay
+    #   spec: discrete
+    #   values: [0.05]
     # - name: heads
     #   spec: discrete
     #   values: [8, 16, 32]
@@ -88,7 +92,7 @@ search:
     #   values: [True, False]
     # - name: patch_size
     #   spec: discrete
-    #   values: [4, 8, 16]
+    #   values: [8]
     # - name: depth
     #   spec: discrete
     #   values: [1, 2, 4]
