@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: forecast_vit_3days_5.625deg_17vars_channel_aggregation_{auto:10s} # ex: simple_job_lr_05
+    name: tokenized_vit_5.625deg_17vars_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -47,13 +47,14 @@ search:
         --data.variables=["z_1000","z_850","z_500","z_50","r_850","r_500","u_1000","u_850","u_500","v_1000","v_850","v_500","t_850","t_500","t2m","u10","v10"]
         --data.out_variables=["z_500","t_850"]
         --data.predict_range=72 --data.skip_steps=1 --data.predict_steps=1
-        --data.num_workers=8 --data.batch_size=128
+        --data.num_workers=6 --data.batch_size=128
         --model.max_epochs=30
         --model.net.decoder_depth=2
-        --model.net.learn_pos_emb=False
+        --model.net.learn_pos_emb=True
+        --model.net.patch_size=16
         --model.net.img_size=[32,64]
         --model.net.depth=8
-        --model.net.init_mode={init}
+        --model.net.init_mode='small'
         --model.net.drop_path={drop}
         --model.lr=5e-4
         --model.weight_decay={decay}
@@ -71,10 +72,10 @@ search:
       values: ["small"]
     - name: drop
       spec: discrete
-      values: [0.0]
+      values: [0.1, 0.2, 0.3]
     - name: decay
       spec: discrete
-      values: [0.05]
+      values: [0.1, 0.2, 0.3]
     # - name: heads
     #   spec: discrete
     #   values: [8, 16, 32]
