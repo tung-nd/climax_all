@@ -27,7 +27,6 @@ class TokenizedBase(nn.Module):
         learn_pos_emb=False,
         embed_dim=1024,
         depth=24,
-        channel_att_depth=4,
         num_heads=16,
         mlp_ratio=4.0,
         init_mode="xavier",  # xavier or small

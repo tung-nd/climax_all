@@ -54,12 +54,13 @@ search:
         --model.net.img_size=[32,64]
         --model.net.depth=8
         --model.net.init_mode='small'
+        --model.net.channel_agg={agg}
         --model.net.drop_path={drop}
         --model.lr=5e-4
         --model.weight_decay={decay}
         --model.net.out_vars=['z_500','t_850']
         --model.net.channel_att_depth=2
-        --model.net.patch_size={patch_size}
+        --model.net.patch_size=4
         # --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/era5_5.625deg_1h_xavier/last.ckpt
         # --model.net.freeze_encoder={freeze}
 
@@ -75,12 +76,15 @@ search:
     # - name: init
     #   spec: discrete
     #   values: ["small"]
+    - name: agg
+      spec: discrete
+      values: ['mean', 'attention']
     - name: drop
       spec: discrete
-      values: [0.3]
+      values: [0.1, 0.2, 0.3]
     - name: decay
       spec: discrete
-      values: [0.3]
+      values: [0.1, 0.2, 0.3]
     # - name: heads
     #   spec: discrete
     #   values: [8, 16, 32]
@@ -90,9 +94,9 @@ search:
     # - name: learnable
     #   spec: discrete
     #   values: [True, False]
-    - name: patch_size
-      spec: discrete
-      values: [8]
+    # - name: patch_size
+    #   spec: discrete
+    #   values: [8]
     # - name: depth
     #   spec: discrete
     #   values: [1, 2, 4]
