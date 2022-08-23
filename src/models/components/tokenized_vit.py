@@ -40,6 +40,7 @@ class TokenizedViT(TokenizedBase):
             "10m_v_component_of_wind",
         ],
         out_vars=None,
+        channel_agg='mean',
         embed_dim=1024,
         depth=24,
         channel_att_depth=4,
@@ -61,6 +62,7 @@ class TokenizedViT(TokenizedBase):
             mlp_ratio,
             init_mode,
             default_vars,
+            channel_agg
         )
 
         self.freeze_encoder = freeze_encoder
@@ -84,22 +86,6 @@ class TokenizedViT(TokenizedBase):
             self.channel_embed.requires_grad_(False)
             self.pos_embed.requires_grad_(False)
             self.blocks.requires_grad_(False)
-
-    # def unpatchify(self, x, variables):
-    #     """
-    #     x: (BxC, L, patch_size**2)
-    #     return: (B, C, H, W)
-    #     """
-    #     p = self.patch_size
-    #     h = self.img_size[0] // p
-    #     w = self.img_size[1] // p
-    #     assert h * w == x.shape[1]
-
-    #     x = x.reshape(shape=(x.shape[0], h, w, p, p))
-    #     x = torch.einsum("nhwpq->nhpwq", x)
-    #     imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
-    #     imgs = imgs.unflatten(dim=0, sizes=(-1, len(variables)))  # (B, C, H, W)
-    #     return imgs
 
     def unpatchify(self, x):
         """
@@ -125,14 +111,13 @@ class TokenizedViT(TokenizedBase):
         x = torch.einsum("bcld->blcd", x)
         x = x.flatten(0, 1)  # BxL, C, D
 
-        # for blk in self.channel_blocks:
-        #     x = blk(x)
+        if self.channel_agg is not None:
+            channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
+            x, _ = self.channel_agg(channel_query, x, x) # BxL, D
+            x = x.squeeze()
+        else:
+            x = torch.mean(x, dim=1)  # BxL, D
 
-        # x = torch.mean(x, dim=1)  # BxL, D
-        channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
-        x, _ = self.channel_aggregator(channel_query, x, x)
-        x = x.squeeze()
-        # x = self.channel_decoder(x)
         x = x.unflatten(dim=0, sizes=(b, l))  # B, L, D
         return x
 
@@ -141,12 +126,6 @@ class TokenizedViT(TokenizedBase):
         x: B, C, H, W
         """
         # embed tokens
-        b, c, _, _ = x.shape
-
-        # x = x.flatten(0, 1)  # BxC, H, W
-        # x = x.unsqueeze(dim=1)  # BxC, 1, H, W
-        # x = self.token_embed(x)  # BxC, L, D
-        # x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
 
         embeds = []
         var_ids = self.get_channel_ids(variables)
@@ -159,15 +138,10 @@ class TokenizedViT(TokenizedBase):
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
         x = x + channel_embed.unsqueeze(2)
 
-        # x = self.aggregate_channel(x)  # B, L, D
-
-        # add pos embedding, pos_emb: 1, L, D
-        # x = x + self.pos_embed
-        x = x + self.pos_embed.unsqueeze(1)
-
         x = self.aggregate_channel(x)  # B, L, D
 
-        # x = x.flatten(1, 2)  # B, CxL, D
+        # add pos embedding, pos_emb: 1, L, D
+        x = x + self.pos_embed
 
         # apply Transformer blocks
         for blk in self.blocks:
