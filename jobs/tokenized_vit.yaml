@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: forecast_vit_sep_emb_no_channel_emb_channel_query_after_pe_no_decode_{auto:10s} # ex: simple_job_lr_05
+    name: forecast_vit_sep_emb_cross_attention_before_pe_fixed_channel_emb_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -50,37 +50,37 @@ search:
         --data.num_workers=8 --data.batch_size=128
         --model.max_epochs=30
         --model.net.decoder_depth=2
-        --model.net.learn_pos_emb={learn_emb}
+        --model.net.learn_pos_emb=True
         --model.net.img_size=[32,64]
         --model.net.depth=8
         --model.net.init_mode='small'
-        --model.net.drop_path=0.0
+        --model.net.drop_path={drop}
         --model.lr=5e-4
-        --model.weight_decay=0.05
+        --model.weight_decay={decay}
         --model.net.out_vars=['z_500','t_850']
         --model.net.channel_att_depth=2
-        --model.net.patch_size=8
+        --model.net.patch_size={patch_size}
         # --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/era5_5.625deg_1h_xavier/last.ckpt
         # --model.net.freeze_encoder={freeze}
 
   type: grid
   max_trials: 80
   params:
-    - name: learn_emb
-      spec: discrete
-      values: [True]
+    # - name: learn_emb
+    #   spec: discrete
+    #   values: [True]
     # - name: skip_steps
     #   spec: discrete
     #   values: [1]
     # - name: init
     #   spec: discrete
     #   values: ["small"]
-    # - name: drop
-    #   spec: discrete
-    #   values: [0.0]
-    # - name: decay
-    #   spec: discrete
-    #   values: [0.05]
+    - name: drop
+      spec: discrete
+      values: [0.3]
+    - name: decay
+      spec: discrete
+      values: [0.3]
     # - name: heads
     #   spec: discrete
     #   values: [8, 16, 32]
@@ -90,9 +90,9 @@ search:
     # - name: learnable
     #   spec: discrete
     #   values: [True, False]
-    # - name: patch_size
-    #   spec: discrete
-    #   values: [8]
+    - name: patch_size
+      spec: discrete
+      values: [8]
     # - name: depth
     #   spec: discrete
     #   values: [1, 2, 4]
