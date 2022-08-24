@@ -105,8 +105,9 @@ data:
       "v10",
     ]
   predict_range: 6
-  skip_steps: 1
   predict_steps: 4
+  history: 3
+  interval: 6
   pct_train: 1.0
   buffer_size: 20000
   batch_size: 128

@@ -313,6 +313,8 @@ class Unet(nn.Module):
         self.final = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=(1, 1))
 
     def predict(self, x):
+        if len(x.shape) == 5:
+            x = x.flatten(1, 2)
         x = self.image_proj(x)
 
         h = [x]
@@ -354,8 +356,7 @@ class Unet(nn.Module):
         return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
-# model = Unet(in_channels=2, out_channels=2).cuda()
-# x = torch.randn((2, 2, 32, 64)).cuda()
-# loss, y = model(x)
-# print (loss)
+# model = Unet(in_channels=2, time_history=3, out_channels=2).cuda()
+# x = torch.randn((64, 3, 2, 32, 64)).cuda()
+# y = model.predict(x)
 # print (y.shape)
