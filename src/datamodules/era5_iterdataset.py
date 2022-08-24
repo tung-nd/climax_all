@@ -131,8 +131,8 @@ class ERA5Forecast(IterableDataset):
 
             outputs = y.roll(last_idx, dims=0)
 
-            inputs = inputs[:, :last_idx].transpose(0, 1)
-            outputs = outputs[:last_idx]
+            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T, C, H, W
+            outputs = outputs[:last_idx] # N, C, H, W
 
             yield inputs, outputs, variables, out_variables
 
@@ -162,14 +162,14 @@ class ERA5ForecastMultiStep(IterableDataset):
                 inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
             outputs = y.unsqueeze(0).repeat_interleave(self.pred_steps, dim=0)
-            start_idx = -((self.history - 1) * self.interval + self.pred_range)
+            start_idx = (self.history - 1) * self.interval + self.pred_range
             for t in range(self.pred_steps):
                 outputs[t] = outputs[t].roll(-(start_idx + t * self.pred_range), dims=0)
 
             last_idx = -((self.history - 1) * self.interval + self.pred_steps * self.pred_range)
 
-            inputs = inputs[:, :last_idx].transpose(0, 1)
-            outputs = outputs[:, :last_idx].transpose(0, 1)
+            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T1, C, H, W
+            outputs = outputs[:, :last_idx].transpose(0, 1) # N, T2, C, H, W
 
             yield inputs, outputs, variables, out_variables
 
@@ -354,7 +354,7 @@ class ShuffleIterableDataset(IterableDataset):
 # inputs = inputs[:, :last_idx].transpose(0, 1)
 # outputs = outputs[:last_idx]
 
-# forecast validation dataset
+# # forecast validation dataset
 # outputs = x.unsqueeze(0).repeat_interleave(pred_steps, dim=0)
 # start_idx = (history-1) * interval + pred_range
 # for t in range(pred_steps):
