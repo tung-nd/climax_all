@@ -129,7 +129,7 @@ class ERA5Forecast(IterableDataset):
 
             last_idx = -((self.history - 1) * self.interval + self.predict_range)
 
-            outputs = y.roll(-last_idx)
+            outputs = y.roll(-last_idx, dims=0)
 
             inputs = inputs[:, :last_idx].transpose(0, 1)
             outputs = outputs[:last_idx]

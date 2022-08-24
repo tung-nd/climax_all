@@ -5,16 +5,24 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from src.datamodules import VAR_LEVEL_TO_NAME_LEVEL
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                              ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
-                              ERA5Npy, ERA5Video, IndividualDataIter,
-                              IndividualForecastDataIter,
-                              IndividualForecastPrecipDataIter,
-                              ShuffleIterableDataset)
+from datamodules import VAR_LEVEL_TO_NAME_LEVEL
+
+from .era5_iterdataset import (
+    ERA5,
+    ERA5Forecast,
+    ERA5ForecastMultiStep,
+    ERA5ForecastMultiStepPrecip,
+    ERA5ForecastPrecip,
+    ERA5Npy,
+    ERA5Video,
+    IndividualDataIter,
+    IndividualForecastDataIter,
+    IndividualForecastPrecipDataIter,
+    ShuffleIterableDataset,
+)
 
 
 def collate_fn(batch):
