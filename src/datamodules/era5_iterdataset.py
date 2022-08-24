@@ -129,7 +129,7 @@ class ERA5Forecast(IterableDataset):
 
             last_idx = -((self.history - 1) * self.interval + self.predict_range)
 
-            outputs = y.roll(-last_idx, dims=0)
+            outputs = y.roll(last_idx, dims=0)
 
             inputs = inputs[:, :last_idx].transpose(0, 1)
             outputs = outputs[:last_idx]
@@ -336,30 +336,41 @@ class ShuffleIterableDataset(IterableDataset):
         #     pass
 
 
-# x = torch.arange(730)
-# pred_range = 72
+# x = torch.randn((10, 2))
+# pred_range = 2
 # history = 3
-# interval = 6
-# pred_steps = 1
+# interval = 1
+# pred_steps = 2
 
 # inputs = x.unsqueeze(0).repeat_interleave(history, dim=0)
 # for t in range(history):
-#     inputs[t] = inputs[t].roll(-t*interval)
+#     inputs[t] = inputs[t].roll(-t*interval, dims=0)
 
+# # forecast training dataset
+# last_idx = -((history - 1) * interval + pred_range)
+
+# outputs = x.roll(last_idx, dims=0)
+
+# inputs = inputs[:, :last_idx].transpose(0, 1)
+# outputs = outputs[:last_idx]
+
+# forecast validation dataset
 # outputs = x.unsqueeze(0).repeat_interleave(pred_steps, dim=0)
 # start_idx = (history-1) * interval + pred_range
 # for t in range(pred_steps):
-#     outputs[t] = outputs[t].roll(-(start_idx + t*pred_range))
+#     outputs[t] = outputs[t].roll(-(start_idx + t*pred_range), dims=0)
 
 # last_idx = - ((history-1) * interval + pred_steps * pred_range)
 
 # inputs = inputs[:, :last_idx].transpose(0, 1)
 # outputs = outputs[:, :last_idx].transpose(0, 1)
 
-# print (inputs.shape)
-# print (outputs.shape)
-# print (inputs)
-# print (outputs)
+# for i in range(inputs.shape[0]):
+#     print ('x', x)
+#     print (i)
+#     print ('in', inputs[i])
+#     print ('out', outputs[i])
+#     print ('=' * 20)
 
 # import os
 
