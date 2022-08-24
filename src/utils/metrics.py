@@ -25,8 +25,8 @@ def mse(pred, y, vars, lat=None, mask=None):
 
 def lat_weighted_mse(pred, y, vars, lat, mask=None):
     """
-    y: [N, T, 3, H, W]
-    pred: [N, T, 3, H, W]
+    y: [N, C, H, W]
+    pred: [N, C, H, W]
     vars: list of variable names
     lat: H
     """
@@ -47,6 +47,30 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
             loss_dict[var] = (error[:, i] * w_lat * mask).sum() / mask.sum()
 
     loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).sum(dim=1) * mask).sum() / mask.sum()
+    return loss_dict
+
+
+def lat_weighted_mse_val(pred, y, vars, lat, log_steps, log_days):
+    """
+    y: [N, T, 3, H, W]
+    pred: [N, T, 3, H, W]
+    vars: list of variable names
+    lat: H
+    """
+
+    error = (pred - y) ** 2  # [N, T, C, H, W]
+
+    # lattitude weights
+    w_lat = np.cos(np.deg2rad(lat))
+    w_lat = w_lat / w_lat.mean()  # (H, )
+    w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(error.device)  # (1, H, 1)
+
+    loss_dict = {}
+    with torch.no_grad():
+        for i, var in enumerate(vars):
+            for day, step in zip(log_days, log_steps):
+                loss_dict[f"w_mse_{var}_day_{day}"] = (error[:, step - 1, i] * w_lat).mean()
+
     return loss_dict
 
 
