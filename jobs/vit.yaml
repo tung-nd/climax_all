@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Single GPU training for ViT
+description: ViT training
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100-1-ded
+  name: v100x4ssh-sc
 
 storage:
   data:
@@ -27,11 +27,11 @@ storage:
 # some environment variables to ease up setting of jobs
 env_defaults:
   NODES: 1
-  GPUS: 1
+  GPUS: 4
 
 search:
   job_template:
-    name: vit_17vars_{auto:10s} # ex: simple_job_lr_05
+    name: vit_17vars_step_6hrs_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -45,10 +45,11 @@ search:
         --trainer.max_epochs=20
         --data.root_dir=/mnt/data/5.625deg_equally_np/ --data.reader=npy
         --data.out_variables=['z_500','t_850']
-        --data.predict_range=72 --data.predict_steps=1
-        --data.num_workers=6 --data.batch_size=128
+        --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
+        --data.num_workers=6 --data.batch_size=32
         --model.net.in_vars=["geopotential_1000","geopotential_850","geopotential_500","geopotential_50","relative_humidity_850","relative_humidity_500","u_component_of_wind_1000","u_component_of_wind_850","u_component_of_wind_500","v_component_of_wind_1000","v_component_of_wind_850","v_component_of_wind_500","temperature_850","temperature_500","2m_temperature","10m_u_component_of_wind","10m_v_component_of_wind"]
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
+        --model.net.time_history=3
         --model.max_epochs=30
         --model.net.out_vars=["z_500","t_850"]
         --model.net.init_mode='small'
@@ -62,9 +63,6 @@ search:
   type: grid
   max_trials: 80
   params:
-    # - name: skip_steps
-    #   spec: discrete
-    #   values: [1]
     # - name: init
     #   spec: discrete
     #   values: ["small"]
