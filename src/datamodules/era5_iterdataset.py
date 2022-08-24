@@ -125,7 +125,7 @@ class ERA5Forecast(IterableDataset):
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
             for t in range(self.history):
-                inputs[t] = inputs[t].roll(-t * self.interval)
+                inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
             last_idx = -((self.history - 1) * self.interval + self.predict_range)
 
@@ -159,12 +159,12 @@ class ERA5ForecastMultiStep(IterableDataset):
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
             for t in range(self.history):
-                inputs[t] = inputs[t].roll(-t * self.interval)
+                inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
             outputs = y.unsqueeze(0).repeat_interleave(self.pred_steps, dim=0)
             start_idx = -((self.history - 1) * self.interval + self.pred_range)
             for t in range(self.pred_steps):
-                outputs[t] = outputs[t].roll(-(start_idx + t * self.pred_range))
+                outputs[t] = outputs[t].roll(-(start_idx + t * self.pred_range), dims=0)
 
             last_idx = -((self.history - 1) * self.interval + self.pred_steps * self.pred_range)
 
@@ -373,7 +373,7 @@ class ShuffleIterableDataset(IterableDataset):
 #             dataset=ERA5Npy(
 #                 file_list=lister_train,
 #                 variables=["t2m", "u10", "v10", "z_500", "t_850"],
-#                 out_variables=None
+#                 out_variables=["z_500", "t_850"],
 #             ),
 #             predict_range=6,
 #             history=3,
