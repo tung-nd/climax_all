@@ -11,13 +11,10 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from timm.models.vision_transformer import Block
-
 from src.models.components.tokenized_base import TokenizedBase
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
+from timm.models.vision_transformer import Block
 
 
 class TokenizedVideoMAE(TokenizedBase):
@@ -49,6 +46,7 @@ class TokenizedVideoMAE(TokenizedBase):
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
         ],
+        channel_agg='mean',
         embed_dim=1024,
         depth=24,
         num_heads=16,
@@ -69,6 +67,7 @@ class TokenizedVideoMAE(TokenizedBase):
             mlp_ratio,
             init_mode,
             default_vars,
+            channel_agg
         )
 
         self.timesteps = timesteps
@@ -89,7 +88,6 @@ class TokenizedVideoMAE(TokenizedBase):
         self.decoder_time_pos_embed = nn.Parameter(
             torch.zeros(1, timesteps, decoder_embed_dim), requires_grad=learn_pos_emb
         )
-        self.decoder_channel_embed, _ = self.create_channel_embedding(learn_pos_emb, decoder_embed_dim)
 
         self.decoder_blocks = nn.ModuleList(
             [
@@ -105,7 +103,7 @@ class TokenizedVideoMAE(TokenizedBase):
         )
 
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2, bias=True)  # decoder to token
+        self.decoder_pred = nn.Linear(decoder_embed_dim, len(default_vars) * patch_size**2, bias=True)  # decoder to token
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -126,10 +124,6 @@ class TokenizedVideoMAE(TokenizedBase):
             cls_token=False,
         )
         self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
-        decoder_channel_embed = get_1d_sincos_pos_embed_from_grid(
-            self.decoder_channel_embed.shape[-1], np.arange(len(self.default_vars))
-        )
-        self.decoder_channel_embed.data.copy_(torch.from_numpy(decoder_channel_embed).float().unsqueeze(0))
         decoder_time_pos_embed = get_1d_sincos_pos_embed_from_grid(
             self.decoder_time_pos_embed.shape[-1], np.arange(self.timesteps)
         )
@@ -138,42 +132,69 @@ class TokenizedVideoMAE(TokenizedBase):
         # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
         torch.nn.init.normal_(self.mask_token, std=0.02)
 
-    def unpatchify(self, x, variables):
+    def unpatchify(self, x):
         """
-        x: (BxC, L, patch_size**2)
+        x: (B, L, patch_size**2 * C)
         return: (B, C, H, W)
         """
         p = self.patch_size
+        c = len(self.default_vars)
         h = self.img_size[0] // p
         w = self.img_size[1] // p
         assert h * w == x.shape[1]
 
-        x = x.reshape(shape=(x.shape[0], h, w, p, p))
-        x = torch.einsum("nhwpq->nhpwq", x)
-        imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
-        imgs = imgs.unflatten(dim=0, sizes=(-1, len(variables)))  # (B, C, H, W)
+        x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
+        x = torch.einsum("nhwpqc->nchpwq", x)
+        imgs = x.reshape(shape=(x.shape[0], c, h * p, w * p))
         return imgs
+
+    def aggregate_channel(self, x: torch.Tensor):
+        """
+        x: B, C, L, D
+        """
+        b, _, l, _ = x.shape
+        x = torch.einsum("bcld->blcd", x)
+        x = x.flatten(0, 1)  # BxTxL, C, D
+
+        if self.channel_agg is not None:
+            channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
+            x, _ = self.channel_agg(channel_query, x, x) # BxTxL, D
+            x = x.squeeze()
+        else:
+            x = torch.mean(x, dim=1)  # BxTxL, D
+
+        x = x.unflatten(dim=0, sizes=(b, l))  # BxT, L, D
+        return x
 
     def forward_encoder(self, x, variables, mask_ratio):
         """
         x: B, T, C, H, W
         """
         # embed tokens
-        b, t, c, _, _ = x.shape
-        x = x.flatten(0, 2)  # BxTxC, H, W
-        x = x.unsqueeze(dim=1)  # BxTxC, 1, H, W
-        x = self.token_embed(x)  # BxTxC, L, D
-        x = x.unflatten(dim=0, sizes=(b, t, c))  # B, T, C, L, D
+        b, t, _, _, _ = x.shape
+        x = x.flatten(0, 1)  # BxT, C, H, W
+        
+        embeds = []
+        var_ids = self.get_channel_ids(variables)
+        for i in range(len(var_ids)):
+            id = var_ids[i]
+            embeds.append(self.token_embeds[id](x[:, i:i+1]))
+        x = torch.stack(embeds, dim=1) # BxT, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
-        x = x + channel_embed.unsqueeze(1).unsqueeze(3)
-        # add pos embedding, pos_emb: 1, L, D
-        x = x + self.pos_embed.unsqueeze(1).unsqueeze(2)
-        # add time pos embedding, time_emb: 1, T, D
-        x = x + self.time_pos_embed.unsqueeze(2).unsqueeze(3)
+        x = x + channel_embed.unsqueeze(2) # BxT, C, L, D
 
-        x = x.flatten(1, 3)  # B, TxCxL, D
+        x = self.aggregate_channel(x)  # BxT, L, D
+
+        x = x.unflatten(dim=0, sizes=(b, t))  # B, T, L, D
+
+        # add pos embedding, pos_emb: 1, L, D
+        x = x + self.pos_embed.unsqueeze(1)
+        # add time pos embedding, time_emb: 1, T, D
+        x = x + self.time_pos_embed.unsqueeze(2)
+
+        x = x.flatten(1, 2)  # B, TxL, D
 
         # masking: length -> length * mask_ratio
         x, mask, ids_restore = self.random_masking(x, mask_ratio)
@@ -187,24 +208,21 @@ class TokenizedVideoMAE(TokenizedBase):
 
     def forward_decoder(self, x, variables, ids_restore):
         # embed tokens
-        x = self.decoder_embed(x)  # B, T x C x L x mask_ratio, D
+        x = self.decoder_embed(x)  # B, T x L x mask_ratio, D
 
         # append mask tokens to sequence
         mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
         x = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
-        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle, B, TxCxL, D
+        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle, B, TxL, D
 
-        x = x.unflatten(dim=1, sizes=(self.timesteps, -1, self.num_patches))  # B, C, L, D
+        x = x.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # B, T, L, D
 
-        # add channel embedding, channel_embed: 1, C, D
-        decoder_channel_embed = self.get_channel_emb(self.decoder_channel_embed, variables)
-        x = x + decoder_channel_embed.unsqueeze(1).unsqueeze(3)
         # add pos embedding, pos_emb: 1, L, D
-        x = x + self.decoder_pos_embed.unsqueeze(1).unsqueeze(2)
+        x = x + self.decoder_pos_embed.unsqueeze(1)
         # add time pos embedding, time_emb: 1, T, D
-        x = x + self.decoder_time_pos_embed.unsqueeze(2).unsqueeze(3)
+        x = x + self.decoder_time_pos_embed.unsqueeze(2)
 
-        x = x.flatten(1, 3)  # B, TxCxL, D
+        x = x.flatten(1, 2)  # B, TxL, D
 
         # apply Transformer blocks
         for blk in self.decoder_blocks:
@@ -219,22 +237,22 @@ class TokenizedVideoMAE(TokenizedBase):
     def forward_loss(self, imgs, pred, variables, metric, lat, mask, reconstruct_all):
         """
         imgs: [B, T, C, H, W]
-        pred: [B, TxCxL, p*p]
-        mask: [B, TxCxL], 0 is keep, 1 is remove,
+        pred: [B, TxL, p*p*C]
+        mask: [B, TxL], 0 is keep, 1 is remove,
         """
-        b, t, c, h, w = imgs.shape
 
         imgs = imgs.flatten(0, 1)  # BxT, C, H, W
 
-        img_mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])  # [B, TxCxL, p*p]
-        img_mask = img_mask.unflatten(dim=1, sizes=(self.timesteps, -1, self.num_patches))  # [B, T, C, L, p*p]
-        img_mask = img_mask.flatten(0, 2)  # [BxTxC, L, p*p]
+        img_mask = mask.unsqueeze(-1).repeat(1, 1, pred.shape[-1])  # [B, TxL, p*p]
+        img_mask = img_mask.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # [B, T, L, p*p*C]
+        img_mask = img_mask.flatten(0, 1)  # [BxT, L, p*p*C]
+        img_mask = self.unpatchify(img_mask)[:, 0]  # [BxT, H, W]
 
-        pred = pred.unflatten(dim=1, sizes=(self.timesteps, -1, self.num_patches))  # [B, T, C, L, p*p]
-        pred = pred.flatten(0, 2)  # [BxTxC, L, p*p]
-
-        img_pred = self.unpatchify(pred, variables)  # [BxT, C, H, W]
-        img_mask = self.unpatchify(img_mask, variables)[:, 0]  # [BxT, H, W]
+        pred = pred.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # [B, T, L, p*p*C]
+        pred = pred.flatten(0, 1)  # [BxT, L, p*p*C]
+        img_pred = self.unpatchify(pred)  # [BxT, C, H, W]
+        var_ids = self.get_channel_ids(variables)
+        img_pred = img_pred[:, var_ids] # only compute loss over present variables
 
         if metric is None:
             return None, img_pred, img_mask
@@ -248,7 +266,7 @@ class TokenizedVideoMAE(TokenizedBase):
 
     def forward(self, imgs, variables, metric, lat, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, variables, mask_ratio)
-        pred = self.forward_decoder(latent, variables, ids_restore)  # [B, TxCxL, p*p]
+        pred = self.forward_decoder(latent, variables, ids_restore)  # [B, TxL, p*p]
         loss, pred, mask = self.forward_loss(imgs, pred, variables, metric, lat, mask, reconstruct_all)
         return loss, pred, mask
 
