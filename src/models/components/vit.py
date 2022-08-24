@@ -10,16 +10,18 @@
 # --------------------------------------------------------
 
 
+import numpy as np
 import torch
 import torch.nn as nn
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
-
-from src.utils.pos_embed import get_2d_sincos_pos_embed
 
 
 class VisionTransformer(nn.Module):
     def __init__(
         self,
+        time_history=1,
         img_size=[128, 256],
         patch_size=16,
         drop_path=0.1,
@@ -39,6 +41,7 @@ class VisionTransformer(nn.Module):
     ):
         super().__init__()
 
+        self.time_history = time_history
         self.img_size = img_size
         self.n_channels = len(in_vars)
         self.patch_size = patch_size
@@ -51,11 +54,14 @@ class VisionTransformer(nn.Module):
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
         self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
-        num_patches = self.patch_embed.num_patches  # 128
+        self.num_patches = self.patch_embed.num_patches  # 128
 
         self.pos_embed = nn.Parameter(
-            torch.zeros(1, num_patches, embed_dim), requires_grad=learn_pos_emb
+            torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
+        self.time_pos_embed = nn.Parameter(
+            torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb
+        )
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
@@ -96,6 +102,8 @@ class VisionTransformer(nn.Module):
             cls_token=False,
         )
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+        time_pos_embed = get_1d_sincos_pos_embed_from_grid(self.time_pos_embed.shape[-1], np.arange(self.time_history))
+        self.time_pos_embed.data.copy_(torch.from_numpy(time_pos_embed).float().unsqueeze(0))
 
         # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
         w = self.patch_embed.proj.weight.data
@@ -151,12 +159,21 @@ class VisionTransformer(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], c, h * p, w * p))
         return imgs
 
-    def forward_encoder(self, x):
+    def forward_encoder(self, x: torch.Tensor):
+        """
+        x: B, T, C, H, W
+        """
+        b, t, _, _, _ = x.shape
+        x = x.flatten(0, 1) # BxT, C, H, W
         # embed patches
         x = self.patch_embed(x)
+        x = x.unflatten(dim=0, sizes=(b, t)) # B, T, L, D
 
-        # add pos embed w/o cls token
-        x = x + self.pos_embed[:, :, :]
+        # add time and pos embed
+        x = x + self.pos_embed.unsqueeze(1)
+        x = x + self.time_pos_embed.unsqueeze(2)
+
+        x = x.flatten(1, 2) # B, TxL, D
 
         # apply Transformer blocks
         for blk in self.blocks:
@@ -174,7 +191,8 @@ class VisionTransformer(nn.Module):
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
     def forward(self, x, y, variables, out_variables, metric, lat):
-        embeddings = self.forward_encoder(x)
+        embeddings = self.forward_encoder(x) # B, TxL, D
+        embeddings = embeddings[:, -self.num_patches:]
         preds = self.head(embeddings)
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
@@ -182,6 +200,7 @@ class VisionTransformer(nn.Module):
     def predict(self, x, variables):
         with torch.no_grad():
             embeddings = self.forward_encoder(x)
+            embeddings = embeddings[:, -self.num_patches:]
             pred = self.head(embeddings)
         return self.unpatchify(pred)
 
