@@ -16,8 +16,8 @@ dependencies:
   - brotlipy=0.7.0=py38h27cfd23_1003
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.18.1=h7f8727e_0
-  - ca-certificates=2022.07.19=h06a4308_0
-  - certifi=2022.6.15=py38h06a4308_0
+  - ca-certificates=2022.6.15=ha878542_0
+  - certifi=2022.6.15=py38h578d9bd_0
   - cffi=1.15.0=py38hd667e15_1
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - cloudpickle=2.1.0=pyhd8ed1ab_0
@@ -32,6 +32,7 @@ dependencies:
   - cytoolz=0.11.0=py38h7b6447c_0
   - dask-core=2022.7.1=pyhd8ed1ab_0
   - distributed=2022.7.1=pyhd8ed1ab_0
+  - einops=0.4.1=pyhd8ed1ab_0
   - esmf=8.2.0=mpi_mpich_h4975321_100
   - esmpy=8.2.0=mpi_mpich_py38h9147699_101
   - fasteners=0.16.3=pyhd3eb1b0_0
