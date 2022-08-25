@@ -26,7 +26,7 @@ VAR_TO_NAME = {v: k for k, v in NAME_TO_VAR.items()}
 
 SINGLE_LEVEL_VARS = ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind', 'mean_sea_level_pressure', 'surface_pressure', 'toa_incident_solar_radiation', 'total_precipitation', 'land_sea_mask', 'orography', 'lattitude']
 PRESSURE_LEVEL_VARS = ['geopotential', 'u_component_of_wind', 'v_component_of_wind', 'temperature', 'relative_humidity', 'specific_humidity']
-ALL_LEVELS = [50, 250, 500, 600, 700, 850, 925]
+ALL_LEVELS = [50, 250, 500, 600, 700, 850, 925, 1000]
 
 NAME_LEVEL_TO_VAR_LEVEL = {}
 
