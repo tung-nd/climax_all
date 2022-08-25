@@ -11,12 +11,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
-
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
 
 
 class TokenizedBase(nn.Module):
@@ -52,6 +49,7 @@ class TokenizedBase(nn.Module):
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
         ],
+        channel_agg='mean'
     ):
         super().__init__()
 
@@ -60,14 +58,23 @@ class TokenizedBase(nn.Module):
         self.init_mode = init_mode
         self.default_vars = default_vars
 
-        # linear layer to embed each token, which is 1xpxp
-        self.token_embed = PatchEmbed(img_size, patch_size, 1, embed_dim)
-        self.num_patches = self.token_embed.num_patches  # assumed fixed because img_size is fixed
-        # TODO: can generalize to different input resolutions
+        # separate linear layers to embed each token, which is 1xpxp
+        self.token_embeds = nn.ModuleList([
+            PatchEmbed(img_size, patch_size, 1, embed_dim) for i in range(len(default_vars))
+        ])
+        self.num_patches = self.token_embeds[0].num_patches
 
         # positional embedding and channel embedding
         self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
         self.channel_embed, self.channel_map = self.create_channel_embedding(learn_pos_emb, embed_dim)
+
+        if channel_agg == 'mean':
+            self.channel_agg = None
+        elif channel_agg == 'attention':
+            self.channel_agg = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
+            self.channel_query = nn.Parameter(torch.zeros(1, 1, embed_dim), requires_grad=True)
+        else:
+            raise NotImplementedError
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
@@ -119,12 +126,12 @@ class TokenizedBase(nn.Module):
         )
         self.channel_embed.data.copy_(torch.from_numpy(channel_embed).float().unsqueeze(0))
 
-        # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        w = self.token_embed.proj.weight.data
-        if self.init_mode == "xavier":
-            torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-        else:
-            trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
+        for i in range(len(self.token_embeds)):
+            w = self.token_embeds[i].proj.weight.data
+            if self.init_mode == "xavier":
+                torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+            else:
+                trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
 
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)

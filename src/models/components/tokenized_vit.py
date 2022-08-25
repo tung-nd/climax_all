@@ -10,7 +10,6 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
-
 from src.models.components.tokenized_base import TokenizedBase
 
 
@@ -40,6 +39,8 @@ class TokenizedViT(TokenizedBase):
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
         ],
+        out_vars=None,
+        channel_agg='mean',
         embed_dim=1024,
         depth=24,
         decoder_depth=8,
@@ -59,9 +60,12 @@ class TokenizedViT(TokenizedBase):
             mlp_ratio,
             init_mode,
             default_vars,
+            channel_agg
         )
 
         self.freeze_encoder = freeze_encoder
+
+        self.out_vars = out_vars if out_vars is not None else default_vars
 
         # --------------------------------------------------------------------------
         # Decoder: either a linear or non linear prediction head
@@ -69,7 +73,7 @@ class TokenizedViT(TokenizedBase):
         for i in range(decoder_depth):
             self.head.append(nn.Linear(embed_dim, embed_dim))
             self.head.append(nn.GELU())
-        self.head.append(nn.Linear(embed_dim, patch_size**2))
+        self.head.append(nn.Linear(embed_dim, len(self.out_vars) * patch_size**2))
         self.head = nn.Sequential(*self.head)
         # --------------------------------------------------------------------------
 
@@ -81,40 +85,61 @@ class TokenizedViT(TokenizedBase):
             self.pos_embed.requires_grad_(False)
             self.blocks.requires_grad_(False)
 
-    def unpatchify(self, x, variables):
+    def unpatchify(self, x):
         """
-        x: (BxC, L, patch_size**2)
-        return: (B, C, H, W)
+        x: (B, L, patch_size**2 *3)
+        imgs: (B, C, H, W)
         """
         p = self.patch_size
+        c = len(self.out_vars)
         h = self.img_size[0] // p
         w = self.img_size[1] // p
         assert h * w == x.shape[1]
 
-        x = x.reshape(shape=(x.shape[0], h, w, p, p))
-        x = torch.einsum("nhwpq->nhpwq", x)
-        imgs = x.reshape(shape=(x.shape[0], h * p, w * p))  # (BxC, H, W)
-        imgs = imgs.unflatten(dim=0, sizes=(-1, len(variables)))  # (B, C, H, W)
+        x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
+        x = torch.einsum("nhwpqc->nchpwq", x)
+        imgs = x.reshape(shape=(x.shape[0], c, h * p, w * p))
         return imgs
+
+    def aggregate_channel(self, x: torch.Tensor):
+        """
+        x: B, C, L, D
+        """
+        b, _, l, _ = x.shape
+        x = torch.einsum("bcld->blcd", x)
+        x = x.flatten(0, 1)  # BxL, C, D
+
+        if self.channel_agg is not None:
+            channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
+            x, _ = self.channel_agg(channel_query, x, x) # BxL, D
+            x = x.squeeze()
+        else:
+            x = torch.mean(x, dim=1)  # BxL, D
+
+        x = x.unflatten(dim=0, sizes=(b, l))  # B, L, D
+        return x
 
     def forward_encoder(self, x, variables):
         """
         x: B, C, H, W
         """
         # embed tokens
-        b, c, _, _ = x.shape
-        x = x.flatten(0, 1)  # BxC, H, W
-        x = x.unsqueeze(dim=1)  # BxC, 1, H, W
-        x = self.token_embed(x)  # BxC, L, D
-        x = x.unflatten(dim=0, sizes=(b, c))  # B, C, L, D
+
+        embeds = []
+        var_ids = self.get_channel_ids(variables)
+        for i in range(len(var_ids)):
+            id = var_ids[i]
+            embeds.append(self.token_embeds[id](x[:, i:i+1]))
+        x = torch.stack(embeds, dim=1) # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
         x = x + channel_embed.unsqueeze(2)
-        # add pos embedding, pos_emb: 1, L, D
-        x = x + self.pos_embed.unsqueeze(1)
 
-        x = x.flatten(1, 2)  # B, CxL, D
+        x = self.aggregate_channel(x)  # B, L, D
+
+        # add pos embedding, pos_emb: 1, L, D
+        x = x + self.pos_embed
 
         # apply Transformer blocks
         for blk in self.blocks:
@@ -126,23 +151,21 @@ class TokenizedViT(TokenizedBase):
     def forward_loss(self, y, pred, variables, out_variables, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
-        pred: [B, CxL, p*p]
+        pred: [B, L, C*p*p]
         """
-        pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
-        pred = pred.flatten(0, 1)  # [BxC, L, p*p]
-        pred = self.unpatchify(pred, variables)  # [B, C, H, W]
+        pred = self.unpatchify(pred)  # B, C, H, W
 
-        # only compute loss over the variables in out_variables
-        in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
-        out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
-        ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
-        pred = pred[:, ids]
+        # # only compute loss over the variables in out_variables
+        # in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
+        # out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
+        # ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
+        # pred = pred[:, ids]
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
     def forward(self, x, y, variables, out_variables, metric, lat):
-        embeddings = self.forward_encoder(x, variables)  # B, CxL, D
-        preds = self.head(embeddings)
+        embeddings = self.forward_encoder(x, variables)  # B, L, D
+        preds = self.head(embeddings)  # B, L, Cxpxp
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
@@ -150,9 +173,10 @@ class TokenizedViT(TokenizedBase):
         with torch.no_grad():
             embeddings = self.forward_encoder(x, variables)
             pred = self.head(embeddings)
-        pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
-        pred = pred.flatten(0, 1)  # [BxC, L, p*p]
-        return self.unpatchify(pred, variables)
+        return self.unpatchify(pred)
+        # pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
+        # pred = pred.flatten(0, 1)  # [BxC, L, p*p]
+        # return self.unpatchify(pred, variables)
 
     def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
         # transform: get back to the original range
@@ -166,10 +190,10 @@ class TokenizedViT(TokenizedBase):
         preds = torch.stack(preds, dim=1)
 
         # only compute loss over the variables in out_variables
-        in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
-        out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
-        ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
-        preds = preds[:, :, ids]
+        # in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
+        # out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
+        # ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
+        # preds = preds[:, :, ids]
 
         preds = transform(preds)
         y = transform(y)

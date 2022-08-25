@@ -41,35 +41,43 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit2.py --config configs/train_tokenized_vit.yaml
-        --trainer.devices=${GPUS}
+        --trainer.devices=${GPUS} --trainer.strategy=ddp
         --trainer.max_epochs=20
         --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
         --data.variables=["z_1000","z_850","z_500","z_50","r_850","r_500","u_1000","u_850","u_500","v_1000","v_850","v_500","t_850","t_500","t2m","u10","v10"]
         --data.out_variables=["z_500","t_850"]
         --data.predict_range=72 --data.skip_steps=1 --data.predict_steps=1
-        --data.num_workers=6 --data.batch_size=128
+        --data.num_workers=8 --data.batch_size=128
         --model.max_epochs=30
         --model.net.decoder_depth=2
         --model.net.learn_pos_emb=True
-        --model.net.patch_size=16
         --model.net.img_size=[32,64]
         --model.net.depth=8
         --model.net.init_mode='small'
+        --model.net.channel_agg={agg}
         --model.net.drop_path={drop}
         --model.lr=5e-4
         --model.weight_decay={decay}
+        --model.net.out_vars=['z_500','t_850']
+        --model.net.patch_size=4
         # --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/era5_5.625deg_1h_xavier/last.ckpt
         # --model.net.freeze_encoder={freeze}
 
   type: grid
   max_trials: 80
   params:
+    # - name: learn_emb
+    #   spec: discrete
+    #   values: [True]
     # - name: skip_steps
     #   spec: discrete
     #   values: [1]
     # - name: init
     #   spec: discrete
     #   values: ["small"]
+    - name: agg
+      spec: discrete
+      values: ['mean', 'attention']
     - name: drop
       spec: discrete
       values: [0.1, 0.2, 0.3]
@@ -87,7 +95,7 @@ search:
     #   values: [True, False]
     # - name: patch_size
     #   spec: discrete
-    #   values: [4, 8, 16]
+    #   values: [8]
     # - name: depth
     #   spec: discrete
     #   values: [1, 2, 4]
