@@ -90,19 +90,21 @@ def nc2np(path, variables, use_all_levels, years, save_dir, partition, num_shard
             )
 
     if partition == "train":
-        for var in variables:
-            normalize_mean[var] = np.stack(normalize_mean[var], axis=0)
-            normalize_std[var] = np.stack(normalize_std[var], axis=0)
+        for var in normalize_mean.keys():
+            if var not in constant_fields:
+                normalize_mean[var] = np.stack(normalize_mean[var], axis=0)
+                normalize_std[var] = np.stack(normalize_std[var], axis=0)
 
-        for var in variables:  # aggregate over the years
-            mean, std = normalize_mean[var], normalize_std[var]
-            # var(X) = E[var(X|Y)] + var(E[X|Y])
-            variance = (std**2).mean(axis=0) + (mean**2).mean(axis=0) - mean.mean(axis=0) ** 2
-            std = np.sqrt(variance)
-            # E[X] = E[E[X|Y]]
-            mean = mean.mean(axis=0)
-            normalize_mean[var] = mean
-            normalize_std[var] = std
+        for var in normalize_mean.keys():  # aggregate over the years
+            if var not in constant_fields:
+                mean, std = normalize_mean[var], normalize_std[var]
+                # var(X) = E[var(X|Y)] + var(E[X|Y])
+                variance = (std**2).mean(axis=0) + (mean**2).mean(axis=0) - mean.mean(axis=0) ** 2
+                std = np.sqrt(variance)
+                # E[X] = E[E[X|Y]]
+                mean = mean.mean(axis=0)
+                normalize_mean[var] = mean
+                normalize_std[var] = std
 
         np.savez(os.path.join(save_dir, "normalize_mean.npz"), **normalize_mean)
         np.savez(os.path.join(save_dir, "normalize_std.npz"), **normalize_std)
