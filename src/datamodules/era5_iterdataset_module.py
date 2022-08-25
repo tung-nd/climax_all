@@ -10,12 +10,19 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
-                               ERA5Npy, ERA5Video, IndividualDataIter,
-                               IndividualForecastDataIter,
-                               IndividualForecastPrecipDataIter,
-                               ShuffleIterableDataset)
+from .era5_iterdataset import (
+    ERA5,
+    ERA5Forecast,
+    ERA5ForecastMultiStep,
+    ERA5ForecastMultiStepPrecip,
+    ERA5ForecastPrecip,
+    ERA5Npy,
+    ERA5Video,
+    IndividualDataIter,
+    IndividualForecastDataIter,
+    IndividualForecastPrecipDataIter,
+    ShuffleIterableDataset,
+)
 
 
 def collate_fn(batch):
@@ -56,8 +63,9 @@ class ERA5IterDatasetModule(LightningDataModule):
         out_variables=None,
         timesteps: int = 8,  # only used for video
         predict_range: int = 6,  # only used for forecast
-        skip_steps: int = 1, # used for forecast
         predict_steps: int = 4,  # only used for forecast
+        history: int = 3,  # used for forecast
+        interval: int = 6,  # used for forecast
         pct_train: float = 1.0,  # percentage of data used for training
         batch_size: int = 64,
         num_workers: int = 0,
@@ -101,12 +109,13 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
             self.train_dataset_class = ERA5Forecast
-            self.train_dataset_args = {"predict_range": predict_range, "skip_steps": skip_steps}
+            self.train_dataset_args = {"predict_range": predict_range, "history": history, "interval": interval}
             self.val_dataset_class = ERA5ForecastMultiStep
             self.val_dataset_args = {
                 "pred_range": predict_range,
                 "pred_steps": predict_steps,
-                "skip_steps": skip_steps,
+                "history": history,
+                "interval": interval,
             }
             self.data_iter = IndividualForecastDataIter
             self.collate_fn = collate_forecast_fn
@@ -269,7 +278,7 @@ class ERA5IterDatasetModule(LightningDataModule):
 #     "forecast",
 #     ["t2m", "u10", "v10", "z_850", "z_500"],
 #     1000,
-#     out_variables=["t2m", "z_850", "z_500"],
+#     out_variables=["t2m", "u10", "v10", "z_850", "z_500"],
 #     batch_size=64,
 #     num_workers=2,
 #     pin_memory=False,
@@ -278,11 +287,24 @@ class ERA5IterDatasetModule(LightningDataModule):
 # for x, y, variables, out_variables in era5.train_dataloader():
 #     print(x.shape)
 #     print(y.shape)
+#     print (era5.transforms)
+#     print ('mean input channel', x.mean(dim=(0, 1, 3, 4)))
+#     print ('std input channel', x.std(dim=(0, 1, 3, 4)))
+#     # print (era5.output_transforms)
+#     # print ('mean output channel', y.mean(dim=(0, 2, 3)))
+#     # print ('std output channel', y.std(dim=(0, 2, 3)))
 #     print (variables)
-#     print (out_variables)
+#     # print (out_variables)
 #     break
-# for x, y, variables in era5.val_dataloader():
+# for x, y, variables, out_variables in era5.val_dataloader():
 #     print(x.shape)
 #     print(y.shape)
-#     print (variables)
+#     # print (era5.transforms)
+#     # print ('mean input channel', x.mean(dim=(0, 1, 3, 4)))
+#     # print ('std input channel', x.std(dim=(0, 1, 3, 4)))
+#     print (era5.output_transforms)
+#     print ('mean output channel', y.mean(dim=(0, 1, 3, 4)))
+#     print ('std output channel', y.std(dim=(0, 1, 3, 4)))
+#     # print (variables)
+#     print (out_variables)
 #     break

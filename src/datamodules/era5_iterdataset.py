@@ -107,68 +107,71 @@ class ERA5Video(IterableDataset):
 
 
 class ERA5Forecast(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, skip_steps: int = 1) -> None:
+    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6) -> None:
         super().__init__()
         self.dataset = dataset
         self.predict_range = predict_range
-        self.skip_steps = skip_steps
+        self.history = history
+        self.interval = interval
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
-            inputs = np.concatenate(
-                [data[k][0 : -self.predict_range : self.skip_steps] for k in data.keys()],
-                axis=1,
-            )
-            outputs = np.concatenate(
-                [data[k][self.predict_range :: self.skip_steps] for k in out_variables],
-                axis=1,
-            )
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables, out_variables
+            x = np.concatenate([data[k] for k in data.keys()], axis=1)
+            x = torch.from_numpy(x)
+            y = np.concatenate([data[k] for k in out_variables], axis=1)
+            y = torch.from_numpy(y)
+
+            inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
+            for t in range(self.history):
+                inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
+
+            last_idx = -((self.history - 1) * self.interval + self.predict_range)
+
+            outputs = y.roll(last_idx, dims=0)
+
+            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T, C, H, W
+            outputs = outputs[:last_idx] # N, C, H, W
+
+            yield inputs, outputs, variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, pred_range: int = 6, skip_steps: int = 1, pred_steps: int = 4) -> None:
+    def __init__(
+        self, dataset: ERA5Npy, pred_range: int = 6, history: int = 3, interval: int = 6, pred_steps: int = 4
+    ) -> None:
         super().__init__()
         self.dataset = dataset
         self.pred_range = pred_range
-        self.skip_steps = skip_steps
+        self.history = history
+        self.interval = interval
         self.pred_steps = pred_steps
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
-        pred_range = self.pred_range
-        skip_steps = self.skip_steps
-        pred_steps = self.pred_steps
         for data, variables, out_variables in self.dataset:
-            inputs = {}
-            outputs = {}
-            for k in data.keys():
-                x = data[k]  # (730, d, 128, 256)
-                interval = pred_range * pred_steps
+            x = np.concatenate([data[k] for k in data.keys()], axis=1)
+            x = torch.from_numpy(x)
+            y = np.concatenate([data[k] for k in out_variables], axis=1)
+            y = torch.from_numpy(y)
 
-                inputs[k] = x[0:-interval:skip_steps]
+            inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
+            for t in range(self.history):
+                inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
-                output_k = []
-                for step in range(pred_steps):
-                    start = (step + 1) * pred_range
-                    end = (step - pred_steps + 1) * pred_range if step != pred_steps - 1 else x.shape[0]
-                    output_k.append(x[start:end:skip_steps])
+            outputs = y.unsqueeze(0).repeat_interleave(self.pred_steps, dim=0)
+            start_idx = (self.history - 1) * self.interval + self.pred_range
+            for t in range(self.pred_steps):
+                outputs[t] = outputs[t].roll(-(start_idx + t * self.pred_range), dims=0)
 
-                output_k = np.stack(output_k, axis=1)
-                outputs[k] = output_k
+            last_idx = -((self.history - 1) * self.interval + self.pred_steps * self.pred_range)
 
-            inputs = np.concatenate(
-                [inputs[k] for k in inputs.keys()],
-                axis=1,
-            )
-            outputs = np.concatenate(
-                [outputs[k] for k in out_variables],
-                axis=2,
-            )
-            yield torch.from_numpy(inputs), torch.from_numpy(outputs), variables, out_variables
+            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T1, C, H, W
+            outputs = outputs[:, :last_idx].transpose(0, 1) # N, T2, C, H, W
+
+            yield inputs, outputs, variables, out_variables
 
 
 class IndividualForecastDataIter(IterableDataset):
@@ -333,29 +336,98 @@ class ShuffleIterableDataset(IterableDataset):
         #     pass
 
 
+# x = torch.randn((10, 2))
+# pred_range = 2
+# history = 3
+# interval = 1
+# pred_steps = 2
+
+# inputs = x.unsqueeze(0).repeat_interleave(history, dim=0)
+# for t in range(history):
+#     inputs[t] = inputs[t].roll(-t*interval, dims=0)
+
+# # forecast training dataset
+# last_idx = -((history - 1) * interval + pred_range)
+
+# outputs = x.roll(last_idx, dims=0)
+
+# inputs = inputs[:, :last_idx].transpose(0, 1)
+# outputs = outputs[:last_idx]
+
+# # forecast validation dataset
+# outputs = x.unsqueeze(0).repeat_interleave(pred_steps, dim=0)
+# start_idx = (history-1) * interval + pred_range
+# for t in range(pred_steps):
+#     outputs[t] = outputs[t].roll(-(start_idx + t*pred_range), dims=0)
+
+# last_idx = - ((history-1) * interval + pred_steps * pred_range)
+
+# inputs = inputs[:, :last_idx].transpose(0, 1)
+# outputs = outputs[:, :last_idx].transpose(0, 1)
+
+# for i in range(inputs.shape[0]):
+#     print ('x', x)
+#     print (i)
+#     print ('in', inputs[i])
+#     print ('out', outputs[i])
+#     print ('=' * 20)
+
 # import os
 
 # import torchdata.datapipes as dp
 
-# root_dir = "/datadrive/5.625deg_equally_np/"
+# root_dir = "/datadrive/datasets/5.625deg_equally_np/"
 # lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
 # dataset = ShuffleIterableDataset(
 #     dataset=IndividualForecastDataIter(
 #         dataset=ERA5Forecast(
 #             dataset=ERA5Npy(
-#                 file_list=lister_train, variables=["t2m", "u10", "v10", "z"]
+#                 file_list=lister_train,
+#                 variables=["t2m", "u10", "v10", "z_500", "t_850"],
+#                 out_variables=["z_500", "t_850"],
 #             ),
 #             predict_range=6,
+#             history=3,
+#             interval=6
 #         ),
 #         transforms=None,
+#         output_transforms=None
 #     ),
 #     buffer_size=1000,
 # )
 
-# x, y, variables = next(iter(dataset))
+# x, y, variables, out_variables = next(iter(dataset))
 # print(x.shape)
 # print(y.shape)
 # print (variables)
+# print (out_variables)
+
+# root_dir = "/datadrive/datasets/5.625deg_equally_np/"
+# lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
+# dataset = ShuffleIterableDataset(
+#     dataset=IndividualForecastDataIter(
+#         dataset=ERA5ForecastMultiStep(
+#             dataset=ERA5Npy(
+#                 file_list=lister_train,
+#                 variables=["t2m", "u10", "v10", "z_500", "t_850"],
+#                 out_variables=None
+#             ),
+#             pred_range=6,
+#             history=3,
+#             interval=6,
+#             pred_steps=4,
+#         ),
+#         transforms=None,
+#         output_transforms=None
+#     ),
+#     buffer_size=1000,
+# )
+
+# x, y, variables, out_variables = next(iter(dataset))
+# print(x.shape)
+# print(y.shape)
+# print (variables)
+# print (out_variables)
 
 # root_dir = "/datadrive/5.625deg_equally_np/"
 # lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))

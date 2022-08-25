@@ -64,7 +64,7 @@ trainer:
 # ---------------------------- MODEL -------------------------------------------
 model:
   lr: 0.0005
-  weight_decay: 0.005
+  weight_decay: 0.05
   warmup_epochs: 5
   max_epochs: 30
   warmup_start_lr: 1e-8
@@ -75,6 +75,7 @@ model:
     init_args:
       img_size: [128, 256]
       patch_size: 16
+      drop_path: 0.0
       learn_pos_emb: False
       in_vars:
         [
@@ -98,6 +99,7 @@ model:
         ]
       embed_dim: 1024
       depth: 8
+      decoder_depth: 0 # linear layer, if > 0 use transformer blocks
       num_heads: 16
       mlp_ratio: 4
       out_vars: null
@@ -108,7 +110,26 @@ data:
   root_dir: /datadrive/1.40625deg_equally_np
   reader: npy # npy or zarr
   dataset_type: forecast # pretrain or forecast (finetune)
-  variables: ["z", "r", "u", "v", "t", "t2m", "u10", "v10"]
+  variables:
+    [
+      "z_1000",
+      "z_850",
+      "z_500",
+      "z_50",
+      "r_850",
+      "r_500",
+      "u_1000",
+      "u_850",
+      "u_500",
+      "v_1000",
+      "v_850",
+      "v_500",
+      "t_850",
+      "t_500",
+      "t2m",
+      "u10",
+      "v10",
+    ]
   predict_range: 6
   predict_steps: 4
   pct_train: 1.0

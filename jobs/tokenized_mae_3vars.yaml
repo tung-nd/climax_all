@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x4ssh-sc
+  name: v100x2-ded
 
 storage:
   data:
@@ -27,11 +27,11 @@ storage:
 # some environment variables to ease up setting of jobs
 env_defaults:
   NODES: 1
-  GPUS: 4
+  GPUS: 2
 
 search:
   job_template:
-    name: tokenized_mae_5.625deg_{auto:10s} # ex: simple_job_lr_05
+    name: mae_cmip6_5.625deg_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       container_args:
@@ -41,16 +41,22 @@ search:
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_tokenized_mae.yaml
         --trainer.devices=${GPUS}
+        --trainer.max_epochs=50
+        --trainer.limit_val_batches=0 --trainer.num_sanity_val_steps=0
+        --model.max_epochs=75
         --model.reconstruct_all=True --model.mask_ratio={mask_ratio}
         --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
-        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
-        --data.variables=['z_1000','z_850','z_500','z_50','t_850','t_500']
+        --model.net.init_mode={init}
+        --data.root_dir=/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np/ --data.reader=npy
+        --data.variables=['z_500','t_850']
         --data.num_workers=4 --data.batch_size=64
 
   type: grid
   max_trials: 80
   params:
+    - name: init
+      spec: discrete
+      values: ["xavier", "small"]
     - name: mask_ratio
       spec: discrete
-      # values: [0.5, 0.75, 0.9]
-      values: [0.5]
+      values: [0.5, 0.7, 0.9]
