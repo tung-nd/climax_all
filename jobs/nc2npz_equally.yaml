@@ -28,4 +28,4 @@ jobs:
   - name: extract_equally_npz
     sku: 1xC16
     command:
-      - python src/nc2np_equally.py /mnt/data/1.40625deg --num_shards=12
+      - src/nc2np_equally.py /datadrive/datasets/5.625deg --start_train_year 1979 --start_val_year 2015 --start_test_year 2017 --end_year 2019 --num_shards 12

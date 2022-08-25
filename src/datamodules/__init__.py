@@ -3,54 +3,39 @@ from os.path import abspath, dirname
 
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-normalize_mean = {
-    "2m_temperature": 277.0595,
-    "10m_u_component_of_wind": -0.05025468,
-    "10m_v_component_of_wind": 0.18755548,
-}
-
-normalize_std = {
-    "2m_temperature": 21.289722,
-    "10m_u_component_of_wind": 5.5454874,
-    "10m_v_component_of_wind": 4.764006,
-}
-
 NAME_TO_VAR = {
     "2m_temperature": "t2m",
     "10m_u_component_of_wind": "u10",
     "10m_v_component_of_wind": "v10",
     "mean_sea_level_pressure": "msl",
     "surface_pressure": "sp",
+    "toa_incident_solar_radiation": "tisr",
+    "total_precipitation": "tp",
+    "land_sea_mask": "lsm",
+    "orography": "orography",
+    "lattitude": "lat2d",
+    "geopotential": "z",
     "u_component_of_wind": "u",
     "v_component_of_wind": "v",
-    "geopotential": "z",
     "temperature": "t",
     "relative_humidity": "r",
-    "total_precipitation": "tp",
+    "specific_humidity": "q",
 }
 
 VAR_TO_NAME = {v: k for k, v in NAME_TO_VAR.items()}
 
-NAME_LEVEL_TO_VAR_LEVEL = {
-    "geopotential_1000": "z_1000",
-    "geopotential_850": "z_850",
-    "geopotential_500": "z_500",
-    "geopotential_50": "z_50",
-    "relative_humidity_850": "r_850",
-    "relative_humidity_500": "r_500",
-    "u_component_of_wind_1000": "u_1000",
-    "u_component_of_wind_850": "u_850",
-    "u_component_of_wind_500": "u_500",
-    "v_component_of_wind_1000": "v_1000",
-    "v_component_of_wind_850": "v_850",
-    "v_component_of_wind_500": "v_500",
-    "temperature_850": "t_850",
-    "temperature_500": "t_500",
-    "2m_temperature": "t2m",
-    "10m_u_component_of_wind": "u10",
-    "10m_v_component_of_wind": "v10",
-    "total_precipitation": "tp",
-}
+SINGLE_LEVEL_VARS = ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind', 'mean_sea_level_pressure', 'surface_pressure', 'toa_incident_solar_radiation', 'total_precipitation', 'land_sea_mask', 'orography', 'lattitude']
+PRESSURE_LEVEL_VARS = ['geopotential', 'u_component_of_wind', 'v_component_of_wind', 'temperature', 'relative_humidity', 'specific_humidity']
+ALL_LEVELS = [50, 250, 500, 600, 700, 850, 925]
+
+NAME_LEVEL_TO_VAR_LEVEL = {}
+
+for var in SINGLE_LEVEL_VARS:
+    NAME_LEVEL_TO_VAR_LEVEL[var] = NAME_TO_VAR[var]
+
+for var in PRESSURE_LEVEL_VARS:
+    for l in ALL_LEVELS:
+        NAME_LEVEL_TO_VAR_LEVEL[var + '_' + str(l)] = NAME_TO_VAR[var] + '_' + str(l)
 
 VAR_LEVEL_TO_NAME_LEVEL = {v: k for k, v in NAME_LEVEL_TO_VAR_LEVEL.items()}
 
