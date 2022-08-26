@@ -50,7 +50,7 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
     return loss_dict
 
 
-def lat_weighted_mse_val(pred, y, vars, lat, log_steps, log_days):
+def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -74,13 +74,15 @@ def lat_weighted_mse_val(pred, y, vars, lat, log_steps, log_days):
     return loss_dict
 
 
-def lat_weighted_rmse(pred, y, vars, lat, log_steps, log_days):
+def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
     vars: list of variable names
     lat: H
     """
+    pred = transform(pred)
+    y = transform(y)
     pred = pred.to(torch.float32)
     y = y.to(torch.float32)
 
@@ -103,7 +105,7 @@ def lat_weighted_rmse(pred, y, vars, lat, log_steps, log_days):
     return loss_dict
 
 
-def lat_weighted_acc(pred, y, vars, lat, log_steps, log_days):
+def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -111,6 +113,8 @@ def lat_weighted_acc(pred, y, vars, lat, log_steps, log_days):
     lat: H
     TODO: subtract the climatology
     """
+    pred = transform(pred)
+    y = transform(y)
     pred = pred.to(torch.float32)
     y = y.to(torch.float32)
 

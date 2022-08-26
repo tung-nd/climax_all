@@ -170,7 +170,9 @@ class VisionTransformer(nn.Module):
         x = x.unflatten(dim=0, sizes=(b, t)) # B, T, L, D
 
         # add time and pos embed
+        # pos emb: 1, L, D
         x = x + self.pos_embed.unsqueeze(1)
+        # time emb: 1, T, D
         x = x + self.time_pos_embed.unsqueeze(2)
 
         x = x.flatten(1, 2) # B, TxL, D
@@ -192,16 +194,16 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, y, variables, out_variables, metric, lat):
         embeddings = self.forward_encoder(x) # B, TxL, D
-        embeddings = embeddings[:, -self.num_patches:]
-        preds = self.head(embeddings)
+        embeddings = embeddings
+        preds = self.head(embeddings)[:, -self.num_patches:]
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
     def predict(self, x, variables):
         with torch.no_grad():
             embeddings = self.forward_encoder(x)
-            embeddings = embeddings[:, -self.num_patches:]
-            pred = self.head(embeddings)
+            embeddings = embeddings
+            pred = self.head(embeddings)[:, -self.num_patches:]
         return self.unpatchify(pred)
 
     def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
@@ -211,10 +213,7 @@ class VisionTransformer(nn.Module):
             preds.append(x)
         preds = torch.stack(preds, dim=1)
 
-        preds = transform(preds)
-        y = transform(y)
-
-        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # model = VisionTransformer(depth=8).cuda()

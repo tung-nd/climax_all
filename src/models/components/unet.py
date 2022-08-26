@@ -350,10 +350,7 @@ class Unet(nn.Module):
             preds.append(x)
         preds = torch.stack(preds, dim=1)
 
-        preds = transform(preds)
-        y = transform(y)
-
-        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # model = Unet(in_channels=2, time_history=3, out_channels=2).cuda()

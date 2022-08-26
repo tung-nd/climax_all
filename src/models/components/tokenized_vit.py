@@ -195,10 +195,7 @@ class TokenizedViT(TokenizedBase):
         # ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
         # preds = preds[:, :, ids]
 
-        preds = transform(preds)
-        y = transform(y)
-
-        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # from src.utils.metrics import mse
