@@ -107,12 +107,13 @@ class ERA5Video(IterableDataset):
 
 
 class ERA5Forecast(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6) -> None:
+    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6, subsample: int = 1) -> None:
         super().__init__()
         self.dataset = dataset
         self.predict_range = predict_range
         self.history = history
         self.interval = interval
+        self.subsample = subsample
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
@@ -135,12 +136,15 @@ class ERA5Forecast(IterableDataset):
             inputs = inputs[:, :last_idx].transpose(0, 1) # N, T, C, H, W
             outputs = outputs[:last_idx] # N, C, H, W
 
+            inputs = inputs[::self.subsample]
+            outputs = outputs[::self.subsample]
+
             yield inputs, outputs, variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
     def __init__(
-        self, dataset: ERA5Npy, pred_range: int = 6, history: int = 3, interval: int = 6, pred_steps: int = 4
+        self, dataset: ERA5Npy, pred_range: int = 6, history: int = 3, interval: int = 6, pred_steps: int = 4, subsample: int = 1
     ) -> None:
         super().__init__()
         self.dataset = dataset
@@ -148,6 +152,7 @@ class ERA5ForecastMultiStep(IterableDataset):
         self.history = history
         self.interval = interval
         self.pred_steps = pred_steps
+        self.subsample = subsample
 
     def __iter__(self):
         # TODO: this would not get us stuff across the years
@@ -172,6 +177,9 @@ class ERA5ForecastMultiStep(IterableDataset):
 
             inputs = inputs[:, :last_idx].transpose(0, 1) # N, T1, C, H, W
             outputs = outputs[:, :last_idx].transpose(0, 1) # N, T2, C, H, W
+
+            inputs = inputs[::self.subsample]
+            outputs = outputs[::self.subsample]
 
             yield inputs, outputs, variables, out_variables
 
@@ -341,8 +349,9 @@ class ShuffleIterableDataset(IterableDataset):
 # x = torch.randn((10, 2))
 # pred_range = 2
 # history = 3
-# interval = 1
+# interval = 2
 # pred_steps = 2
+# subsample = 3
 
 # inputs = x.unsqueeze(0).repeat_interleave(history, dim=0)
 # for t in range(history):
@@ -355,6 +364,9 @@ class ShuffleIterableDataset(IterableDataset):
 
 # inputs = inputs[:, :last_idx].transpose(0, 1)
 # outputs = outputs[:last_idx]
+
+# inputs = inputs[::subsample]
+# outputs = outputs[::subsample]
 
 # # forecast validation dataset
 # outputs = x.unsqueeze(0).repeat_interleave(pred_steps, dim=0)

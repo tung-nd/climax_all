@@ -10,19 +10,12 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (
-    ERA5,
-    ERA5Forecast,
-    ERA5ForecastMultiStep,
-    ERA5ForecastMultiStepPrecip,
-    ERA5ForecastPrecip,
-    ERA5Npy,
-    ERA5Video,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-    IndividualForecastPrecipDataIter,
-    ShuffleIterableDataset,
-)
+from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
+                               ERA5ForecastMultiStepPrecip, ERA5ForecastPrecip,
+                               ERA5Npy, ERA5Video, IndividualDataIter,
+                               IndividualForecastDataIter,
+                               IndividualForecastPrecipDataIter,
+                               ShuffleIterableDataset)
 
 
 def collate_fn(batch):
@@ -66,6 +59,7 @@ class ERA5IterDatasetModule(LightningDataModule):
         predict_steps: int = 4,  # only used for forecast
         history: int = 3,  # used for forecast
         interval: int = 6,  # used for forecast
+        subsample: int = 1, # used for forecast
         pct_train: float = 1.0,  # percentage of data used for training
         batch_size: int = 64,
         num_workers: int = 0,
@@ -109,13 +103,14 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
             self.train_dataset_class = ERA5Forecast
-            self.train_dataset_args = {"predict_range": predict_range, "history": history, "interval": interval}
+            self.train_dataset_args = {"predict_range": predict_range, "history": history, "interval": interval, "subsample": subsample}
             self.val_dataset_class = ERA5ForecastMultiStep
             self.val_dataset_args = {
                 "pred_range": predict_range,
                 "pred_steps": predict_steps,
                 "history": history,
                 "interval": interval,
+                "subsample": subsample
             }
             self.data_iter = IndividualForecastDataIter
             self.collate_fn = collate_forecast_fn
