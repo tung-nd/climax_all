@@ -13,9 +13,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
-                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
+
+from src.utils.pos_embed import (
+    get_1d_sincos_pos_embed_from_grid,
+    get_2d_sincos_pos_embed,
+)
 
 
 class VisionTransformer(nn.Module):
@@ -59,9 +62,7 @@ class VisionTransformer(nn.Module):
         self.pos_embed = nn.Parameter(
             torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
-        self.time_pos_embed = nn.Parameter(
-            torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb
-        )
+        self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
@@ -164,10 +165,10 @@ class VisionTransformer(nn.Module):
         x: B, T, C, H, W
         """
         b, t, _, _, _ = x.shape
-        x = x.flatten(0, 1) # BxT, C, H, W
+        x = x.flatten(0, 1)  # BxT, C, H, W
         # embed patches
         x = self.patch_embed(x)
-        x = x.unflatten(dim=0, sizes=(b, t)) # B, T, L, D
+        x = x.unflatten(dim=0, sizes=(b, t))  # B, T, L, D
 
         # add time and pos embed
         # pos emb: 1, L, D
@@ -175,7 +176,7 @@ class VisionTransformer(nn.Module):
         # time emb: 1, T, D
         x = x + self.time_pos_embed.unsqueeze(2)
 
-        x = x.flatten(1, 2) # B, TxL, D
+        x = x.flatten(1, 2)  # B, TxL, D
 
         # apply Transformer blocks
         for blk in self.blocks:
@@ -193,9 +194,9 @@ class VisionTransformer(nn.Module):
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
     def forward(self, x, y, variables, out_variables, metric, lat):
-        embeddings = self.forward_encoder(x) # B, TxL, D
+        embeddings = self.forward_encoder(x)  # B, TxL, D
         embeddings = embeddings
-        preds = self.head(embeddings)[:, -self.num_patches:]
+        preds = self.head(embeddings)[:, -self.num_patches :]
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
@@ -203,7 +204,7 @@ class VisionTransformer(nn.Module):
         with torch.no_grad():
             embeddings = self.forward_encoder(x)
             embeddings = embeddings
-            pred = self.head(embeddings)[:, -self.num_patches:]
+            pred = self.head(embeddings)[:, -self.num_patches :]
         return self.unpatchify(pred)
 
     def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):

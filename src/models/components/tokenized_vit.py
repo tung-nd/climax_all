@@ -10,6 +10,7 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
+
 from src.models.components.tokenized_base import TokenizedBase
 
 
@@ -40,7 +41,7 @@ class TokenizedViT(TokenizedBase):
             "10m_v_component_of_wind",
         ],
         out_vars=None,
-        channel_agg='mean',
+        channel_agg="mean",
         embed_dim=1024,
         depth=24,
         decoder_depth=8,
@@ -60,7 +61,7 @@ class TokenizedViT(TokenizedBase):
             mlp_ratio,
             init_mode,
             default_vars,
-            channel_agg
+            channel_agg,
         )
 
         self.freeze_encoder = freeze_encoder
@@ -111,7 +112,7 @@ class TokenizedViT(TokenizedBase):
 
         if self.channel_agg is not None:
             channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
-            x, _ = self.channel_agg(channel_query, x, x) # BxL, D
+            x, _ = self.channel_agg(channel_query, x, x)  # BxL, D
             x = x.squeeze()
         else:
             x = torch.mean(x, dim=1)  # BxL, D
@@ -129,8 +130,8 @@ class TokenizedViT(TokenizedBase):
         var_ids = self.get_channel_ids(variables)
         for i in range(len(var_ids)):
             id = var_ids[i]
-            embeds.append(self.token_embeds[id](x[:, i:i+1]))
-        x = torch.stack(embeds, dim=1) # B, C, L, D
+            embeds.append(self.token_embeds[id](x[:, i : i + 1]))
+        x = torch.stack(embeds, dim=1)  # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)

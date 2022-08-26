@@ -97,7 +97,7 @@ model:
           "10m_u_component_of_wind",
           "10m_v_component_of_wind",
         ]
-      channel_agg: 'mean'
+      channel_agg: "mean"
       embed_dim: 1024
       depth: 8
       decoder_depth: 0 # linear layer, if > 0 use transformer blocks

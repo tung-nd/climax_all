@@ -77,7 +77,7 @@ search:
     #   values: ["small"]
     - name: agg
       spec: discrete
-      values: ['mean', 'attention']
+      values: ["mean", "attention"]
     - name: drop
       spec: discrete
       values: [0.1, 0.2, 0.3]

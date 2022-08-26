@@ -19,17 +19,19 @@ def nc2np(path, variables, use_all_levels, years, save_dir, partition, num_shard
         normalize_std = {}
 
     constants = xr.open_mfdataset(os.path.join(path, "constants.nc"), combine="by_coords", parallel=True)
-    constant_fields = ['land_sea_mask', 'orography', 'lattitude']
+    constant_fields = ["land_sea_mask", "orography", "lattitude"]
     constant_values = {}
     for f in constant_fields:
-        constant_values[f] = np.expand_dims(constants[NAME_TO_VAR[f]].to_numpy(), axis=(0, 1)).repeat(HOURS_PER_YEAR, axis=0)
-        if partition == 'train':
+        constant_values[f] = np.expand_dims(constants[NAME_TO_VAR[f]].to_numpy(), axis=(0, 1)).repeat(
+            HOURS_PER_YEAR, axis=0
+        )
+        if partition == "train":
             normalize_mean[f] = constant_values[f].mean(axis=(0, 2, 3))
             normalize_std[f] = constant_values[f].std(axis=(0, 2, 3))
 
     for year in tqdm(years):
         np_vars = {}
-        
+
         # constant variables
         for f in constant_fields:
             np_vars[NAME_TO_VAR[f]] = constant_values[f]
@@ -153,9 +155,9 @@ def main(
     test_years = range(start_test_year, end_year)
 
     if all_levels:
-        postfix = '_all_levels'
+        postfix = "_all_levels"
     else:
-        postfix = ''
+        postfix = ""
 
     if len(variables) <= 3:  # small dataset for testing new models
         yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_small_np" + postfix)

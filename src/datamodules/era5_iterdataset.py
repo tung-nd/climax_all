@@ -107,7 +107,9 @@ class ERA5Video(IterableDataset):
 
 
 class ERA5Forecast(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6, subsample: int = 1) -> None:
+    def __init__(
+        self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6, subsample: int = 1
+    ) -> None:
         super().__init__()
         self.dataset = dataset
         self.predict_range = predict_range
@@ -133,18 +135,24 @@ class ERA5Forecast(IterableDataset):
 
             outputs = y.roll(last_idx, dims=0)
 
-            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T, C, H, W
-            outputs = outputs[:last_idx] # N, C, H, W
+            inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T, C, H, W
+            outputs = outputs[:last_idx]  # N, C, H, W
 
-            inputs = inputs[::self.subsample]
-            outputs = outputs[::self.subsample]
+            inputs = inputs[:: self.subsample]
+            outputs = outputs[:: self.subsample]
 
             yield inputs, outputs, variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
     def __init__(
-        self, dataset: ERA5Npy, pred_range: int = 6, history: int = 3, interval: int = 6, pred_steps: int = 4, subsample: int = 1
+        self,
+        dataset: ERA5Npy,
+        pred_range: int = 6,
+        history: int = 3,
+        interval: int = 6,
+        pred_steps: int = 4,
+        subsample: int = 1,
     ) -> None:
         super().__init__()
         self.dataset = dataset
@@ -175,11 +183,11 @@ class ERA5ForecastMultiStep(IterableDataset):
 
             last_idx = -((self.history - 1) * self.interval + self.pred_steps * self.pred_range)
 
-            inputs = inputs[:, :last_idx].transpose(0, 1) # N, T1, C, H, W
-            outputs = outputs[:, :last_idx].transpose(0, 1) # N, T2, C, H, W
+            inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T1, C, H, W
+            outputs = outputs[:, :last_idx].transpose(0, 1)  # N, T2, C, H, W
 
-            inputs = inputs[::self.subsample]
-            outputs = outputs[::self.subsample]
+            inputs = inputs[:: self.subsample]
+            outputs = outputs[:: self.subsample]
 
             yield inputs, outputs, variables, out_variables
 

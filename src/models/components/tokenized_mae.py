@@ -10,9 +10,10 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
+from timm.models.vision_transformer import Block
+
 from src.models.components.tokenized_base import TokenizedBase
 from src.utils.pos_embed import get_2d_sincos_pos_embed
-from timm.models.vision_transformer import Block
 
 
 class TokenizedMAE(TokenizedBase):
@@ -43,7 +44,7 @@ class TokenizedMAE(TokenizedBase):
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
         ],
-        channel_agg='mean',
+        channel_agg="mean",
         embed_dim=1024,
         depth=24,
         num_heads=16,
@@ -64,7 +65,7 @@ class TokenizedMAE(TokenizedBase):
             mlp_ratio,
             init_mode,
             default_vars,
-            channel_agg
+            channel_agg,
         )
 
         # --------------------------------------------------------------------------
@@ -92,7 +93,9 @@ class TokenizedMAE(TokenizedBase):
         )
 
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, len(default_vars) * patch_size**2, bias=True)  # decoder to token
+        self.decoder_pred = nn.Linear(
+            decoder_embed_dim, len(default_vars) * patch_size**2, bias=True
+        )  # decoder to token
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -139,7 +142,7 @@ class TokenizedMAE(TokenizedBase):
 
         if self.channel_agg is not None:
             channel_query = self.channel_query.repeat_interleave(x.shape[0], dim=0)
-            x, _ = self.channel_agg(channel_query, x, x) # BxL, D
+            x, _ = self.channel_agg(channel_query, x, x)  # BxL, D
             x = x.squeeze()
         else:
             x = torch.mean(x, dim=1)  # BxL, D
@@ -156,8 +159,8 @@ class TokenizedMAE(TokenizedBase):
         var_ids = self.get_channel_ids(variables)
         for i in range(len(var_ids)):
             id = var_ids[i]
-            embeds.append(self.token_embeds[id](x[:, i:i+1]))
-        x = torch.stack(embeds, dim=1) # B, C, L, D
+            embeds.append(self.token_embeds[id](x[:, i : i + 1]))
+        x = torch.stack(embeds, dim=1)  # B, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
@@ -212,7 +215,7 @@ class TokenizedMAE(TokenizedBase):
 
         img_pred = self.unpatchify(pred)  # [B, C, H, W]
         var_ids = self.get_channel_ids(variables)
-        img_pred = img_pred[:, var_ids] # only compute loss over present variables
+        img_pred = img_pred[:, var_ids]  # only compute loss over present variables
 
         if metric is None:
             return None, img_pred, img_mask

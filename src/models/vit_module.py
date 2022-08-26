@@ -3,10 +3,15 @@ from typing import Any
 
 import torch
 from pytorch_lightning import LightningModule
-from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_mse_val, lat_weighted_rmse)
 from torchvision.transforms import transforms
+
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import (
+    lat_weighted_acc,
+    lat_weighted_mse,
+    lat_weighted_mse_val,
+    lat_weighted_rmse,
+)
 
 
 class ViTLitModule(LightningModule):
