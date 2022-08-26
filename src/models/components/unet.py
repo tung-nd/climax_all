@@ -12,8 +12,9 @@ class ResidualBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        activation: str = "gelu",
+        activation: str = "leaky",
         norm: bool = False,
+        dropout: float = 0.1,
         n_groups: int = 1,
     ):
         super().__init__()
@@ -23,6 +24,8 @@ class ResidualBlock(nn.Module):
             self.activation = nn.ReLU()
         elif activation == "silu":
             self.activation = nn.SiLU()
+        elif activation == "leaky":
+            self.activation = nn.LeakyReLU(0.3)
         else:
             raise NotImplementedError(f"Activation {activation} not implemented")
 
@@ -36,17 +39,19 @@ class ResidualBlock(nn.Module):
             self.shortcut = nn.Identity()
 
         if norm:
-            self.norm1 = nn.GroupNorm(n_groups, in_channels)
-            self.norm2 = nn.GroupNorm(n_groups, out_channels)
+            self.norm1 = nn.BatchNorm2d(in_channels)
+            self.norm2 = nn.BatchNorm2d(out_channels)
         else:
             self.norm1 = nn.Identity()
             self.norm2 = nn.Identity()
 
+        self.drop = nn.Dropout(dropout)
+
     def forward(self, x: torch.Tensor):
         # First convolution layer
-        h = self.conv1(self.activation(self.norm1(x)))
+        h = self.drop(self.conv1(self.activation(self.norm1(x))))
         # Second convolution layer
-        h = self.conv2(self.activation(self.norm2(h)))
+        h = self.drop(self.conv2(self.activation(self.norm2(h))))
         # Add the shortcut connection and return
         return h + self.shortcut(x)
 
@@ -68,7 +73,7 @@ class AttentionBlock(nn.Module):
         if d_k is None:
             d_k = n_channels
         # Normalization layer
-        self.norm = nn.GroupNorm(n_groups, n_channels)
+        self.norm = nn.BatchNorm2d(n_channels)
         # Projections for query, key and values
         self.projection = nn.Linear(n_channels, n_heads * d_k * 3)
         # Linear layer for final transformation
@@ -118,11 +123,12 @@ class DownBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         has_attn: bool = False,
-        activation: str = "gelu",
+        activation: str = "leaky",
         norm: bool = False,
+        dropout: float = 0.1,
     ):
         super().__init__()
-        self.res = ResidualBlock(in_channels, out_channels, activation=activation, norm=norm)
+        self.res = ResidualBlock(in_channels, out_channels, activation=activation, norm=norm, dropout=dropout)
         if has_attn:
             self.attn = AttentionBlock(out_channels)
         else:
@@ -145,13 +151,16 @@ class UpBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         has_attn: bool = False,
-        activation: str = "gelu",
+        activation: str = "leaky",
         norm: bool = False,
+        dropout: float = 0.1,
     ):
         super().__init__()
         # The input has `in_channels + out_channels` because we concatenate the output of the same resolution
         # from the first half of the U-Net
-        self.res = ResidualBlock(in_channels + out_channels, out_channels, activation=activation, norm=norm)
+        self.res = ResidualBlock(
+            in_channels + out_channels, out_channels, activation=activation, norm=norm, dropout=dropout
+        )
         if has_attn:
             self.attn = AttentionBlock(out_channels)
         else:
@@ -170,11 +179,18 @@ class MiddleBlock(nn.Module):
     This block is applied at the lowest resolution of the U-Net.
     """
 
-    def __init__(self, n_channels: int, has_attn: bool = False, activation: str = "gelu", norm: bool = False):
+    def __init__(
+        self,
+        n_channels: int,
+        has_attn: bool = False,
+        activation: str = "leaky",
+        norm: bool = False,
+        dropout: float = 0.1,
+    ):
         super().__init__()
-        self.res1 = ResidualBlock(n_channels, n_channels, activation=activation, norm=norm)
+        self.res1 = ResidualBlock(n_channels, n_channels, activation=activation, norm=norm, dropout=dropout)
         self.attn = AttentionBlock(n_channels) if has_attn else nn.Identity()
-        self.res2 = ResidualBlock(n_channels, n_channels, activation=activation, norm=norm)
+        self.res2 = ResidualBlock(n_channels, n_channels, activation=activation, norm=norm, dropout=dropout)
 
     def forward(self, x: torch.Tensor):
         x = self.res1(x)
@@ -210,11 +226,12 @@ class Unet(nn.Module):
         self,
         in_channels,
         hidden_channels=64,
-        activation="silu",
+        activation="leaky",
         time_history=1,
         time_future=1,
         out_channels=None,
         norm: bool = True,
+        dropout: float = 0.1,
         ch_mults: Union[Tuple[int, ...], List[int]] = (1, 2, 2, 4),
         is_attn: Union[Tuple[bool, ...], List[bool]] = (False, False, False, False),
         mid_attn: bool = False,
@@ -235,6 +252,8 @@ class Unet(nn.Module):
             self.activation = nn.ReLU()
         elif activation == "silu":
             self.activation = nn.SiLU()
+        elif activation == "leaky":
+            self.activation = nn.LeakyReLU(0.3)
         else:
             raise NotImplementedError(f"Activation {activation} not implemented")
 
@@ -263,6 +282,7 @@ class Unet(nn.Module):
                         has_attn=is_attn[i],
                         activation=activation,
                         norm=norm,
+                        dropout=dropout,
                     )
                 )
                 in_channels = out_channels
@@ -274,7 +294,7 @@ class Unet(nn.Module):
         self.down = nn.ModuleList(down)
 
         # Middle block
-        self.middle = MiddleBlock(out_channels, has_attn=mid_attn, activation=activation, norm=norm)
+        self.middle = MiddleBlock(out_channels, has_attn=mid_attn, activation=activation, norm=norm, dropout=dropout)
 
         # #### Second half of U-Net - increasing resolution
         up = []
@@ -292,11 +312,16 @@ class Unet(nn.Module):
                         has_attn=is_attn[i],
                         activation=activation,
                         norm=norm,
+                        dropout=dropout,
                     )
                 )
             # Final block to reduce the number of channels
             out_channels = in_channels // ch_mults[i]
-            up.append(UpBlock(in_channels, out_channels, has_attn=is_attn[i], activation=activation, norm=norm))
+            up.append(
+                UpBlock(
+                    in_channels, out_channels, has_attn=is_attn[i], activation=activation, norm=norm, dropout=dropout
+                )
+            )
             in_channels = out_channels
             # Up sample at all resolutions except last
             if i > 0:
@@ -306,7 +331,7 @@ class Unet(nn.Module):
         self.up = nn.ModuleList(up)
 
         if norm:
-            self.norm = nn.GroupNorm(8, n_channels)
+            self.norm = nn.BatchNorm2d(n_channels)
         else:
             self.norm = nn.Identity()
         out_channels = time_future * self.out_channels

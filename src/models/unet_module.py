@@ -5,7 +5,12 @@ from pytorch_lightning import LightningModule
 from torchvision.transforms import transforms
 
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import lat_weighted_acc, lat_weighted_mse, lat_weighted_mse_val, lat_weighted_rmse
+from src.utils.metrics import (
+    lat_weighted_acc,
+    lat_weighted_mse,
+    lat_weighted_mse_val,
+    lat_weighted_rmse,
+)
 
 
 class UnetLitModule(LightningModule):
@@ -157,7 +162,7 @@ class UnetLitModule(LightningModule):
             else:
                 decay.append(m)
 
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.Adam(
             [
                 {
                     "params": decay,
