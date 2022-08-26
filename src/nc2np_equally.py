@@ -32,7 +32,7 @@ def nc2np(path, variables, use_all_levels, years, save_dir, partition, num_shard
         
         # constant variables
         for f in constant_fields:
-            np_vars[f] = constant_values[f]
+            np_vars[NAME_TO_VAR[f]] = constant_values[f]
 
         # non-constant fields
         for var in variables:
