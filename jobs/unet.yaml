@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x1-scus
+  name: v100-1-ded
 
 storage:
   data:
@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: unet_5.625deg_17vars_3step_6h_{auto:10s} # ex: simple_job_lr_05
+    name: unet_5.625deg_49vars_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -40,14 +40,13 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_unet.py --config configs/train_unet.yaml
+      - python src/train_unet.py --config configs/train_unet_all_vars.yaml
         --trainer.devices=${GPUS}
-        --data.root_dir=/mnt/data/5.625deg_equally_np --data.reader=npy
-        --data.variables=["z_1000","z_850","z_500","z_50","r_850","r_500","u_1000","u_850","u_500","v_1000","v_850","v_500","t_850","t_500","t2m","u10","v10"]
+        --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=["z_500","t_850"]
-        --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
+        --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
         --data.num_workers=6 --data.batch_size=128
-        --model.net.in_channels=17 --model.net.time_history=3 --model.net.out_channels=2
+        --model.net.in_channels=49 --model.net.time_history=1 --model.net.out_channels=2
         --model.lr=5e-4
         --model.weight_decay={decay}
         # --model.pretrained_path=/mnt/data/checkpoints/unet/era5_5.625deg_1step/last.ckpt
@@ -60,7 +59,7 @@ search:
     #   values: [72]
     - name: decay
       spec: discrete
-      values: [0.1, 0.2, 0.3]
+      values: [0.0, 0.1, 0.2, 0.3]
     # - name: lr
     #   spec: discrete
     #   values: [3e-4, 5e-4]

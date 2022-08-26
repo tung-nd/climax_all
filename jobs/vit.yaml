@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: vit_17vars_step_6hrs_{auto:10s} # ex: simple_job_lr_05
+    name: vit_5.625deg_49vars_3step_6h_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -40,14 +40,13 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_vit2.py --config configs/train_vit.yaml
+      - python src/train_vit2.py --config configs/train_vit_all_vars.yaml
         --trainer.devices=${GPUS}
         --trainer.max_epochs=20
-        --data.root_dir=/mnt/data/5.625deg_equally_np/ --data.reader=npy
+        --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=['z_500','t_850']
         --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
-        --data.num_workers=6 --data.batch_size=32
-        --model.net.in_vars=["geopotential_1000","geopotential_850","geopotential_500","geopotential_50","relative_humidity_850","relative_humidity_500","u_component_of_wind_1000","u_component_of_wind_850","u_component_of_wind_500","v_component_of_wind_1000","v_component_of_wind_850","v_component_of_wind_500","temperature_850","temperature_500","2m_temperature","10m_u_component_of_wind","10m_v_component_of_wind"]
+        --data.num_workers=6 --data.batch_size=128
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=3
         --model.max_epochs=30
@@ -68,10 +67,10 @@ search:
     #   values: ["small"]
     - name: drop
       spec: discrete
-      values: [0.1, 0.2, 0.3]
+      values: [0.0, 0.1, 0.2, 0.3]
     - name: decay
       spec: discrete
-      values: [0.1, 0.2, 0.3]
+      values: [0.05, 0.1, 0.2, 0.3]
     # - name: heads
     #   spec: discrete
     #   values: [8, 16, 32]
