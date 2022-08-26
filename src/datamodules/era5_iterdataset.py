@@ -118,9 +118,10 @@ class ERA5Forecast(IterableDataset):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
-            x = np.concatenate([data[k] for k in data.keys()], axis=1)
+            min_len = np.min([data[k].shape[0] for k in data.keys()])
+            x = np.concatenate([data[k][:min_len] for k in data.keys()], axis=1)
             x = torch.from_numpy(x)
-            y = np.concatenate([data[k] for k in out_variables], axis=1)
+            y = np.concatenate([data[k][:min_len] for k in out_variables], axis=1)
             y = torch.from_numpy(y)
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
@@ -152,9 +153,10 @@ class ERA5ForecastMultiStep(IterableDataset):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
-            x = np.concatenate([data[k] for k in data.keys()], axis=1)
+            min_len = np.min([data[k].shape[0] for k in data.keys()])
+            x = np.concatenate([data[k][:min_len] for k in data.keys()], axis=1)
             x = torch.from_numpy(x)
-            y = np.concatenate([data[k] for k in out_variables], axis=1)
+            y = np.concatenate([data[k][:min_len] for k in out_variables], axis=1)
             y = torch.from_numpy(y)
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
@@ -187,7 +189,7 @@ class IndividualForecastDataIter(IterableDataset):
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.output_transforms(out[i]), variables, out_variables
+                    yield self.transforms(inp[i]).to(torch.float), self.output_transforms(out[i]).to(torch.float), variables, out_variables
                 else:
                     yield inp[i], out[i], variables, out_variables
 
