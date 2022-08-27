@@ -13,12 +13,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
-
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
 
 
 class VisionTransformer(nn.Module):
@@ -28,6 +25,7 @@ class VisionTransformer(nn.Module):
         img_size=[128, 256],
         patch_size=16,
         drop_path=0.1,
+        drop_rate=0.1,
         learn_pos_emb=False,
         in_vars=[
             "2m_temperature",
@@ -63,6 +61,7 @@ class VisionTransformer(nn.Module):
             torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
         self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
+        self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
@@ -74,6 +73,7 @@ class VisionTransformer(nn.Module):
                     qkv_bias=True,
                     drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
+                    drop=drop_rate,
                 )
                 for i in range(depth)
             ]
@@ -177,6 +177,8 @@ class VisionTransformer(nn.Module):
         x = x + self.time_pos_embed.unsqueeze(2)
 
         x = x.flatten(1, 2)  # B, TxL, D
+
+        x = self.pos_drop(x)
 
         # apply Transformer blocks
         for blk in self.blocks:
