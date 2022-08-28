@@ -7,6 +7,42 @@ from torch import nn
 # MIT License
 
 
+class PeriodicPadding2D(nn.Module):
+    def __init__(self, pad_width, **kwargs):
+        super().__init__(**kwargs)
+        self.pad_width = pad_width
+
+    def forward(self, inputs, **kwargs):
+        if self.pad_width == 0:
+            return inputs
+        inputs_padded = torch.cat((
+            inputs[:, :, :, -self.pad_width:], inputs, inputs[:, :, :, :self.pad_width]
+        ), dim=-1)
+        # Zero padding in the lat direction
+        inputs_padded = nn.functional.pad(inputs_padded, (0, 0, self.pad_width, self.pad_width))
+        return inputs_padded
+
+
+class PeriodicConv2D(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, **kwargs):
+        super().__init__(**kwargs)
+        self.padding = PeriodicPadding2D(padding)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=0)
+
+    def forward(self, inputs):
+        return self.conv(self.padding(inputs))
+
+
+class PeriodicConvTranspose2D(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, **kwargs):
+        super().__init__(**kwargs)
+        self.padding = PeriodicPadding2D(padding)
+        self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=0)
+
+    def forward(self, inputs):
+        return self.conv(self.padding(inputs))
+
+
 class ResidualBlock(nn.Module):
     def __init__(
         self,
@@ -29,8 +65,8 @@ class ResidualBlock(nn.Module):
         else:
             raise NotImplementedError(f"Activation {activation} not implemented")
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=(1, 1))
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=(1, 1))
+        self.conv1 = PeriodicConv2D(in_channels, out_channels, kernel_size=3, padding=1)
+        self.conv2 = PeriodicConv2D(out_channels, out_channels, kernel_size=3, padding=1)
         # If the number of input channels is not equal to the number of output channels we have to
         # project the shortcut connection
         if in_channels != out_channels:
@@ -39,7 +75,7 @@ class ResidualBlock(nn.Module):
             self.shortcut = nn.Identity()
 
         if norm:
-            self.norm1 = nn.BatchNorm2d(in_channels)
+            self.norm1 = nn.BatchNorm2d(out_channels)
             self.norm2 = nn.BatchNorm2d(out_channels)
         else:
             self.norm1 = nn.Identity()
@@ -49,9 +85,11 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x: torch.Tensor):
         # First convolution layer
-        h = self.drop(self.conv1(self.activation(self.norm1(x))))
+        # h = self.drop(self.conv1(self.activation(self.norm1(x))))
+        h = self.drop(self.norm1(self.activation(self.conv1(x))))
         # Second convolution layer
-        h = self.drop(self.conv2(self.activation(self.norm2(h))))
+        # h = self.drop(self.conv2(self.activation(self.norm2(h))))
+        h = self.drop(self.norm2(self.activation(self.conv2(h))))
         # Add the shortcut connection and return
         return h + self.shortcut(x)
 
@@ -263,7 +301,7 @@ class Unet(nn.Module):
         insize = time_history * self.in_channels
         n_channels = hidden_channels
         # Project image into feature map
-        self.image_proj = nn.Conv2d(insize, n_channels, kernel_size=(3, 3), padding=(1, 1))
+        self.image_proj = PeriodicConv2D(insize, n_channels, kernel_size=7, padding=3)
 
         # #### First half of U-Net - decreasing resolution
         down = []
@@ -335,7 +373,7 @@ class Unet(nn.Module):
         else:
             self.norm = nn.Identity()
         out_channels = time_future * self.out_channels
-        self.final = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=(1, 1))
+        self.final = PeriodicConv2D(in_channels, out_channels, kernel_size=7, padding=3)
 
     def predict(self, x):
         if len(x.shape) == 5:
