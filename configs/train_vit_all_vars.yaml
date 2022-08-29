@@ -50,9 +50,9 @@ trainer:
 
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
-        monitor: "train/loss" # name of the logged metric which determines when model is improving
+        monitor: "val/w_mse" # name of the logged metric which determines when model is improving
         mode: "min" # "max" means higher metric value is better, can be also "min"
-        patience: 100 # how many validation epochs of not improving until training stops
+        patience: 3 # how many validation epochs of not improving until training stops
         min_delta: 0 # minimum change in the monitored metric needed to qualify as an improvement
 
     - class_path: pytorch_lightning.callbacks.RichModelSummary
@@ -85,7 +85,7 @@ model:
           "10m_u_component_of_wind",
           "10m_v_component_of_wind",
           "toa_incident_solar_radiation",
-          # 'total_precipitation',
+          'total_precipitation',
           "geopotential_50",
           "geopotential_250",
           "geopotential_500",
@@ -150,7 +150,7 @@ data:
       "u10",
       "v10",
       "tisr",
-      # 'tp',
+      'tp',
       "z_50",
       "z_250",
       "z_500",

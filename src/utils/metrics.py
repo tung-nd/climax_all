@@ -71,6 +71,8 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
             for day, step in zip(log_days, log_steps):
                 loss_dict[f"w_mse_{var}_day_{day}"] = (error[:, step - 1, i] * w_lat).mean()
 
+    loss_dict["w_mse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
+
     return loss_dict
 
 

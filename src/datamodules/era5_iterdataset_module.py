@@ -150,12 +150,16 @@ class ERA5IterDatasetModule(LightningDataModule):
         if variables is None:
             variables = self.hparams.variables
         normalize_mean = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_mean.npz")))
-        normalize_mean = np.concatenate(
-            [normalize_mean[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in variables if var != "tp"]
-        )
+        mean = []
+        for var in variables:
+            if var != "tp":
+                mean.append(normalize_mean[VAR_LEVEL_TO_NAME_LEVEL[var]])
+            else:
+                mean.append(np.array([0.0]))
+        normalize_mean = np.concatenate(mean)
         normalize_std = dict(np.load(os.path.join(self.hparams.root_dir, "normalize_std.npz")))
         normalize_std = np.concatenate(
-            [normalize_std[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in variables if var != "tp"]
+            [normalize_std[VAR_LEVEL_TO_NAME_LEVEL[var]] for var in variables]
         )
         return transforms.Normalize(normalize_mean, normalize_std)
 
