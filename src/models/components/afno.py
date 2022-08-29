@@ -183,9 +183,11 @@ class AFNOBlock(nn.Module):
 class AFNO(nn.Module):
     def __init__(
         self,
+        time_history=1,
         img_size=[128, 256],
         patch_size=16,
         drop_path=0.1,
+        drop_rate=0.1,
         learn_pos_emb=False,
         in_vars=[
             "2m_temperature",
@@ -220,12 +222,13 @@ class AFNO(nn.Module):
 
         # --------------------------------------------------------------------------
         # ViT encoder specifics - exactly the same to MAE
-        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars), embed_dim)
+        self.patch_embed = PatchEmbed(img_size, patch_size, len(self.in_vars) * time_history, embed_dim)
         num_patches = self.patch_embed.num_patches  # 128
 
         self.pos_embed = nn.Parameter(
             torch.zeros(1, num_patches, embed_dim), requires_grad=learn_pos_emb
         )  # fixed sin-cos embedding
+        self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList(
@@ -233,6 +236,7 @@ class AFNO(nn.Module):
                 AFNOBlock(
                     dim=embed_dim,
                     mlp_ratio=mlp_ratio,
+                    drop=drop_rate,
                     drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
                     num_blocks=self.num_blocks,
@@ -301,11 +305,17 @@ class AFNO(nn.Module):
         )
 
     def forward_encoder(self, x):
+        # x: B, T, C, H, W
+        if len(x.shape) == 5:
+            x = x.flatten(1, 2) # B, TxC, H, W
+
         # embed patches
-        x = self.patch_embed(x)
+        x = self.patch_embed(x) # B, L, D
 
         # add pos embed w/o cls token
         x = x + self.pos_embed[:, :, :]
+
+        x = self.pos_drop(x)
 
         x = x.reshape(x.shape[0], self.h, self.w, self.embed_dim)
 
@@ -343,10 +353,7 @@ class AFNO(nn.Module):
             preds.append(x)
         preds = torch.stack(preds, dim=1)
 
-        preds = transform(preds)
-        y = transform(y)
-
-        return [m(preds, y, out_variables, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # model = AFNO(depth=8, num_blocks=4).cuda()
