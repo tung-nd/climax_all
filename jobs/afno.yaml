@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: afno_50vars_{auto:10s} # ex: simple_job_lr_05
+    name: afno_50vars_3step_6h_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -45,10 +45,10 @@ search:
         --trainer.max_epochs=50
         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=['z_500','t_850']
-        --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
-        --data.num_workers=6 --data.batch_size=128
+        --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
+        --data.num_workers=2 --data.batch_size=128
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
-        --model.net.time_history=1
+        --model.net.time_history=3
         --model.max_epochs=50
         --model.net.out_vars=["z_500","t_850"]
         --model.net.init_mode='small'
