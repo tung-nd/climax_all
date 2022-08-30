@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100-1-ded
+  name: v100x4-ded
 
 storage:
   data:
@@ -27,11 +27,11 @@ storage:
 # some environment variables to ease up setting of jobs
 env_defaults:
   NODES: 1
-  GPUS: 1
+  GPUS: 4
 
 search:
   job_template:
-    name: unet_5.625deg_49vars_{auto:10s} # ex: simple_job_lr_05
+    name: unet_5.625deg_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -42,24 +42,28 @@ search:
       - export MKL_THREADING_LAYER=GNU
       - python src/train_unet.py --config configs/train_unet_all_vars.yaml
         --trainer.devices=${GPUS}
+        --trainer.max_epochs=50
         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=["z_500","t_850"]
-        --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
-        --data.num_workers=6 --data.batch_size=128
-        --model.net.in_channels=49 --model.net.time_history=1 --model.net.out_channels=2
+        --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
+        --data.num_workers=1 --data.batch_size=32
+        --model.max_epochs=50
+        --model.net.in_channels=50 --model.net.time_history=3 --model.net.out_channels=2
         --model.lr=5e-4
+        --model.net.dropout={drop}
         --model.weight_decay={decay}
+        --model.net.n_blocks={blocks}
         # --model.pretrained_path=/mnt/data/checkpoints/unet/era5_5.625deg_1step/last.ckpt
 
   type: grid
   max_trials: 80
   params:
-    # - name: skip_steps
-    #   spec: discrete
-    #   values: [72]
+    - name: drop
+      spec: discrete
+      values: [0.1]
     - name: decay
       spec: discrete
-      values: [0.0, 0.1, 0.2, 0.3]
-    # - name: lr
-    #   spec: discrete
-    #   values: [3e-4, 5e-4]
+      values: [1e-5]
+    - name: blocks
+      spec: discrete
+      values: [6, 8]
