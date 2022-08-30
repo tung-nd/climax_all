@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x4-ded
+  name: v100x8-ded
 
 storage:
   data:
@@ -27,11 +27,11 @@ storage:
 # some environment variables to ease up setting of jobs
 env_defaults:
   NODES: 1
-  GPUS: 4
+  GPUS: 8
 
 search:
   job_template:
-    name: vit_5.625deg_patchsize_2_{auto:10s} # ex: simple_job_lr_05
+    name: vit_5.625deg_patchsize_2_3step_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
@@ -45,14 +45,15 @@ search:
         --trainer.max_epochs=50
         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=['z_500','t_850']
-        --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
+        --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
         --data.num_workers=1 --data.batch_size=16
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
-        --model.net.time_history=1
+        --model.net.time_history=3
         --model.max_epochs=50
         --model.net.out_vars=["z_500","t_850"]
         --model.net.init_mode='small'
         --model.net.patch_size=2
+        --model.net.depth={depth}
         --model.net.embed_dim={dim}
         --model.net.num_heads={heads}
         --model.net.drop_path={drop_path}
@@ -65,9 +66,6 @@ search:
   type: grid
   max_trials: 80
   params:
-    # - name: init
-    #   spec: discrete
-    #   values: ["small"]
     - name: drop_path
       spec: discrete
       values: [0.1]
@@ -79,22 +77,16 @@ search:
       values: [1e-5]
     - name: heads
       spec: discrete
-      values: [4, 8, 16]
+      values: [4]
     - name: lr
       spec: discrete
       values: [5e-4]
-    # - name: learnable
-    #   spec: discrete
-    #   values: [True, False]
-    # - name: patch_size
-    #   spec: discrete
-    #   values: [8]
-    # - name: depth
-    #   spec: discrete
-    #   values: [1, 2, 4]
+    - name: depth
+      spec: discrete
+      values: [8]
     - name: dim
       spec: discrete
-      values: [128, 256, 512]
+      values: [128]
     # - name: freeze
     #   spec: discrete
     #   values: [False, True]
