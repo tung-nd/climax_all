@@ -46,9 +46,9 @@ search:
         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
         --data.out_variables=["z_500","t_850"]
         --data.predict_range=72 --data.predict_steps=1 --data.history=3 --data.interval=6
-        --data.num_workers=2 --data.batch_size=128
+        --data.num_workers=4 --data.batch_size=128
         --model.max_epochs=50
-        --model.net.in_channels=50 --model.net.time_history=3 --model.net.out_channels=2
+        --model.net.in_channels=48 --model.net.time_history=3 --model.net.out_channels=2
         --model.lr=5e-4
         --model.net.dropout={drop}
         --model.weight_decay={decay}

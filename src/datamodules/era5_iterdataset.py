@@ -121,10 +121,12 @@ class ERA5Forecast(IterableDataset):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
-            min_len = np.min([data[k].shape[0] for k in data.keys()])
-            x = np.concatenate([data[k][:min_len].astype(np.float32) for k in data.keys()], axis=1)
+            # min_len = np.min([data[k].shape[0] for k in data.keys()])
+            # x = np.concatenate([data[k][:min_len].astype(np.float32) for k in data.keys()], axis=1)
+            x = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
             x = torch.from_numpy(x)
-            y = np.concatenate([data[k][:min_len].astype(np.float32) for k in out_variables], axis=1)
+            # y = np.concatenate([data[k][:min_len].astype(np.float32) for k in out_variables], axis=1)
+            y = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
             y = torch.from_numpy(y)
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
@@ -166,10 +168,12 @@ class ERA5ForecastMultiStep(IterableDataset):
         # TODO: this would not get us stuff across the years
         # i.e. where inputs are from previous years and output from next
         for data, variables, out_variables in self.dataset:
-            min_len = np.min([data[k].shape[0] for k in data.keys()])
-            x = np.concatenate([data[k][:min_len].astype(np.float32) for k in data.keys()], axis=1)
+            # min_len = np.min([data[k].shape[0] for k in data.keys()])
+            # x = np.concatenate([data[k][:min_len].astype(np.float32) for k in data.keys()], axis=1)
+            x = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
             x = torch.from_numpy(x)
-            y = np.concatenate([data[k][:min_len].astype(np.float32) for k in out_variables], axis=1)
+            # y = np.concatenate([data[k][:min_len].astype(np.float32) for k in out_variables], axis=1)
+            y = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
             y = torch.from_numpy(y)
 
             inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)

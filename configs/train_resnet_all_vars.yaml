@@ -73,7 +73,7 @@ model:
   net:
     class_path: src.models.components.resnet.ResNet
     init_args:
-      in_channels: 50
+      in_channels: 48
       time_history: 3
       hidden_channels: 64
       out_channels: 2
@@ -92,8 +92,8 @@ data:
       "t2m",
       "u10",
       "v10",
-      "tisr",
-      'tp',
+      # "tisr",
+      # 'tp',
       "z_50",
       "z_250",
       "z_500",
