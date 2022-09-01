@@ -26,7 +26,8 @@ class TokenizedBase(nn.Module):
         self,
         img_size=[128, 256],
         patch_size=16,
-        drop_path=0.0,
+        drop_path=0.1,
+        drop_rate=0.1,
         learn_pos_emb=False,
         embed_dim=1024,
         depth=24,
@@ -71,6 +72,8 @@ class TokenizedBase(nn.Module):
         self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=learn_pos_emb)
         self.channel_embed, self.channel_map = self.create_channel_embedding(learn_pos_emb, embed_dim)
 
+        self.pos_drop = nn.Dropout(p=drop_rate)
+
         if channel_agg == "mean":
             self.channel_agg = None
         elif channel_agg == "attention":
@@ -89,6 +92,7 @@ class TokenizedBase(nn.Module):
                     qkv_bias=True,
                     drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
+                    drop=drop_rate,
                 )
                 for i in range(depth)
             ]

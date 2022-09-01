@@ -10,16 +10,20 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
+import numpy as np
 
 from src.models.components.tokenized_base import TokenizedBase
+from src.utils.pos_embed import get_1d_sincos_pos_embed_from_grid
 
 
 class TokenizedViT(TokenizedBase):
     def __init__(
         self,
+        time_history=1,
         img_size=[128, 256],
         patch_size=16,
         drop_path=0.1,
+        drop_rate=0.1,
         learn_pos_emb=False,
         default_vars=[
             "geopotential_1000",
@@ -54,6 +58,7 @@ class TokenizedViT(TokenizedBase):
             img_size,
             patch_size,
             drop_path,
+            drop_rate,
             learn_pos_emb,
             embed_dim,
             depth,
@@ -65,8 +70,10 @@ class TokenizedViT(TokenizedBase):
         )
 
         self.freeze_encoder = freeze_encoder
-
+        self.time_history = time_history
         self.out_vars = out_vars if out_vars is not None else default_vars
+
+        self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
         # --------------------------------------------------------------------------
         # Decoder: either a linear or non linear prediction head
@@ -85,6 +92,14 @@ class TokenizedViT(TokenizedBase):
             self.channel_embed.requires_grad_(False)
             self.pos_embed.requires_grad_(False)
             self.blocks.requires_grad_(False)
+
+    def initialize_weights(self):
+        # initialization
+        super().initialize_weights()
+
+        # time embedding
+        time_pos_embed = get_1d_sincos_pos_embed_from_grid(self.time_pos_embed.shape[-1], np.arange(self.time_history))
+        self.time_pos_embed.data.copy_(torch.from_numpy(time_pos_embed).float().unsqueeze(0))
 
     def unpatchify(self, x):
         """
@@ -122,8 +137,11 @@ class TokenizedViT(TokenizedBase):
 
     def forward_encoder(self, x, variables):
         """
-        x: B, C, H, W
+        x: B, T, C, H, W
         """
+        b, t, _, _, _ = x.shape
+        x = x.flatten(0, 1)  # BxT, C, H, W
+        
         # embed tokens
 
         embeds = []
@@ -131,16 +149,25 @@ class TokenizedViT(TokenizedBase):
         for i in range(len(var_ids)):
             id = var_ids[i]
             embeds.append(self.token_embeds[id](x[:, i : i + 1]))
-        x = torch.stack(embeds, dim=1)  # B, C, L, D
+        x = torch.stack(embeds, dim=1)  # BxT, C, L, D
 
         # add channel embedding, channel_embed: 1, C, D
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
-        x = x + channel_embed.unsqueeze(2)
+        x = x + channel_embed.unsqueeze(2) # BxT, C, L, D
 
-        x = self.aggregate_channel(x)  # B, L, D
+        x = self.aggregate_channel(x)  # BxT, L, D
 
-        # add pos embedding, pos_emb: 1, L, D
-        x = x + self.pos_embed
+        x = x.unflatten(0, sizes=(b, t)) # B, T, L, D
+
+        # add time and pos embed
+        # pos emb: 1, L, D
+        x = x + self.pos_embed.unsqueeze(1)
+        # time emb: 1, T, D
+        x = x + self.time_pos_embed.unsqueeze(2)
+
+        x = x.flatten(1, 2)  # B, TxL, D
+
+        x = self.pos_drop(x)
 
         # apply Transformer blocks
         for blk in self.blocks:
@@ -165,15 +192,15 @@ class TokenizedViT(TokenizedBase):
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
     def forward(self, x, y, variables, out_variables, metric, lat):
-        embeddings = self.forward_encoder(x, variables)  # B, L, D
-        preds = self.head(embeddings)  # B, L, Cxpxp
+        embeddings = self.forward_encoder(x, variables)  # B, TxL, D
+        preds = self.head(embeddings)[:, -self.num_patches :]
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
     def predict(self, x, variables):
         with torch.no_grad():
             embeddings = self.forward_encoder(x, variables)
-            pred = self.head(embeddings)
+            pred = self.head(embeddings)[:, -self.num_patches :]
         return self.unpatchify(pred)
         # pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         # pred = pred.flatten(0, 1)  # [BxC, L, p*p]
