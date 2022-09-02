@@ -45,6 +45,7 @@ search:
         --model.max_epochs=50
         --model.reconstruct_all=True --model.net.learn_pos_emb=True
         --model.mask_ratio={mask_ratio}
+        --model.net.channel_agg={agg}
         --model.net.img_size=[32,64]
         --model.net.patch_size=2
         --model.net.embed_dim=128 --model.net.num_heads=4
@@ -57,6 +58,9 @@ search:
   type: grid
   max_trials: 80
   params:
+    - name: agg
+      spec: discrete
+      values: ["attention"]
     - name: mask_ratio
       spec: discrete
       values: [0.5, 0.75]
