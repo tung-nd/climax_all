@@ -50,9 +50,9 @@ trainer:
 
     # - class_path: pytorch_lightning.callbacks.EarlyStopping
     #   init_args:
-    #     monitor: "train/loss" # name of the logged metric which determines when model is improving
+    #     monitor: "val/w_mse" # name of the logged metric which determines when model is improving
     #     mode: "min" # "max" means higher metric value is better, can be also "min"
-    #     patience: 100 # how many validation epochs of not improving until training stops
+    #     patience: 3 # how many validation epochs of not improving until training stops
     #     min_delta: 0 # minimum change in the monitored metric needed to qualify as an improvement
 
     - class_path: pytorch_lightning.callbacks.RichModelSummary
@@ -71,9 +71,10 @@ model:
   eta_min: 1e-8
 
   net:
-    class_path: src.models.components.unet.Unet
+    class_path: src.models.components.resnet.ResNet
     init_args:
       in_channels: 17
+      time_history: 3
       hidden_channels: 64
       out_channels: 2
       n_blocks: 2
@@ -84,8 +85,7 @@ data:
   root_dir: /datadrive/datasets/1.40625deg_equally_np
   reader: npy # npy or zarr
   dataset_type: forecast # pretrain or forecast (finetune)
-  variables:
-    [
+  variables: [
       "z_1000",
       "z_850",
       "z_500",
