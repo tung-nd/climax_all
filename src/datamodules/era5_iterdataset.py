@@ -65,7 +65,7 @@ class ERA5(IterableDataset):
 
     def __iter__(self):
         for data, variables, _ in self.dataset:
-            np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
+            np_data = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
             yield torch.from_numpy(np_data), variables
 
 
@@ -85,25 +85,33 @@ class IndividualDataIter(IterableDataset):
 
 
 class ERA5Video(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, timesteps: int = 8) -> None:
+    def __init__(self, dataset: ERA5Npy, timesteps: int = 8, interval: int = 6) -> None:
         super().__init__()
         self.dataset = dataset
         self.timesteps = timesteps
+        self.interval = interval
 
     def __iter__(self):
         for data, variables, _ in self.dataset:
-            np_data = np.concatenate([data[k] for k in data.keys()], axis=1)
+            np_data = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
             torch_data = torch.from_numpy(np_data)
             yield self.construct_video(torch_data), variables
 
     def construct_video(self, x):
-        # x: 8760, 3, 128, 256
-        x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0)
-        for i in range(self.timesteps):
-            x[i] = torch.roll(x[i], shifts=-i, dims=0)
-        end_idx = (-self.timesteps + 1) if self.timesteps != 1 else x.shape[1]
-        x = x[:, :end_idx]
-        return torch.transpose(x, dim0=0, dim1=1)
+        # x: 730, 3, 32, 64
+        x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0) # 4, 730, 3, 32, 64
+        for t in range(self.timesteps):
+            x[t] = x[t].roll(-t * self.interval, dims=0)
+
+        last_idx = - (self.timesteps - 1) * self.interval
+        x = x[:, :last_idx]
+        return x.transpose(0, 1)
+        # x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0)
+        # for i in range(self.timesteps):
+        #     x[i] = torch.roll(x[i], shifts=-i, dims=0)
+        # end_idx = (-self.timesteps + 1) if self.timesteps != 1 else x.shape[1]
+        # x = x[:, :end_idx]
+        # return torch.transpose(x, dim0=0, dim1=1)
 
 
 class ERA5Forecast(IterableDataset):

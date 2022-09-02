@@ -18,7 +18,7 @@ def mse(pred, y, vars, lat=None, mask=None):
     with torch.no_grad():
         for i, var in enumerate(vars):
             loss_dict[var] = (loss[:, i] * mask).sum() / mask.sum()
-    loss_dict["loss"] = (loss.sum(dim=1) * mask).sum() / mask.sum()
+    loss_dict["loss"] = (loss.mean(dim=1) * mask).sum() / mask.sum()
 
     return loss_dict
 
@@ -46,7 +46,7 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
         for i, var in enumerate(vars):
             loss_dict[var] = (error[:, i] * w_lat * mask).sum() / mask.sum()
 
-    loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).sum(dim=1) * mask).sum() / mask.sum()
+    loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).mean(dim=1) * mask).sum() / mask.sum()
     return loss_dict
 
 

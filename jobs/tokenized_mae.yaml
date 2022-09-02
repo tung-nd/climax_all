@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: mae_cmip6_5.625deg_{auto:10s} # ex: simple_job_lr_05
+    name: mae_era5_5.625deg_48vars_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     submit_args:
       container_args:
@@ -40,23 +40,23 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_mae2.py --config configs/train_tokenized_mae.yaml
-        --trainer.devices=${GPUS}
+        --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
         --trainer.max_epochs=50
-        --trainer.limit_val_batches=0 --trainer.num_sanity_val_steps=0
-        --model.max_epochs=75
-        --model.reconstruct_all=True --model.mask_ratio={mask_ratio}
-        --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
-        --model.net.init_mode={init}
-        --data.root_dir=/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np/ --data.reader=npy
-        --data.variables=['z_500','t_850']
-        --data.num_workers=4 --data.batch_size=64
+        --model.max_epochs=50
+        --model.reconstruct_all=True --model.net.learn_pos_emb=True
+        --model.mask_ratio={mask_ratio}
+        --model.net.img_size=[32,64]
+        --model.net.patch_size=2
+        --model.net.embed_dim=128 --model.net.num_heads=4
+        --model.net.decoder_embed_dim=128 --model.net.decoder_num_heads=4
+        --model.net.init_mode='xavier'
+        --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
+        --data.num_workers=2 --data.batch_size=64
+        # --trainer.limit_val_batches=0 --trainer.num_sanity_val_steps=0
 
   type: grid
   max_trials: 80
   params:
-    - name: init
-      spec: discrete
-      values: ["xavier", "small"]
     - name: mask_ratio
       spec: discrete
-      values: [0.5, 0.7, 0.9]
+      values: [0.5, 0.75]

@@ -29,6 +29,7 @@ class TokenizedVideoMAE(TokenizedBase):
         img_size=[128, 256],
         patch_size=16,
         drop_path=0.0,
+        drop_rate=0.0,
         learn_pos_emb=False,
         default_vars=[
             "geopotential_1000",
@@ -63,6 +64,7 @@ class TokenizedVideoMAE(TokenizedBase):
             img_size,
             patch_size,
             drop_path,
+            drop_rate,
             learn_pos_emb,
             embed_dim,
             depth,
@@ -200,6 +202,8 @@ class TokenizedVideoMAE(TokenizedBase):
         x = x + self.time_pos_embed.unsqueeze(2)
 
         x = x.flatten(1, 2)  # B, TxL, D
+
+        x = self.pos_drop(x)
 
         # masking: length -> length * mask_ratio
         x, mask, ids_restore = self.random_masking(x, mask_ratio)

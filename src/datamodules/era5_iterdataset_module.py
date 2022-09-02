@@ -65,7 +65,7 @@ class ERA5IterDatasetModule(LightningDataModule):
         predict_range: int = 6,  # only used for forecast
         predict_steps: int = 4,  # only used for forecast
         history: int = 3,  # used for forecast
-        interval: int = 6,  # used for forecast
+        interval: int = 6,  # used for forecast and video
         subsample: int = 1,  # used for forecast
         pct_train: float = 1.0,  # percentage of data used for training
         batch_size: int = 64,
@@ -103,9 +103,9 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.collate_fn = collate_fn
         elif dataset_type == "video":
             self.train_dataset_class = ERA5Video
-            self.train_dataset_args = {"timesteps": timesteps}
+            self.train_dataset_args = {"timesteps": timesteps, "interval": interval}
             self.val_dataset_class = ERA5Video
-            self.val_dataset_args = {"timesteps": timesteps}
+            self.val_dataset_args = {"timesteps": timesteps, "interval": interval}
             self.data_iter = IndividualDataIter
             self.collate_fn = collate_fn
         elif dataset_type == "forecast":
