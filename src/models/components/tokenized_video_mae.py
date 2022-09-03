@@ -359,11 +359,11 @@ class TokenizedVideoMAE(TokenizedBase):
 # loss, pred, mask = model(x)
 # print (loss)
 
-# x = torch.randn(2, 2, 3, 2)
-# mask_ratio = 0.5
+x = torch.randn(2, 2, 3, 2)
+mask_ratio = 0.5
 
-# N, T, L, D = x.shape
-# len_keep = L - int(L * mask_ratio)
+N, T, L, D = x.shape
+len_keep = L - int(L * mask_ratio)
 
 # noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
 
@@ -379,10 +379,24 @@ class TokenizedVideoMAE(TokenizedBase):
 # # unshuffle to get the binary mask
 # mask = torch.gather(mask, dim=1, index=ids_restore)
 
-# for i in range(N):
-#     print ('x', x[i])
-#     print ('ids shuffle', ids_shuffle[i])
-#     print ('id restore', ids_restore[i])
-#     print ('ids keep', ids_keep[i])
-#     print ('x masked', x_masked[i])
-#     print ('=' * 50)
+noise = torch.rand(N, T, device=x.device)
+
+ids_shuffle = torch.argsort(noise, dim=1) # N, T
+ids_restore = torch.argsort(ids_shuffle, dim=1) # N, T
+
+# # keep the first subset
+ids_keep = ids_shuffle[:, :len_keep] # N, T*(1-mask_ratio)
+x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, L, D)) # B, T*(1-mask_ratio), L, D
+
+mask = torch.ones([N, T], device=x.device)
+mask[:, :len_keep] = 0
+# unshuffle to get the binary mask
+mask = torch.gather(mask, dim=1, index=ids_restore)
+
+for i in range(N):
+    print ('x', x[i])
+    print ('ids shuffle', ids_shuffle[i])
+    print ('id restore', ids_restore[i])
+    print ('ids keep', ids_keep[i])
+    print ('x masked', x_masked[i])
+    print ('=' * 50)
