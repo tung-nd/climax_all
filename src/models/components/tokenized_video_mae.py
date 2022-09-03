@@ -31,6 +31,7 @@ class TokenizedVideoMAE(TokenizedBase):
         drop_path=0.0,
         drop_rate=0.0,
         learn_pos_emb=False,
+        mask_type='uniform',
         default_vars=[
             "geopotential_1000",
             "geopotential_850",
@@ -76,6 +77,8 @@ class TokenizedVideoMAE(TokenizedBase):
         )
 
         self.timesteps = timesteps
+        assert mask_type in ['space', 'time', 'uniform']
+        self.mask_type = mask_type
 
         # time embedding
         self.time_pos_embed = nn.Parameter(torch.zeros(1, timesteps, embed_dim), requires_grad=learn_pos_emb)
@@ -173,6 +176,74 @@ class TokenizedVideoMAE(TokenizedBase):
         x = x.unflatten(dim=0, sizes=(b, l))  # BxT, L, D
         return x
 
+    def space_masking(self, x, mask_ratio):
+        # x: B, T, L, D
+        N, T, L, D = x.shape
+        len_keep = L - int(L * mask_ratio)
+
+        noise = torch.rand(N, L, device=x.device)
+
+        ids_shuffle = torch.argsort(noise, dim=1) # N, L
+        ids_restore = torch.argsort(ids_shuffle, dim=1) # N, L
+
+        # # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep] # N, L*(1-mask_ratio)
+        x_masked = torch.gather(x, dim=2, index=ids_keep.unsqueeze(-1).unsqueeze(1).repeat(1, T, 1, D)) # B, T, L*(1-mask_ratio), D
+
+        mask = torch.ones([N, L], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+
+        x_masked = x_masked.flatten(1, 2)
+        mask = mask.unsqueeze(1).repeat(1, T, 1).flatten(1, 2) # B, T*L
+        return x_masked, mask, ids_restore
+
+    def time_masking(self, x, mask_ratio):
+        # x: B, T, L, D
+        N, T, L, D = x.shape
+        len_keep = L - int(T * mask_ratio)
+
+        noise = torch.rand(N, T, device=x.device)
+
+        ids_shuffle = torch.argsort(noise, dim=1) # N, T
+        ids_restore = torch.argsort(ids_shuffle, dim=1) # N, T
+
+        # # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep] # N, T*(1-mask_ratio)
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, L, D)) # B, T*(1-mask_ratio), L, D
+
+        mask = torch.ones([N, T], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+
+        x_masked = x_masked.flatten(1, 2)
+        mask = mask.unsqueeze(-1).repeat(1, 1, L).flatten(1, 2) # B, TxL
+        return x_masked, mask, ids_restore
+
+    def append_mask_tokens(self, x, ids_restore):
+        if self.mask_type == 'space':
+            # ids_restore: B, L
+            x = x.unflatten(1, sizes=(self.timesteps, -1)) # B, T, L*(1-mask_ratio), D
+            # mask_tokens: 1, 1, D
+            mask_tokens = self.mask_token.unsqueeze(1).repeat(x.shape[0], x.shape[1], ids_restore.shape[1] - x.shape[2], 1) # B, T, L*mask_ratio, D
+            x = torch.cat([x, mask_tokens], dim=2) # B, T, L, D
+            x = torch.gather(x, dim=2, index=ids_restore.unsqueeze(-1).unsqueeze(1).repeat(1, x.shape[1], 1, x.shape[-1]))  # unshuffle, B, T, L, D
+        elif self.mask_type == 'time':
+            # ids_restore: B, T
+            x = x.unflatten(1, sizes=(-1, self.num_patches)) # B, T*(1-mask_ratio), L, D
+            # mask_tokens: 1, 1, D
+            mask_tokens = self.mask_token.unsqueeze(2).repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], x.shape[2], 1) # B, T*mask_ratio, L, D
+            x = torch.cat([x, mask_tokens], dim=1) # B, T, L, D
+            x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, x.shape[2], x.shape[-1]))  # unshuffle, B, T, L, D
+        else:
+            mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
+            x = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
+            x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle, B, TxL, D
+            x = x.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # B, T, L, D
+        return x
+
     def forward_encoder(self, x, variables, mask_ratio):
         """
         x: B, T, C, H, W
@@ -201,12 +272,15 @@ class TokenizedVideoMAE(TokenizedBase):
         # add time pos embedding, time_emb: 1, T, D
         x = x + self.time_pos_embed.unsqueeze(2)
 
-        x = x.flatten(1, 2)  # B, TxL, D
-
         x = self.pos_drop(x)
 
-        # masking: length -> length * mask_ratio
-        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        if self.mask_type == 'space':
+            x, mask, ids_restore = self.space_masking(x, mask_ratio)
+        elif self.mask_type == 'time':
+            x, mask, ids_restore = self.time_masking(x, mask_ratio)
+        else:
+            x = x.flatten(1, 2)  # B, TxL, D
+            x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
         # apply Transformer blocks
         for blk in self.blocks:
@@ -220,11 +294,7 @@ class TokenizedVideoMAE(TokenizedBase):
         x = self.decoder_embed(x)  # B, T x L x mask_ratio, D
 
         # append mask tokens to sequence
-        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
-        x = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
-        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle, B, TxL, D
-
-        x = x.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # B, T, L, D
+        x = self.append_mask_tokens(x, ids_restore)
 
         # add pos embedding, pos_emb: 1, L, D
         x = x + self.decoder_pos_embed.unsqueeze(1)
@@ -288,3 +358,31 @@ class TokenizedVideoMAE(TokenizedBase):
 # x = torch.randn(2, 3, 128, 256).cuda()
 # loss, pred, mask = model(x)
 # print (loss)
+
+# x = torch.randn(2, 2, 3, 2)
+# mask_ratio = 0.5
+
+# N, T, L, D = x.shape
+# len_keep = L - int(L * mask_ratio)
+
+# noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
+
+# ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+# ids_restore = torch.argsort(ids_shuffle, dim=1)
+
+# # # keep the first subset
+# ids_keep = ids_shuffle[:, :len_keep]
+# x_masked = torch.gather(x, dim=2, index=ids_keep.unsqueeze(-1).unsqueeze(1).repeat(1, T, 1, D))
+
+# mask = torch.ones([N, L], device=x.device)
+# mask[:, :len_keep] = 0
+# # unshuffle to get the binary mask
+# mask = torch.gather(mask, dim=1, index=ids_restore)
+
+# for i in range(N):
+#     print ('x', x[i])
+#     print ('ids shuffle', ids_shuffle[i])
+#     print ('id restore', ids_restore[i])
+#     print ('ids keep', ids_keep[i])
+#     print ('x masked', x_masked[i])
+#     print ('=' * 50)
