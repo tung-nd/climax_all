@@ -6,12 +6,12 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from datamodules import DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
+from datamodules import ALL_LEVELS, DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
 HOURS_PER_YEAR = 7304  # timesteps per file in CMIP6
 
 
-def nc2np(path, variables, years, save_dir, num_shards_per_year):
+def nc2np(path, variables, use_all_levels, years, save_dir, num_shards_per_year):
     os.makedirs(os.path.join(save_dir, "train"), exist_ok=True)
     normalize_mean = {}
     normalize_std = {}
@@ -39,7 +39,10 @@ def nc2np(path, variables, years, save_dir, num_shards_per_year):
                 assert len(ds[code].shape) == 4
                 all_levels = ds["plev"][:].to_numpy() / 100  # 92500 --> 925
                 all_levels = all_levels.astype(int)
-                all_levels = np.intersect1d(all_levels, DEFAULT_PRESSURE_LEVELS[code])
+                if use_all_levels:
+                    all_levels = np.intersect1d(all_levels, ALL_LEVELS)
+                else:
+                    all_levels = np.intersect1d(all_levels, DEFAULT_PRESSURE_LEVELS[code])
                 for level in all_levels:
                     ds_level = ds.sel(plev=[level * 100.0])
                     # level = int(level / 100) # 92500 --> 925
@@ -96,30 +99,37 @@ def nc2np(path, variables, years, save_dir, num_shards_per_year):
         "2m_temperature",
         "10m_u_component_of_wind",
         "10m_v_component_of_wind",
+        "geopotential",
         "u_component_of_wind",
         "v_component_of_wind",
-        "geopotential",
         "temperature",
         # "relative_humidity",
-        # "total_precipitation",
+        "specific_humidity",
     ],
 )
-@click.option("--num_shards", type=int, default=11)
+@click.option("--all_levels", type=bool, default=True)
+@click.option("--num_shards", type=int, default=8)
 def main(
     path,
     variables,
+    all_levels,
     num_shards,
 ):
     assert HOURS_PER_YEAR % num_shards == 0
     year_strings = [f"{y}01010600-{y+5}01010000" for y in range(1850, 2015, 5)]  # hard code for cmip6
 
-    if len(variables) <= 3:  # small dataset for testing new models
-        yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_small_np")
+    if all_levels:
+        postfix = "_all_levels"
     else:
-        yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_np")
+        postfix = ""
+
+    if len(variables) <= 3:  # small dataset for testing new models
+        yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_small_np" + postfix)
+    else:
+        yearly_datapath = os.path.join(os.path.dirname(path), f"{os.path.basename(path)}_equally_np" + postfix)
     os.makedirs(yearly_datapath, exist_ok=True)
 
-    nc2np(path, variables, year_strings, yearly_datapath, num_shards)
+    nc2np(path, variables, all_levels, year_strings, yearly_datapath, num_shards)
 
 
 if __name__ == "__main__":
