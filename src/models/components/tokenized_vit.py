@@ -213,9 +213,9 @@ class TokenizedViT(TokenizedBase):
             assert len(variables) == len(out_variables)
         preds = []
         for _ in range(steps):
-            x = self.predict(x, variables)
+            x = self.predict(x, variables).unsqueeze(1)
             preds.append(x)
-        preds = torch.stack(preds, dim=1)
+        preds = torch.concat(preds, dim=1)
 
         # only compute loss over the variables in out_variables
         # in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
