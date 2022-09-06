@@ -9,9 +9,9 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from src.datamodules import VAR_LEVEL_TO_NAME_LEVEL
+from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from era5_iterdataset import (
+from .era5_iterdataset import (
     ERA5Npy,
     ERA5,
     ERA5Video,
@@ -133,8 +133,8 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
 
     def get_lat_lon(self):
         # assume different data sources have the same lat and lon coverage
-        lat = np.load(os.path.join(self.hparams.dict_root_dirs.values()[0], "lat.npy"))
-        lon = np.load(os.path.join(self.hparams.dict_root_dirs.values()[0], "lon.npy"))
+        lat = np.load(os.path.join(list(self.hparams.dict_root_dirs.values())[0], "lat.npy"))
+        lon = np.load(os.path.join(list(self.hparams.dict_root_dirs.values())[0], "lon.npy"))
         return lat, lon
 
     def setup(self, stage: Optional[str] = None):

@@ -1,5 +1,5 @@
 # credits: https://github.com/ashleve/lightning-hydra-template/blob/main/src/models/mnist_module.py
-from typing import Any
+from typing import Any, Dict
 
 import torch
 from pytorch_lightning import LightningModule
@@ -62,18 +62,36 @@ class ViTLitModule(LightningModule):
         self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
-        loss_dict = loss_dict[0]
-        for var in loss_dict.keys():
-            self.log(
-                "train/" + var,
-                loss_dict[var],
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-            )
-        return loss_dict
+        if isinstance(batch, dict):
+            loss = 0
+            for source_id in batch.keys():
+                x, y, variables, out_variables = batch[source_id]
+                loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+                loss_dict = loss_dict[0]
+                for var in loss_dict.keys():
+                    self.log(
+                        f"train/{source_id}/" + var,
+                        loss_dict[var],
+                        on_step=True,
+                        on_epoch=False,
+                        prog_bar=True,
+                    )
+                # return loss_dict
+                loss += loss_dict["loss"]
+            return loss / len(batch.keys())
+        else:
+            x, y, variables, out_variables = batch
+            loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+            loss_dict = loss_dict[0]
+            for var in loss_dict.keys():
+                self.log(
+                    "train/" + var,
+                    loss_dict[var],
+                    on_step=True,
+                    on_epoch=False,
+                    prog_bar=True,
+                )
+            return loss_dict['loss']
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, variables, out_variables = batch
