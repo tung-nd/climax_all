@@ -105,7 +105,7 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
             raise NotImplementedError("Only support image, video, or forecast dataset")
 
         self.transforms = self.get_normalize()
-        self.output_transforms = self.get_normalize(dict_out_variables)
+        self.output_transforms = self.get_normalize(self.hparams.dict_out_variables)
 
         self.dict_data_train: Optional[Dict] = None
 
