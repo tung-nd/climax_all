@@ -36,20 +36,38 @@ class MAELitModule(LightningModule):
         self.lon = lon
 
     def training_step(self, batch: Any, batch_idx: int):
-        x, variables = batch
-        # loss can either be mse or lat_weighted_mse
-        loss_dict, _, _ = self.net.forward(
-            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
-        )
-        for var in loss_dict.keys():
-            self.log(
-                "train/" + var,
-                loss_dict[var],
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
+        if isinstance(batch, dict):
+            loss = 0
+            for source_id in batch.keys():
+                x, variables = batch[source_id]
+                # loss can either be mse or lat_weighted_mse
+                loss_dict, _, _ = self.net.forward(x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all)
+                for var in loss_dict.keys():
+                    self.log(
+                        f"train/{source_id}/" + var,
+                        loss_dict[var],
+                        on_step=True,
+                        on_epoch=False,
+                        prog_bar=True,
+                    )
+                # return loss_dict
+                loss += loss_dict["loss"]
+            return loss / len(batch.keys())
+        else:
+            x, variables = batch
+            # loss can either be mse or lat_weighted_mse
+            loss_dict, _, _ = self.net.forward(
+                x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
             )
-        return loss_dict
+            for var in loss_dict.keys():
+                self.log(
+                    "train/" + var,
+                    loss_dict[var],
+                    on_step=True,
+                    on_epoch=False,
+                    prog_bar=True,
+                )
+            return loss_dict["loss"]
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, variables = batch
