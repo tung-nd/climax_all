@@ -25,13 +25,14 @@ from .era5_iterdataset import (
 )
 
 
+# def collate_fn(batch):
+#     inp = torch.stack([batch[i][0] for i in range(len(batch))])
+#     variables = batch[0][1]
+#     out_variables = batch[0][2]
+#     return inp, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables], [VAR_LEVEL_TO_NAME_LEVEL[v] for v in out_variables]
+
+
 def collate_fn(batch):
-    inp = torch.stack([batch[i][0] for i in range(len(batch))])
-    variables = batch[0][1]
-    return inp, [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables]
-
-
-def collate_forecast_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
     variables = batch[0][2]
@@ -77,8 +78,8 @@ class ERA5IterDatasetModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         self.save_hyperparameters(logger=False)
 
-        if out_variables is not None:
-            assert dataset_type == "forecast"
+        # if out_variables is not None:
+        #     assert dataset_type == "forecast"
 
         if reader == "npy":
             self.reader = ERA5Npy
@@ -100,14 +101,14 @@ class ERA5IterDatasetModule(LightningDataModule):
             self.val_dataset_class = ERA5
             self.val_dataset_args = {}
             self.data_iter = IndividualDataIter
-            self.collate_fn = collate_fn
+            # self.collate_fn = collate_fn
         elif dataset_type == "video":
             self.train_dataset_class = ERA5Video
             self.train_dataset_args = {"timesteps": timesteps, "interval": interval}
             self.val_dataset_class = ERA5Video
             self.val_dataset_args = {"timesteps": timesteps, "interval": interval}
             self.data_iter = IndividualDataIter
-            self.collate_fn = collate_fn
+            # self.collate_fn = collate_fn
         elif dataset_type == "forecast":
             self.train_dataset_class = ERA5Forecast
             self.train_dataset_args = {
@@ -125,7 +126,7 @@ class ERA5IterDatasetModule(LightningDataModule):
                 "subsample": subsample,
             }
             self.data_iter = IndividualForecastDataIter
-            self.collate_fn = collate_forecast_fn
+            # self.collate_fn = collate_forecast_fn
         elif dataset_type == "forecast_precip":
             self.train_dataset_class = ERA5ForecastPrecip
             self.train_dataset_args = {"predict_range": predict_range}
@@ -135,7 +136,7 @@ class ERA5IterDatasetModule(LightningDataModule):
                 "pred_steps": predict_steps,
             }
             self.data_iter = IndividualForecastPrecipDataIter
-            self.collate_fn = collate_forecast_precip_fn
+            # self.collate_fn = collate_forecast_precip_fn
         else:
             raise NotImplementedError("Only support image, video, or forecast dataset")
 
@@ -224,7 +225,7 @@ class ERA5IterDatasetModule(LightningDataModule):
             drop_last=True,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            collate_fn=self.collate_fn,
+            collate_fn=collate_fn,
         )
 
     def val_dataloader(self):
@@ -236,7 +237,7 @@ class ERA5IterDatasetModule(LightningDataModule):
                 drop_last=True,
                 num_workers=self.hparams.num_workers,
                 pin_memory=self.hparams.pin_memory,
-                collate_fn=self.collate_fn,
+                collate_fn=collate_fn,
             )
 
     def test_dataloader(self):
@@ -247,7 +248,7 @@ class ERA5IterDatasetModule(LightningDataModule):
                 shuffle=False,
                 num_workers=self.hparams.num_workers,
                 pin_memory=self.hparams.pin_memory,
-                collate_fn=self.collate_fn,
+                collate_fn=collate_fn,
             )
 
 

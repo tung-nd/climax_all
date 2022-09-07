@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: videomae_era5_5.625deg_48vars_{auto:10s} # ex: simple_job_lr_05
+    name: videomae_cmip6_5.625deg_48vars_2vars_out_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -40,33 +40,51 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_mae2.py --config configs/train_tokenized_video_mae.yaml
+      - python src/train_mae2.py --config configs/train_tokenized_video_mae_cmip6.yaml
         --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
         --trainer.max_epochs=50
+        --data.root_dir=/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels/ --data.reader=npy
+        --data.timesteps={steps} --data.interval={interval}
+        --data.out_variables=['z_500','t_850']
+        --data.num_workers=1 --data.batch_size=16
         --model.max_epochs=50
         --model.reconstruct_all=True --model.net.learn_pos_emb=True
+        --model.lr={lr}
         --model.mask_ratio={mask_ratio}
         --model.net.mask_type={mask_type}
-        --model.net.channel_agg={agg}
-        --model.net.timesteps=4
+        --model.net.channel_agg='attention'
+        --model.net.timesteps={steps}
         --model.net.img_size=[32,64]
+        --model.net.depth={depth}
         --model.net.patch_size=2
-        --model.net.embed_dim=128 --model.net.num_heads=4
+        --model.net.embed_dim={dim} --model.net.num_heads={heads}
         --model.net.decoder_embed_dim=128 --model.net.decoder_num_heads=4
         --model.net.init_mode='xavier'
-        --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
-        --data.timesteps=4 --data.interval=6 --data.num_workers=1 --data.batch_size=16
-        # --trainer.limit_val_batches=0 --trainer.num_sanity_val_steps=0
 
   type: grid
   max_trials: 80
   params:
-    - name: agg
-      spec: discrete
-      values: ["attention"]
     - name: mask_type
       spec: discrete
-      values: ['space', 'time']
+      values: ['time']
     - name: mask_ratio
       spec: discrete
-      values: [0.75, 0.9]
+      values: [0.5]
+    - name: steps
+      spec: discrete
+      values: [2]
+    - name: interval
+      spec: discrete
+      values: [12]
+    - name: heads
+      spec: discrete
+      values: [4]
+    - name: lr
+      spec: discrete
+      values: [5e-4]
+    - name: depth
+      spec: discrete
+      values: [8]
+    - name: dim
+      spec: discrete
+      values: [128]
