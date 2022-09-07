@@ -1,0 +1,7 @@
+datadir: /datadrive/datasets/CMIP6/AWI-ESM
+name: temperature
+cmip_name: ta
+era_name: t
+run: r1i1p1f1
+res:
+  - 5.625

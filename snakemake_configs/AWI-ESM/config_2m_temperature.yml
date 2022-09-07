@@ -1,0 +1,7 @@
+datadir: /datadrive/datasets/CMIP6/AWI-ESM
+name: 2m_temperature
+cmip_name: tas
+era_name: t2m
+run: r1i1p1f1
+res:
+  - 5.625

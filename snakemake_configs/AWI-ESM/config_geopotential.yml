@@ -1,0 +1,7 @@
+datadir: /datadrive/datasets/CMIP6/AWI-ESM
+name: geopotential
+cmip_name: zg
+era_name: z
+run: r1i1p1f1
+res:
+  - 5.625

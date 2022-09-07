@@ -1,0 +1,7 @@
+datadir: /datadrive/datasets/CMIP6/AWI-ESM
+name: specific_humidity
+cmip_name: hus
+era_name: q
+run: r1i1p1f1
+res:
+  - 5.625
