@@ -1,0 +1,102 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Training TokenizedVideoMAE on multiple datasets
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100x8-ded
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 8
+
+jobs:
+  - name: videomae_5.625deg_mpi-esm_and_taiesm_uniform_0.75_2step_12interval_128dim # ex: simple_job_lr_05
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    submit_args:
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+      container_args:
+        shm_size: 650g
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_mae_multi_dataset.py --config configs/train_tokenized_videomae_multi_cmip6.yaml
+        --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
+        --trainer.max_epochs=50
+        --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels"}'
+        --data.dict_timesteps='{"mpi-esm":2,"taiesm":2}' --data.dict_intervals='{"mpi-esm":12,"taiesm":12}'
+        --data.num_workers=1 --data.batch_size=16
+        --model.max_epochs=50
+        --model.reconstruct_all=True --model.net.learn_pos_emb=True
+        --model.mask_ratio=0.75
+        --model.weight_decay=1e-5
+        --model.lr=5e-4
+        --model.net.mask_type='uniform'
+        --model.net.channel_agg='attention'
+        --model.net.timesteps=2
+        --model.net.img_size=[32,64]
+        --model.net.patch_size=2
+        --model.net.embed_dim=128 --model.net.num_heads=4
+        --model.net.decoder_embed_dim=128 --model.net.decoder_num_heads=4
+        --model.net.init_mode='xavier'
+
+# search:
+#   job_template:
+#     name: videomae_era5_5.625deg_48vars_{auto:10s} # ex: simple_job_lr_05
+#     sku: ${NODES}x32G${GPUS} # ex: G1
+#     process_count_per_node: ${GPUS}
+#     submit_args:
+#       container_args:
+#         shm_size: 650g
+#     command:
+#       - pip install -e .
+#       - export MKL_THREADING_LAYER=GNU
+#       - python src/train_mae2.py --config configs/train_tokenized_video_mae.yaml
+#         --trainer.strategy=ddp --trainer.devices=${GPUS} --trainer.num_nodes=${NODES}
+#         --trainer.max_epochs=50
+#         --model.max_epochs=50
+#         --model.reconstruct_all=True --model.net.learn_pos_emb=True
+#         --model.mask_ratio={mask_ratio}
+#         --model.net.mask_type={mask_type}
+#         --model.net.channel_agg={agg}
+#         --model.net.timesteps=4
+#         --model.net.img_size=[32,64]
+#         --model.net.patch_size=2
+#         --model.net.embed_dim=128 --model.net.num_heads=4
+#         --model.net.decoder_embed_dim=128 --model.net.decoder_num_heads=4
+#         --model.net.init_mode='xavier'
+#         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/ --data.reader=npy
+#         --data.timesteps=4 --data.interval=6 --data.num_workers=1 --data.batch_size=16
+#         # --trainer.limit_val_batches=0 --trainer.num_sanity_val_steps=0
+
+#   type: grid
+#   max_trials: 80
+#   params:
+#     - name: agg
+#       spec: discrete
+#       values: ["attention"]
+#     - name: mask_type
+#       spec: discrete
+#       values: ['space', 'time']
+#     - name: mask_ratio
+#       spec: discrete
+#       values: [0.75, 0.9]
