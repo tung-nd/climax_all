@@ -64,9 +64,10 @@ class ERA5(IterableDataset):
         self.dataset = dataset
 
     def __iter__(self):
-        for data, variables, _ in self.dataset:
-            np_data = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
-            yield torch.from_numpy(np_data), variables
+        for data, variables, out_variables in self.dataset:
+            np_data_in = np.concatenate([data[k].astype(np.float32) for k in variables], axis=1)
+            np_data_out = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
+            yield torch.from_numpy(np_data_in), torch.from_numpy(np_data_out), variables, out_variables
 
 
 class IndividualDataIter(IterableDataset):
@@ -74,14 +75,15 @@ class IndividualDataIter(IterableDataset):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
+        self.output_transforms = output_transforms
 
     def __iter__(self):
-        for data, variables in self.dataset:
-            for i in range(data.shape[0]):
+        for data_in, data_out, variables, out_variables in self.dataset:
+            for i in range(data_in.shape[0]):
                 if self.transforms is not None:
-                    yield self.transforms(data[i]), variables
+                    yield self.transforms(data_in[i]), self.output_transforms(data_out[i]), variables, out_variables
                 else:
-                    yield data[i], variables
+                    yield data_in[i], data_out[i], variables, out_variables
 
 
 class ERA5Video(IterableDataset):
@@ -92,10 +94,12 @@ class ERA5Video(IterableDataset):
         self.interval = interval
 
     def __iter__(self):
-        for data, variables, _ in self.dataset:
-            np_data = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
-            torch_data = torch.from_numpy(np_data)
-            yield self.construct_video(torch_data), variables
+        for data, variables, out_variables in self.dataset:
+            np_data_in = np.concatenate([data[k].astype(np.float32) for k in variables], axis=1)
+            np_data_out = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
+            torch_data_in = torch.from_numpy(np_data_in)
+            torch_data_out = torch.from_numpy(np_data_out)
+            yield self.construct_video(torch_data_in), self.construct_video(torch_data_out), variables, out_variables
 
     def construct_video(self, x):
         # x: 730, 3, 32, 64

@@ -313,7 +313,7 @@ class TokenizedVideoMAE(TokenizedBase):
 
         return x
 
-    def forward_loss(self, imgs, pred, variables, metric, lat, mask, reconstruct_all):
+    def forward_loss(self, imgs, pred, out_variables, metric, lat, mask, reconstruct_all):
         """
         imgs: [B, T, C, H, W]
         pred: [B, TxL, p*p*C]
@@ -330,27 +330,27 @@ class TokenizedVideoMAE(TokenizedBase):
         pred = pred.unflatten(dim=1, sizes=(self.timesteps, self.num_patches))  # [B, T, L, p*p*C]
         pred = pred.flatten(0, 1)  # [BxT, L, p*p*C]
         img_pred = self.unpatchify(pred)  # [BxT, C, H, W]
-        var_ids = self.get_channel_ids(variables)
+        var_ids = self.get_channel_ids(out_variables)
         img_pred = img_pred[:, var_ids]  # only compute loss over present variables
 
         if metric is None:
             return None, img_pred, img_mask
 
         if reconstruct_all:
-            loss_dict = metric(img_pred, imgs, variables, lat, None)
+            loss_dict = metric(img_pred, imgs, out_variables, lat, None)
         else:
-            loss_dict = metric(img_pred, imgs, variables, lat, img_mask)
+            loss_dict = metric(img_pred, imgs, out_variables, lat, img_mask)
 
         return loss_dict, img_pred, img_mask
 
-    def forward(self, imgs, variables, metric, lat, mask_ratio=0.75, reconstruct_all=False):
+    def forward(self, imgs, gt_imgs, variables, out_variables, metric, lat, mask_ratio=0.75, reconstruct_all=False):
         latent, mask, ids_restore = self.forward_encoder(imgs, variables, mask_ratio)
         pred = self.forward_decoder(latent, variables, ids_restore)  # [B, TxL, p*p]
-        loss, pred, mask = self.forward_loss(imgs, pred, variables, metric, lat, mask, reconstruct_all)
+        loss, pred, mask = self.forward_loss(gt_imgs, pred, out_variables, metric, lat, mask, reconstruct_all)
         return loss, pred, mask
 
-    def pred(self, imgs, variables, mask_ratio):
-        _, pred, mask = self.forward(imgs, variables, None, None, mask_ratio)
+    def pred(self, imgs, gt_imgs, variables, out_variables, mask_ratio):
+        _, pred, mask = self.forward(imgs, gt_imgs, variables, out_variables, None, None, mask_ratio)
         return pred, mask
 
 

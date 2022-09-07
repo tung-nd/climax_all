@@ -26,9 +26,9 @@ class MAELitModule(LightningModule):
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
 
-    def forward(self, x, variables):
+    def forward(self, x, y, variables, out_variables, ):
         with torch.no_grad():
-            pred, mask = self.net.pred(x, variables, self.hparams.mask_ratio)
+            pred, mask = self.net.pred(x, y, variables, out_variables, self.hparams.mask_ratio)
         return pred, mask
 
     def set_lat_lon(self, lat, lon):
@@ -36,10 +36,10 @@ class MAELitModule(LightningModule):
         self.lon = lon
 
     def training_step(self, batch: Any, batch_idx: int):
-        x, variables = batch
+        x, y, variables, out_variables = batch
         # loss can either be mse or lat_weighted_mse
         loss_dict, _, _ = self.net.forward(
-            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+            x, y, variables, out_variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
         )
         for var in loss_dict.keys():
             self.log(
@@ -52,10 +52,10 @@ class MAELitModule(LightningModule):
         return loss_dict
 
     def validation_step(self, batch: Any, batch_idx: int):
-        x, variables = batch
+        x, y, variables, out_variables = batch
         # loss can either be mse or lat_weighted_mse
         loss_dict, _, _ = self.net.forward(
-            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+            x, y, variables, out_variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
         )
         for var in loss_dict.keys():
             self.log(
@@ -78,10 +78,10 @@ class MAELitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        x, variables = batch
+        x, y, variables, out_variables = batch
         # loss can either be mse or lat_weighted_mse
         loss_dict, _, _ = self.net.forward(
-            x, variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
+            x, y, variables, out_variables, mse, self.lat, self.hparams.mask_ratio, self.hparams.reconstruct_all
         )
         for var in loss_dict.keys():
             self.log(

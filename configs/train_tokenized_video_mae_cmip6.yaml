@@ -19,6 +19,9 @@ trainer:
   enable_checkpointing: True
   resume_from_checkpoint: null
 
+  limit_val_batches: 0
+  num_sanity_val_steps: 0
+
   # debugging
   fast_dev_run: false
 
