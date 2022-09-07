@@ -24,3 +24,5 @@ outputs/
 .autoenv
 
 visualization_*
+*.nc
+.snakemake
