@@ -1,0 +1,9 @@
+datadir: /datadrive/datasets/CMIP6/HAMMOZ
+name: 2m_temperature
+cmip_name: tas
+era_name: t2m
+run: r1i1p1f1
+version: v20190628
+res:
+  # - 2.8125
+  - 5.625
