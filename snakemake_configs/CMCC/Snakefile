@@ -6,10 +6,10 @@ rule download:
     output:
           "{dataset}/raw/{name}/{name}_{year_str}_raw.nc",
     shell:
-         "wget http://esgf-node2.cmcc.it/thredds/fileServer/esg_dataroot/CMIP6/CMIP/CMCC/CMCC-CM2-SR5/historical/{config["
+         "wget http://esgf-node2.cmcc.it/thredds/fileServer/esg_dataroot/CMIP6/CMIP/CMCC/CMCC-CM2-HR4/historical/{config["
          "run]}/6hrPlevPt/"
-         "{config[cmip_name]}/gn/v20200616/"
-         "{config[cmip_name]}_6hrPlevPt_CMCC-CM2-SR5_historical_{config[run]}_gn_{wildcards.year_str}.nc "
+         "{config[cmip_name]}/gn/v20200904/"
+         "{config[cmip_name]}_6hrPlevPt_CMCC-CM2-HR4_historical_{config[run]}_gn_{wildcards.year_str}.nc "
          "-O {wildcards.dataset}/raw/{config[name]}/{config[name]}_{wildcards.year_str}_raw.nc"
 
 rule regrid:
