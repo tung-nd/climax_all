@@ -143,7 +143,6 @@ dependencies:
   - scipy=1.8.1=py38h1ee437e_0
   - seaborn=0.11.2=hd8ed1ab_0
   - seaborn-base=0.11.2=pyhd8ed1ab_0
-  - setuptools=61.2.0=py38h06a4308_0
   - six=1.16.0=pyhd3eb1b0_1
   - sortedcontainers=2.4.0=pyhd8ed1ab_0
   - sqlite=3.38.3=hc218d9a_0
@@ -234,6 +233,7 @@ dependencies:
     - grpcio==1.46.3
     - gunicorn==20.1.0
     - hjson==3.0.2
+    - huggingface-hub==0.10.1
     - humanfriendly==10.0
     - hydra-core==1.2.0
     - identify==2.5.1
@@ -298,13 +298,14 @@ dependencies:
     - rich==12.4.1
     - rsa==4.8
     - secretstorage==3.3.2
+    - setuptools==35.0.1
     - sh==1.14.2
     - sympy==1.10.1
     - tabulate==0.8.10
     - tensorboard==2.9.1
     - tensorboard-data-server==0.6.1
     - tensorboard-plugin-wit==1.8.1
-    - timm==0.5.4
+    - timm==0.6.11
     - tomli==2.0.1
     - toolz==0.11.2
     - torchmetrics==0.9.1
