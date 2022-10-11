@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x8-scus
 
 storage:
   data:
@@ -26,11 +26,11 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 1
+  NODES: 2
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_mpi_tai_awi_1024dim_16head_16depth_1e-4_lr # ex: simple_job_lr_05
+  - name: tokenized_vit_5.625deg_mpi_tai_awi_1024dim_16head_8depth_5e-4_lr_sep_optimize # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -48,7 +48,7 @@ jobs:
         --data.dict_predict_ranges='{"mpi-esm":12,"taiesm":12,"awi-esm":12}'
         --data.dict_histories='{"mpi-esm":1,"taiesm":1,"awi-esm":1}'
         --data.dict_intervals='{"mpi-esm":0,"taiesm":0,"awi-esm":0}'
-        --data.num_workers=1 --data.batch_size=16
+        --data.num_workers=2 --data.batch_size=8
         --model.max_epochs=50
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
@@ -61,7 +61,7 @@ jobs:
         --model.net.num_heads=16
         --model.net.drop_path=0.1
         --model.net.drop_rate=0.1
-        --model.lr=1e-4
+        --model.lr=5e-4
         --model.weight_decay=1e-5
 
 # search:
