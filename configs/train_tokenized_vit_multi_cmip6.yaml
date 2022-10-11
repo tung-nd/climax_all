@@ -149,7 +149,7 @@ data:
       'taiesm': '/datadrive/datasets/CMIP6/TaiESM1/5.625deg_equally_np_all_levels',
       # 'nasa-giss': '/datadrive/datasets/CMIP6/NASA-GISS/5.625deg_equally_np_all_levels',
       'awi-esm': '/datadrive/datasets/CMIP6/AWI-ESM/5.625deg_equally_np_all_levels',
-      # 'hammoz': '/datadrive/datasets/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels',
+      'hammoz': '/datadrive/datasets/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels',
   }
   dataset_type: forecast # pretrain or forecast (finetune)
   dict_in_variables: {
@@ -188,58 +188,58 @@ data:
       "t_50", "t_250", "t_500", "t_600", "t_700", "t_850", "t_925",
       "q_50", "q_250", "q_500", "q_600", "q_700", "q_850", "q_925",
     ],
-    # 'hammoz': [
-    #   "t2m",
-    #   "u10",
-    #   "v10",
-    #   "z_50", "z_250", "z_500", "z_600", "z_700", "z_850", "z_925",
-    #   "u_50", "u_250", "u_500", "u_600", "u_700", "u_850", "u_925",
-    #   "v_50", "v_250", "v_500", "v_600", "v_700", "v_850", "v_925",
-    #   "t_50", "t_250", "t_500", "t_600", "t_700", "t_850", "t_925",
-    #   "q_50", "q_250", "q_500", "q_600", "q_700", "q_850", "q_925",
-    # ]
+    'hammoz': [
+      "t2m",
+      "u10",
+      "v10",
+      "z_50", "z_250", "z_500", "z_600", "z_700", "z_850", "z_925",
+      "u_50", "u_250", "u_500", "u_600", "u_700", "u_850", "u_925",
+      "v_50", "v_250", "v_500", "v_600", "v_700", "v_850", "v_925",
+      "t_50", "t_250", "t_500", "t_600", "t_700", "t_850", "t_925",
+      "q_50", "q_250", "q_500", "q_600", "q_700", "q_850", "q_925",
+    ]
   }
   dict_out_variables: {
     'mpi-esm': ['z_500', 't_850'],
     'taiesm': ['z_500', 't_850'],
     # 'nasa-giss': ['z_500', 't_850'],
     'awi-esm': ['z_500', 't_850'],
-    # 'hammoz': ['z_500', 't_850'],
+    'hammoz': ['z_500', 't_850'],
   }
   dict_predict_ranges: {
     'mpi-esm': 12, 
     'taiesm': 12, 
     # 'nasa-giss': 12, 
     'awi-esm': 12,
-    # 'hammoz': 12,
+    'hammoz': 12,
   }
   dict_histories: {
     'mpi-esm': 1,
     'taiesm': 1,
     # 'nasa-giss': 1,
     'awi-esm': 1,
-    # 'hammoz': 1,
+    'hammoz': 1,
   }
   dict_intervals: {
     'mpi-esm': 0, 
     'taiesm': 0,
     # 'nasa-giss': 0, 
     'awi-esm': 0,
-    # 'hammoz': 0,
+    'hammoz': 0,
   }
   dict_subsamples: {
     'mpi-esm': 1, 
     'taiesm': 1, 
     # 'nasa-giss': 1, 
     'awi-esm': 1,
-    # 'hammoz': 1,
+    'hammoz': 1,
   }
   dict_buffer_sizes: {
     'mpi-esm': 10000, 
     'taiesm': 10000, 
     # 'nasa-giss': 10000, 
     'awi-esm': 10000,
-    # 'hammoz': 10000,
+    'hammoz': 10000,
   }
   batch_size: 128
   num_workers: 1

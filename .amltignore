@@ -1,3 +1,4 @@
 visualization_*
 *.nc
 .snakemake/log
+snakemake_configs

@@ -30,4 +30,6 @@ jobs:
     command:
       # - python src/nc2np_equally_cmip6.py /mnt/data/CMIP6/MPI-ESM/5.625deg --num_shards=11
       # - python src/nc2np_equally_cmip6_taiesm1.py /mnt/data/CMIP6/TaiESM1/5.625deg --num_shards=8
-      - python src/nc2np_equally_cmip6_nasa.py /mnt/data/CMIP6/NASA-GISS/5.625deg --num_shards=2
+      # - python src/nc2np_equally_cmip6_nasa.py /mnt/data/CMIP6/NASA-GISS/5.625deg --num_shards=2
+      # - python src/nc2np_equally_cmip6_hammoz.py /mnt/data/CMIP6/HAMMOZ/5.625deg --num_shards=16
+      - python src/nc2np_equally_cmip6_cmcc.py /mnt/data/CMIP6/CMCC/5.625deg --num_shards=2
