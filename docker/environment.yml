@@ -16,8 +16,8 @@ dependencies:
   - brotlipy=0.7.0=py38h27cfd23_1003
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.18.1=h7f8727e_0
-  - ca-certificates=2022.6.15=ha878542_0
-  - certifi=2022.6.15=py38h578d9bd_0
+  - ca-certificates=2022.07.19=h06a4308_0
+  - certifi=2022.9.24=py38h06a4308_0
   - cffi=1.15.0=py38hd667e15_1
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - cloudpickle=2.1.0=pyhd8ed1ab_0
@@ -130,7 +130,7 @@ dependencies:
   - python=3.8.13=h12debd9_0
   - python-dateutil=2.8.2=pyhd3eb1b0_0
   - python_abi=3.8=2_cp38
-  - pytorch=1.11.0=py3.8_cuda11.3_cudnn8.2.0_0
+  - pytorch=1.12.1=py3.8_cuda11.3_cudnn8.3.2_0
   - pytorch-mutex=1.0=cuda
   - pytz=2022.1=py38h06a4308_0
   - pyyaml=6.0=py38h0a891b7_4
@@ -151,9 +151,9 @@ dependencies:
   - termcolor=1.1.0=py38h06a4308_1
   - tk=8.6.12=h1ccaba5_0
   - toml=0.10.2=pyhd3eb1b0_0
-  - torchaudio=0.11.0=py38_cu113
-  - torchdata=0.3.0=py38
-  - torchvision=0.12.0=py38_cu113
+  - torchaudio=0.12.1=py38_cu113
+  - torchdata=0.4.1=py38
+  - torchvision=0.13.1=py38_cu113
   - tornado=6.1=py38h27cfd23_0
   - tqdm=4.64.0=py38h06a4308_0
   - typed-ast=1.4.3=py38h7f8727e_1
@@ -253,6 +253,7 @@ dependencies:
     - jsonschema==4.6.1
     - kiwisolver==1.4.3
     - knack==0.9.0
+    - lightning-bolts==0.5.0
     - markdown==3.3.7
     - matplotlib==3.5.2
     - mccabe==0.6.1
@@ -298,7 +299,7 @@ dependencies:
     - rich==12.4.1
     - rsa==4.8
     - secretstorage==3.3.2
-    - setuptools==35.0.1
+    - setuptools==65.4.1
     - sh==1.14.2
     - sympy==1.10.1
     - tabulate==0.8.10
