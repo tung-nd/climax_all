@@ -3,15 +3,10 @@ from typing import Any, Dict
 
 import torch
 from pytorch_lightning import LightningModule
-from torchvision.transforms import transforms
-
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (
-    lat_weighted_acc,
-    lat_weighted_mse,
-    lat_weighted_mse_val,
-    lat_weighted_rmse,
-)
+from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
+                               lat_weighted_mse_val, lat_weighted_rmse)
+from torchvision.transforms import transforms
 
 
 class ViTLitModule(LightningModule):
@@ -27,6 +22,7 @@ class ViTLitModule(LightningModule):
         eta_min: float = 1e-8,
     ):
         super().__init__()
+        self.automatic_optimization = False
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
@@ -62,6 +58,8 @@ class ViTLitModule(LightningModule):
         self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
+        optimizer = self.optimizers()
+        optimizer.zero_grad()
         if isinstance(batch, dict):
             loss = 0
             for source_id in batch.keys():
@@ -78,7 +76,7 @@ class ViTLitModule(LightningModule):
                     )
                 # return loss_dict
                 loss += loss_dict["loss"]
-            return loss / len(batch.keys())
+            loss = loss / len(batch.keys())
         else:
             x, y, variables, out_variables = batch
             loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
@@ -91,7 +89,14 @@ class ViTLitModule(LightningModule):
                     on_epoch=False,
                     prog_bar=True,
                 )
-            return loss_dict['loss']
+            loss = loss_dict['loss']
+
+        self.manual_backward(loss)
+        optimizer.step()
+
+    def training_step_end(self, step_output):
+        lr_scheduler = self.lr_schedulers()
+        lr_scheduler.step()
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, variables, out_variables = batch
@@ -203,8 +208,8 @@ class ViTLitModule(LightningModule):
 
         lr_scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
-            self.hparams.warmup_epochs,
-            self.hparams.max_epochs,
+            20000,
+            100000,
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
         )
