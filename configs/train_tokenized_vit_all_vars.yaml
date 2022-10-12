@@ -64,6 +64,8 @@ trainer:
 # ---------------------------- MODEL -------------------------------------------
 model:
   lr: 0.0005
+  beta_1: 0.9
+  beta_2: 0.999
   weight_decay: 0.05
   warmup_epochs: 5
   max_epochs: 30

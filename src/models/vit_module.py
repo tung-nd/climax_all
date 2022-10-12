@@ -15,6 +15,8 @@ class ViTLitModule(LightningModule):
         net: torch.nn.Module,
         pretrained_path: str,
         lr: float = 0.001,
+        beta_1: float = 0.9,
+        beta_2: float = 0.999,
         weight_decay: float = 0.005,
         warmup_epochs: int = 5,
         max_epochs: int = 30,
@@ -200,15 +202,21 @@ class ViTLitModule(LightningModule):
                 {
                     "params": decay,
                     "lr": self.hparams.lr,
+                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
                     "weight_decay": self.hparams.weight_decay,
                 },
-                {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
+                {
+                    "params": no_decay,
+                    "lr": self.hparams.lr,
+                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
+                    "weight_decay": 0
+                },
             ]
         )
 
         lr_scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
-            20000,
+            10000,
             100000,
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
