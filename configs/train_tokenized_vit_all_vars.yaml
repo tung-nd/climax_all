@@ -65,7 +65,7 @@ trainer:
 model:
   lr: 0.0005
   beta_1: 0.9
-  beta_2: 0.95
+  beta_2: 0.999
   weight_decay: 1e-5
   warmup_epochs: 10000
   max_epochs: 100000
