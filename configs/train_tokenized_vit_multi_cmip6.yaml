@@ -12,7 +12,7 @@ trainer:
   strategy: ddp_find_unused_parameters_false
 
   min_epochs: 1
-  max_epochs: 20
+  max_epochs: 50
   enable_progress_bar: true
 
   sync_batchnorm: True
@@ -68,10 +68,10 @@ trainer:
 model:
   lr: 0.0005
   beta_1: 0.9
-  beta_2: 0.999
-  weight_decay: 0.05
-  warmup_epochs: 5
-  max_epochs: 30
+  beta_2: 0.95
+  weight_decay: 1e-5
+  warmup_epochs: 10000
+  max_epochs: 100000
   warmup_start_lr: 1e-8
   eta_min: 1e-8
 
@@ -137,7 +137,7 @@ model:
       channel_agg: "mean"
       embed_dim: 1024
       depth: 8
-      decoder_depth: 0 # linear layer, if > 0 use transformer blocks
+      decoder_depth: 2
       num_heads: 16
       mlp_ratio: 4
       out_vars: null

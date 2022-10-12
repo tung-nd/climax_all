@@ -216,8 +216,8 @@ class ViTLitModule(LightningModule):
 
         lr_scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
-            10000,
-            100000,
+            self.hparams.warmup_epochs,
+            self.hparams.max_epochs,
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
         )

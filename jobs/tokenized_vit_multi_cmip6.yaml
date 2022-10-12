@@ -30,7 +30,7 @@ env_defaults:
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_mpi_tai_awi_hammoz_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.99 # ex: simple_job_lr_05
+  - name: tokenized_vit_5.625deg_mpi_tai_awi_hammoz_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -62,7 +62,7 @@ jobs:
         --model.net.drop_path=0.1
         --model.net.drop_rate=0.1
         --model.lr=5e-4
-        --model.beta_2=0.99
+        --model.beta_2=0.95
         --model.weight_decay=1e-5
 
 # search:
