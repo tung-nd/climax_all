@@ -1,0 +1,25 @@
+datadir: /datadrive/datasets/CMIP6/MPI-ESM
+name: 2m_temperature
+cmip_name: tas
+era_name: t2m
+output_type: 6hrPlevPt
+run: r1i1p1f1
+version: v20190815
+res:
+  - 1.40625
+  # - 2.8125
+  # - 5.625
+
+# NAME_TO_VAR = {
+#     "2m_temperature": "t2m",
+#     "10m_u_component_of_wind": "u10",
+#     "10m_v_component_of_wind": "v10",
+#     "mean_sea_level_pressure": "msl",
+#     "surface_pressure": "sp",
+#     "u_component_of_wind": "u",
+#     "v_component_of_wind": "v",
+#     "geopotential": "z",
+#     "temperature": "t",
+#     "relative_humidity": "r",
+#     "total_precipitation": "tp",
+# }
