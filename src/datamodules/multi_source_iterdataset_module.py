@@ -166,6 +166,12 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
             raise NotImplementedError("Only support distributed training")
         else:
             node_rank = int(os.environ["NODE_RANK"])
+            # Requires setting up our job yaml `env_defaults` to have this variable setup correctly
+            num_nodes = os.environ.get("NODES", None)
+            if num_nodes is not None:
+                num_nodes = int(num_nodes)
+                assert num_nodes == len(self.dict_data_train.keys())
+
             # TODO: figure out how to assert that number of datasets is the same as number of nodes
             for idx, k in enumerate(self.dict_data_train.keys()):
                 if idx == node_rank:
