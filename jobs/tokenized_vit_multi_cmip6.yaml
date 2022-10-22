@@ -30,7 +30,7 @@ env_defaults:
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_mpi_tai_awi_hammoz_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
+  - name: split_data_tokenized_vit_5.625deg_mpi_tai_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -43,11 +43,11 @@ jobs:
       - python src/train_vit_multi_dataset.py --config configs/train_tokenized_vit_multi_cmip6.yaml
         --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
         --trainer.max_epochs=50
-        --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels","awi-esm":"/mnt/data/CMIP6/AWI-ESM/5.625deg_equally_np_all_levels","hammoz":"/mnt/data/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels"}'
-        --data.dict_out_variables='{"mpi-esm":["z_500","t_850"],"taiesm":["z_500","t_850"],"awi-esm":["z_500","t_850"],"hammoz":["z_500","t_850"]}'
-        --data.dict_predict_ranges='{"mpi-esm":12,"taiesm":12,"awi-esm":12,"hammoz":12}'
-        --data.dict_histories='{"mpi-esm":1,"taiesm":1,"awi-esm":1,"hammoz":1}'
-        --data.dict_intervals='{"mpi-esm":0,"taiesm":0,"awi-esm":0,"hammoz":0}'
+        --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels"}'
+        --data.dict_out_variables='{"mpi-esm":["z_500","t_850"],"taiesm":["z_500","t_850"]}'
+        --data.dict_predict_ranges='{"mpi-esm":12,"taiesm":12}'
+        --data.dict_histories='{"mpi-esm":1,"taiesm":1}'
+        --data.dict_intervals='{"mpi-esm":0,"taiesm":0}'
         --data.num_workers=2 --data.batch_size=8
         --model.max_epochs=50
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
