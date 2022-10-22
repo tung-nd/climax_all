@@ -1,6 +1,7 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
+import numpy as np
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 # --------------------------------------------------------
@@ -10,8 +11,6 @@
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
-import numpy as np
-
 from src.models.components.tokenized_base import TokenizedBase
 from src.utils.pos_embed import get_1d_sincos_pos_embed_from_grid
 
@@ -183,11 +182,10 @@ class TokenizedViT(TokenizedBase):
         """
         pred = self.unpatchify(pred)  # B, C, H, W
 
-        # # only compute loss over the variables in out_variables
-        # in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
-        # out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
-        # ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
-        # pred = pred[:, ids]
+        if len(self.out_vars) == len(self.default_vars):
+            # only compute loss over the variables in out_variables
+            out_var_ids = self.get_channel_ids(out_variables)
+            pred = pred[:, out_var_ids]
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
@@ -217,11 +215,10 @@ class TokenizedViT(TokenizedBase):
             preds.append(x)
         preds = torch.concat(preds, dim=1)
 
-        # only compute loss over the variables in out_variables
-        # in_var_ids = self.get_channel_ids(variables).unsqueeze(-1)
-        # out_var_ids = self.get_channel_ids(out_variables).unsqueeze(-1)
-        # ids = (in_var_ids[:, None] == out_var_ids).all(-1).any(-1).nonzero().flatten()
-        # preds = preds[:, :, ids]
+        if len(self.out_vars) == len(self.default_vars):
+            # only compute loss over the variables in out_variables
+            out_var_ids = self.get_channel_ids(out_variables)
+            preds = preds[:, :, out_var_ids]
 
         return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 

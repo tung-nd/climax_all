@@ -209,12 +209,12 @@ data:
     ]
   }
   dict_out_variables: {
-    'mpi-esm': ['z_500', 't_850'],
-    'taiesm': ['z_500', 't_850'],
-    # 'nasa-giss': ['z_500', 't_850'],
-    'awi-esm': ['z_500', 't_850'],
-    'hammoz': ['z_500', 't_850'],
-    'cmcc': ['z_500', 't_850'],
+    'mpi-esm': null,
+    'taiesm': null,
+    # 'nasa-giss': null,
+    'awi-esm': null,
+    'hammoz': null,
+    'cmcc': null,
   }
   dict_predict_ranges: {
     'mpi-esm': 12, 
