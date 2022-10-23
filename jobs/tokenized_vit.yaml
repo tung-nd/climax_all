@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x8-scus
 
 storage:
   data:
@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: tokenized_vit_5.625deg_finetune_supervised_mpi_tai_awi_5e-4_sep_optimize_use_dropout_{auto:10s} # ex: simple_job_lr_05
+    name: tokenized_vit_5.625deg_finetune_supervised_mpi_tai_awi_hammoz_cmcc_predict_all_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -49,7 +49,7 @@ search:
         --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
         --data.num_workers=1 --data.batch_size=16
         --model.max_epochs=50
-        --model.net.decoder_depth=0 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
+        --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
         --model.net.out_vars=["z_500","t_850"]
         --model.net.channel_agg={agg}
@@ -62,7 +62,7 @@ search:
         --model.net.drop_rate={drop_rate}
         --model.lr={lr}
         --model.weight_decay={decay}
-        --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_tai_awi_5e-4_linear_decoder_1280dim_12depth_use_dropout/last.ckpt
+        --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_tai_awi_hammoz_cmcc_predict_all_5e-4_fix_lr/last.ckpt
         # --model.net.freeze_encoder={freeze}
 
   type: grid
@@ -88,7 +88,7 @@ search:
       values: [5e-7]
     - name: depth
       spec: discrete
-      values: [12]
+      values: [8]
     - name: dim
       spec: discrete
-      values: [1280]
+      values: [1024]

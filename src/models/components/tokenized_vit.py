@@ -70,7 +70,8 @@ class TokenizedViT(TokenizedBase):
 
         self.freeze_encoder = freeze_encoder
         self.time_history = time_history
-        self.out_vars = out_vars if out_vars is not None else default_vars
+        # self.out_vars = out_vars if out_vars is not None else default_vars
+        self.out_vars = default_vars
 
         self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
@@ -182,10 +183,10 @@ class TokenizedViT(TokenizedBase):
         """
         pred = self.unpatchify(pred)  # B, C, H, W
 
-        if len(self.out_vars) == len(self.default_vars):
-            # only compute loss over the variables in out_variables
-            out_var_ids = self.get_channel_ids(out_variables)
-            pred = pred[:, out_var_ids]
+        # if len(self.out_vars) == len(self.default_vars):
+        # only compute loss over the variables in out_variables
+        out_var_ids = self.get_channel_ids(out_variables)
+        pred = pred[:, out_var_ids]
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
@@ -215,10 +216,10 @@ class TokenizedViT(TokenizedBase):
             preds.append(x)
         preds = torch.concat(preds, dim=1)
 
-        if len(self.out_vars) == len(self.default_vars):
-            # only compute loss over the variables in out_variables
-            out_var_ids = self.get_channel_ids(out_variables)
-            preds = preds[:, :, out_var_ids]
+        # if len(self.out_vars) == len(self.default_vars):
+        # only compute loss over the variables in out_variables
+        out_var_ids = self.get_channel_ids(out_variables)
+        preds = preds[:, :, out_var_ids]
 
         return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
