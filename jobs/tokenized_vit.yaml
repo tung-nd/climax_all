@@ -48,7 +48,7 @@ search:
         --data.out_variables=['z_500','t_850']
         --data.predict_range=72 --data.predict_steps=1 --data.history=1 --data.interval=0
         --data.num_workers=1 --data.batch_size=16
-        --model.max_epochs=50
+        --model.warmup_epochs=10000 --model.max_epochs=100000
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
         --model.net.out_vars=["z_500","t_850"]
@@ -85,7 +85,7 @@ search:
       values: [16]
     - name: lr
       spec: discrete
-      values: [5e-7]
+      values: [5e-7, 1e-6]
     - name: depth
       spec: discrete
       values: [8]
