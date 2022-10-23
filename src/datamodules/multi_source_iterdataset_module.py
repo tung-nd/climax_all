@@ -5,8 +5,7 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
@@ -151,6 +150,7 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
                                 variables=variables,
                                 out_variables=out_variables,
                                 shuffle=True,
+                                multi_dataset_training=True
                             ),
                             **dataset_args,
                         ),
