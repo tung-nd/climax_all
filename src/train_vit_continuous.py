@@ -3,14 +3,15 @@ import os
 from pytorch_lightning.utilities.cli import LightningCLI
 
 from models.vit_continuous_module import ViTContinuousLitModule
-from src.datamodules.era5_iterdataset_module import ERA5IterDatasetModule
+from src.datamodules.era5_iterdataset_continuous_module import \
+    ERA5IterDatasetContinuousModule
 
 
 def main():
     # Initialize Lightning with the model and data modules, and instruct it to parse the config yml
     cli = LightningCLI(
         model_class=ViTContinuousLitModule,
-        datamodule_class=ERA5IterDatasetModule,
+        datamodule_class=ERA5IterDatasetContinuousModule,
         seed_everything_default=42,
         save_config_overwrite=True,
         run=False,

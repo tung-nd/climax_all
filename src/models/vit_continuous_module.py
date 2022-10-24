@@ -3,6 +3,8 @@ from typing import Any, Dict
 
 import torch
 from pytorch_lightning import LightningModule
+from src.models.components.tokenized_vit_continuous import \
+    TokenizedViTContinuous
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
                                lat_weighted_mse_val, lat_weighted_rmse)
@@ -12,7 +14,7 @@ from torchvision.transforms import transforms
 class ViTContinuousLitModule(LightningModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: TokenizedViTContinuous,
         pretrained_path: str,
         lr: float = 0.001,
         beta_1: float = 0.9,
@@ -65,8 +67,8 @@ class ViTContinuousLitModule(LightningModule):
         if isinstance(batch, dict):
             loss = 0
             for source_id in batch.keys():
-                x, y, variables, out_variables = batch[source_id]
-                loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+                x, y, lead_times, variables, out_variables = batch[source_id]
+                loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
                 loss_dict = loss_dict[0]
                 for var in loss_dict.keys():
                     self.log(
@@ -101,8 +103,8 @@ class ViTContinuousLitModule(LightningModule):
         lr_scheduler.step()
 
     def validation_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        pred_steps = y.shape[1]
+        x, y, lead_times, variables, out_variables = batch
+        pred_steps = 1
         pred_range = self.pred_range
 
         default_days = [1, 3, 5]
@@ -114,6 +116,7 @@ class ViTContinuousLitModule(LightningModule):
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
+            lead_times,
             variables,
             out_variables,
             pred_steps,
@@ -150,8 +153,8 @@ class ViTContinuousLitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        pred_steps = y.shape[1]
+        x, y, lead_times, variables, out_variables = batch
+        pred_steps = 1
         pred_range = self.pred_range
 
         default_days = [1, 3, 5]
@@ -163,6 +166,7 @@ class ViTContinuousLitModule(LightningModule):
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
+            lead_times,
             variables,
             out_variables,
             pred_steps,

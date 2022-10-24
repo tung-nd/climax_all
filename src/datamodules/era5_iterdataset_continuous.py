@@ -58,73 +58,15 @@ class ERA5Npy(IterableDataset):
             yield {k: data[k] for k in self.variables}, self.variables, self.out_variables
 
 
-class ERA5(IterableDataset):
-    def __init__(self, dataset: ERA5Npy) -> None:
-        super().__init__()
-        self.dataset = dataset
-
-    def __iter__(self):
-        for data, variables, out_variables in self.dataset:
-            np_data_in = np.concatenate([data[k].astype(np.float32) for k in variables], axis=1)
-            np_data_out = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
-            yield torch.from_numpy(np_data_in), torch.from_numpy(np_data_out), variables, out_variables
-
-
-class IndividualDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5, transforms: torch.nn.Module, output_transforms: torch.nn.Module) -> None:
-        super().__init__()
-        self.dataset = dataset
-        self.transforms = transforms
-        self.output_transforms = output_transforms
-
-    def __iter__(self):
-        for data_in, data_out, variables, out_variables in self.dataset:
-            for i in range(data_in.shape[0]):
-                if self.transforms is not None:
-                    yield self.transforms(data_in[i]), self.output_transforms(data_out[i]), variables, out_variables
-                else:
-                    yield data_in[i], data_out[i], variables, out_variables
-
-
-class ERA5Video(IterableDataset):
-    def __init__(self, dataset: ERA5Npy, timesteps: int = 8, interval: int = 6) -> None:
-        super().__init__()
-        self.dataset = dataset
-        self.timesteps = timesteps
-        self.interval = interval
-
-    def __iter__(self):
-        for data, variables, out_variables in self.dataset:
-            np_data_in = np.concatenate([data[k].astype(np.float32) for k in variables], axis=1)
-            np_data_out = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
-            torch_data_in = torch.from_numpy(np_data_in)
-            torch_data_out = torch.from_numpy(np_data_out)
-            yield self.construct_video(torch_data_in), self.construct_video(torch_data_out), variables, out_variables
-
-    def construct_video(self, x):
-        # x: 730, 3, 32, 64
-        x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0) # 4, 730, 3, 32, 64
-        for t in range(self.timesteps):
-            x[t] = x[t].roll(-t * self.interval, dims=0)
-
-        last_idx = - (self.timesteps - 1) * self.interval
-        x = x[:, :last_idx]
-        return x.transpose(0, 1)
-        # x = x.unsqueeze(0).repeat_interleave(self.timesteps, dim=0)
-        # for i in range(self.timesteps):
-        #     x[i] = torch.roll(x[i], shifts=-i, dims=0)
-        # end_idx = (-self.timesteps + 1) if self.timesteps != 1 else x.shape[1]
-        # x = x[:, :end_idx]
-        # return torch.transpose(x, dim0=0, dim1=1)
-
-
 class ERA5Forecast(IterableDataset):
     def __init__(
-        self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6, subsample: int = 1
+        self, dataset: ERA5Npy, max_predict_range: int = 6, random_lead_time: bool = False, hrs_each_step: int = 1, history: int = 3, interval: int = 6, subsample: int = 1
     ) -> None:
         super().__init__()
         self.dataset = dataset
-        self.predict_range = predict_range
+        self.max_predict_range = max_predict_range
+        self.random_lead_time = random_lead_time
+        self.hrs_each_step = hrs_each_step
         self.history = history
         self.interval = interval
         self.subsample = subsample
@@ -145,67 +87,22 @@ class ERA5Forecast(IterableDataset):
             for t in range(self.history):
                 inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
-            last_idx = -((self.history - 1) * self.interval + self.predict_range)
-
-            outputs = y.roll(last_idx, dims=0)
+            last_idx = -((self.history - 1) * self.interval + self.max_predict_range)
 
             inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T, C, H, W
-            outputs = outputs[:last_idx]  # N, C, H, W
+
+            if self.random_lead_time:
+                predict_ranges = torch.randint(low=1, high=self.max_predict_range, size=(inputs.shape[0],))
+            else:
+                predict_ranges = torch.ones(inputs.shape[0]).to(torch.long) * self.max_predict_range
+            lead_times = self.hrs_each_step * predict_ranges / 100
+            output_ids = torch.arange(inputs.shape[0]) + (self.history - 1) * self.interval + predict_ranges
+            outputs = y[output_ids]
 
             inputs = inputs[:: self.subsample]
             outputs = outputs[:: self.subsample]
 
-            yield inputs, outputs, variables, out_variables
-
-
-class ERA5ForecastMultiStep(IterableDataset):
-    def __init__(
-        self,
-        dataset: ERA5Npy,
-        pred_range: int = 6,
-        history: int = 3,
-        interval: int = 6,
-        pred_steps: int = 4,
-        subsample: int = 1,
-    ) -> None:
-        super().__init__()
-        self.dataset = dataset
-        self.pred_range = pred_range
-        self.history = history
-        self.interval = interval
-        self.pred_steps = pred_steps
-        self.subsample = subsample
-
-    def __iter__(self):
-        # TODO: this would not get us stuff across the years
-        # i.e. where inputs are from previous years and output from next
-        for data, variables, out_variables in self.dataset:
-            # min_len = np.min([data[k].shape[0] for k in data.keys()])
-            # x = np.concatenate([data[k][:min_len].astype(np.float32) for k in data.keys()], axis=1)
-            x = np.concatenate([data[k].astype(np.float32) for k in data.keys()], axis=1)
-            x = torch.from_numpy(x)
-            # y = np.concatenate([data[k][:min_len].astype(np.float32) for k in out_variables], axis=1)
-            y = np.concatenate([data[k].astype(np.float32) for k in out_variables], axis=1)
-            y = torch.from_numpy(y)
-
-            inputs = x.unsqueeze(0).repeat_interleave(self.history, dim=0)
-            for t in range(self.history):
-                inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
-
-            outputs = y.unsqueeze(0).repeat_interleave(self.pred_steps, dim=0)
-            start_idx = (self.history - 1) * self.interval + self.pred_range
-            for t in range(self.pred_steps):
-                outputs[t] = outputs[t].roll(-(start_idx + t * self.pred_range), dims=0)
-
-            last_idx = -((self.history - 1) * self.interval + self.pred_steps * self.pred_range)
-
-            inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T1, C, H, W
-            outputs = outputs[:, :last_idx].transpose(0, 1)  # N, T2, C, H, W
-
-            inputs = inputs[:: self.subsample]
-            outputs = outputs[:: self.subsample]
-
-            yield inputs, outputs, variables, out_variables
+            yield inputs, outputs, lead_times, variables, out_variables
 
 
 class IndividualForecastDataIter(IterableDataset):
@@ -216,14 +113,14 @@ class IndividualForecastDataIter(IterableDataset):
         self.output_transforms = output_transforms
 
     def __iter__(self):
-        for (inp, out, variables, out_variables) in self.dataset:
+        for (inp, out, lead_times, variables, out_variables) in self.dataset:
             assert inp.shape[0] == out.shape[0]
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.output_transforms(out[i]), variables, out_variables
+                    yield self.transforms(inp[i]), self.output_transforms(out[i]), lead_times[i], variables, out_variables
                 else:
-                    yield inp[i], out[i], variables, out_variables
+                    yield inp[i], out[i], lead_times[i], variables, out_variables
 
 
 class ShuffleIterableDataset(IterableDataset):
@@ -400,3 +297,24 @@ class ShuffleIterableDataset(IterableDataset):
 # x, variables = next(iter(dataset))
 # print(x.shape)
 # print (variables)
+
+# x = y = torch.rand(10, 2)
+# history = 3
+# interval = 1
+# max_predict_range = 3
+# inputs = x.unsqueeze(0).repeat_interleave(history, dim=0)
+# for t in range(history):
+#     inputs[t] = inputs[t].roll(-t * interval, dims=0)
+
+# last_idx = -((history - 1) * interval + max_predict_range)
+
+# inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T, C, H, W
+
+# random_predict_ranges = torch.randint(low=1, high=max_predict_range, size=(inputs.shape[0],))
+# output_ids = torch.arange(inputs.shape[0]) + (history - 1) * interval + random_predict_ranges
+# outputs = y[output_ids]
+
+# print ('data', x)
+# print ('inputs', inputs)
+# print ('predict ranges', random_predict_ranges)
+# print ('outputs', outputs)

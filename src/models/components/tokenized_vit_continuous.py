@@ -206,23 +206,23 @@ class TokenizedViTContinuous(TokenizedBase):
         loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
         return loss, preds
 
-    def predict(self, x, variables):
+    def predict(self, x, lead_times, variables):
         with torch.no_grad():
-            embeddings = self.forward_encoder(x, variables)
+            embeddings = self.forward_encoder(x, lead_times, variables)
             pred = self.head(embeddings)[:, -self.num_patches :]
         return self.unpatchify(pred)
         # pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         # pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         # return self.unpatchify(pred, variables)
 
-    def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
+    def rollout(self, x, y, lead_times, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
         # transform: get back to the original range
         if steps > 1:
             # can only rollout for more than 1 step if input variables and output variables are the same
             assert len(variables) == len(out_variables)
         preds = []
         for _ in range(steps):
-            x = self.predict(x, variables).unsqueeze(1)
+            x = self.predict(x, lead_times, variables).unsqueeze(1)
             preds.append(x)
         preds = torch.concat(preds, dim=1)
 
@@ -231,7 +231,7 @@ class TokenizedViTContinuous(TokenizedBase):
         out_var_ids = self.get_channel_ids(out_variables)
         preds = preds[:, :, out_var_ids]
 
-        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
+        return [m(preds, y.unsqueeze(1), transform, out_variables, lat, log_steps, log_days) for m in metric], preds
 
 
 # from src.utils.metrics import mse

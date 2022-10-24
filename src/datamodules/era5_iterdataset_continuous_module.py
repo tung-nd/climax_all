@@ -10,41 +10,40 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
-                               ERA5Npy, ERA5Video, IndividualDataIter,
-                               IndividualForecastDataIter,
-                               ShuffleIterableDataset)
+from .era5_iterdataset_continuous import (ERA5Forecast, ERA5Npy,
+                                          IndividualForecastDataIter,
+                                          ShuffleIterableDataset)
 
 
 def collate_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
-    variables = batch[0][2]
-    out_variables = batch[0][3]
+    lead_times = torch.stack([batch[i][2] for i in range(len(batch))])
+    variables = batch[0][3]
+    out_variables = batch[0][4]
     return (
         inp,
         out,
+        lead_times,
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables],
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in out_variables],
     )
 
 
-class ERA5IterDatasetModule(LightningDataModule):
+class ERA5IterDatasetContinuousModule(LightningDataModule):
     def __init__(
         self,
         root_dir,  # contains metadata and train + val + test
-        reader,  # npy or zarr
-        dataset_type,  # image, video, or forecast (finetune)
         variables,
         buffer_size,
         out_variables=None,
-        timesteps: int = 8,  # only used for video
-        predict_range: int = 6,  # only used for forecast
-        predict_steps: int = 4,  # only used for forecast
-        history: int = 3,  # used for forecast
-        interval: int = 6,  # used for forecast and video
-        subsample: int = 1,  # used for forecast
-        pct_train: float = 1.0,  # percentage of data used for training
+        max_predict_range: int = 6,
+        random_lead_time: bool = True,
+        hrs_each_step: int = 1,
+        history: int = 3,
+        interval: int = 6,
+        subsample: int = 1,
+        pct_train: float = 1.0,
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -54,51 +53,16 @@ class ERA5IterDatasetModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         self.save_hyperparameters(logger=False)
 
-        if reader == "npy":
-            self.reader = ERA5Npy
-            self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
-            if pct_train < 1.0:
-                train_len = int(pct_train * len(self.lister_train))
-                self.lister_train = self.lister_train[:train_len]
-            self.lister_val = None
-            self.lister_test = None
-            if os.path.exists(os.path.join(root_dir, "val")):
-                self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
-                self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
-        else:
-            raise NotImplementedError(f"Only support npy or zarr")
-
-        if dataset_type == "image":
-            self.train_dataset_class = ERA5
-            self.train_dataset_args = {}
-            self.val_dataset_class = ERA5
-            self.val_dataset_args = {}
-            self.data_iter = IndividualDataIter
-        elif dataset_type == "video":
-            self.train_dataset_class = ERA5Video
-            self.train_dataset_args = {"timesteps": timesteps, "interval": interval}
-            self.val_dataset_class = ERA5Video
-            self.val_dataset_args = {"timesteps": timesteps, "interval": interval}
-            self.data_iter = IndividualDataIter
-        elif dataset_type == "forecast":
-            self.train_dataset_class = ERA5Forecast
-            self.train_dataset_args = {
-                "predict_range": predict_range,
-                "history": history,
-                "interval": interval,
-                "subsample": subsample,
-            }
-            self.val_dataset_class = ERA5ForecastMultiStep
-            self.val_dataset_args = {
-                "pred_range": predict_range,
-                "pred_steps": predict_steps,
-                "history": history,
-                "interval": interval,
-                "subsample": subsample,
-            }
-            self.data_iter = IndividualForecastDataIter
-        else:
-            raise NotImplementedError("Only support image, video, or forecast dataset")
+        self.reader = ERA5Npy
+        self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
+        if pct_train < 1.0:
+            train_len = int(pct_train * len(self.lister_train))
+            self.lister_train = self.lister_train[:train_len]
+        self.lister_val = None
+        self.lister_test = None
+        if os.path.exists(os.path.join(root_dir, "val")):
+            self.lister_val = list(dp.iter.FileLister(os.path.join(root_dir, "val")))
+            self.lister_test = list(dp.iter.FileLister(os.path.join(root_dir, "test")))
 
         self.transforms = self.get_normalize()
         self.output_transforms = self.get_normalize(out_variables)
@@ -133,48 +97,63 @@ class ERA5IterDatasetModule(LightningDataModule):
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             self.data_train = ShuffleIterableDataset(
-                self.data_iter(
-                    self.train_dataset_class(
-                        self.reader(
-                            self.lister_train,
+                IndividualForecastDataIter(
+                    ERA5Forecast(
+                        ERA5Npy(
+                            file_list=self.lister_train,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                             shuffle=True,
                         ),
-                        **self.train_dataset_args,
+                        max_predict_range=self.hparams.max_predict_range,
+                        random_lead_time=self.hparams.random_lead_time,
+                        hrs_each_step=self.hparams.hrs_each_step,
+                        history=self.hparams.history,
+                        interval=self.hparams.interval,
+                        subsample=self.hparams.subsample
                     ),
-                    self.transforms,
-                    self.output_transforms,
+                    transforms=self.transforms,
+                    output_transforms=self.output_transforms,
                 ),
-                self.hparams.buffer_size,
+                buffer_size=self.hparams.buffer_size,
             )
 
             if self.lister_val is not None:
-                self.data_val = self.data_iter(
-                    self.val_dataset_class(
-                        self.reader(
-                            self.lister_val,
+                self.data_val = IndividualForecastDataIter(
+                    ERA5Forecast(
+                        ERA5Npy(
+                            file_list=self.lister_val,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                         ),
-                        **self.val_dataset_args,
+                        max_predict_range=self.hparams.max_predict_range,
+                        random_lead_time=False,
+                        hrs_each_step=self.hparams.hrs_each_step,
+                        history=self.hparams.history,
+                        interval=self.hparams.interval,
+                        subsample=self.hparams.subsample
                     ),
-                    self.transforms,
-                    self.output_transforms,
+                    transforms=self.transforms,
+                    output_transforms=self.output_transforms,
                 )
 
             if self.lister_test is not None:
-                self.data_test = self.data_iter(
-                    self.val_dataset_class(
-                        self.reader(
-                            self.lister_test,
+                self.data_test = IndividualForecastDataIter(
+                    ERA5Forecast(
+                        ERA5Npy(
+                            file_list=self.lister_test,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                         ),
-                        **self.val_dataset_args,
+                        max_predict_range=self.hparams.max_predict_range,
+                        random_lead_time=False,
+                        hrs_each_step=self.hparams.hrs_each_step,
+                        history=self.hparams.history,
+                        interval=self.hparams.interval,
+                        subsample=self.hparams.subsample
                     ),
-                    self.transforms,
-                    self.output_transforms,
+                    transforms=self.transforms,
+                    output_transforms=self.output_transforms,
                 )
 
     def train_dataloader(self):
