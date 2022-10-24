@@ -120,11 +120,13 @@ class ERA5Video(IterableDataset):
 
 class ERA5Forecast(IterableDataset):
     def __init__(
-        self, dataset: ERA5Npy, predict_range: int = 6, history: int = 3, interval: int = 6, subsample: int = 1
+        self, dataset: ERA5Npy, max_predict_range: int = 6, random_lead_time: bool = False, hrs_each_step: int = 1, history: int = 3, interval: int = 6, subsample: int = 1
     ) -> None:
         super().__init__()
         self.dataset = dataset
-        self.predict_range = predict_range
+        self.max_predict_range = max_predict_range
+        self.random_lead_time = random_lead_time
+        self.hrs_each_step = hrs_each_step
         self.history = history
         self.interval = interval
         self.subsample = subsample
@@ -145,17 +147,22 @@ class ERA5Forecast(IterableDataset):
             for t in range(self.history):
                 inputs[t] = inputs[t].roll(-t * self.interval, dims=0)
 
-            last_idx = -((self.history - 1) * self.interval + self.predict_range)
-
-            outputs = y.roll(last_idx, dims=0)
+            last_idx = -((self.history - 1) * self.interval + self.max_predict_range)
 
             inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T, C, H, W
-            outputs = outputs[:last_idx]  # N, C, H, W
+
+            if self.random_lead_time:
+                predict_ranges = torch.randint(low=1, high=self.max_predict_range, size=(inputs.shape[0],))
+            else:
+                predict_ranges = torch.ones(inputs.shape[0]).to(torch.long) * self.max_predict_range
+            lead_times = self.hrs_each_step * predict_ranges / 100
+            output_ids = torch.arange(inputs.shape[0]) + (self.history - 1) * self.interval + predict_ranges
+            outputs = y[output_ids]
 
             inputs = inputs[:: self.subsample]
             outputs = outputs[:: self.subsample]
 
-            yield inputs, outputs, variables, out_variables
+            yield inputs, outputs, lead_times, variables, out_variables
 
 
 class ERA5ForecastMultiStep(IterableDataset):
@@ -205,7 +212,7 @@ class ERA5ForecastMultiStep(IterableDataset):
             inputs = inputs[:: self.subsample]
             outputs = outputs[:: self.subsample]
 
-            yield inputs, outputs, variables, out_variables
+            yield inputs, outputs, None, variables, out_variables
 
 
 class IndividualForecastDataIter(IterableDataset):
@@ -216,14 +223,14 @@ class IndividualForecastDataIter(IterableDataset):
         self.output_transforms = output_transforms
 
     def __iter__(self):
-        for (inp, out, variables, out_variables) in self.dataset:
+        for (inp, out, lead_times, variables, out_variables) in self.dataset:
             assert inp.shape[0] == out.shape[0]
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.output_transforms(out[i]), variables, out_variables
+                    yield self.transforms(inp[i]), self.output_transforms(out[i]), lead_times[i], variables, out_variables
                 else:
-                    yield inp[i], out[i], variables, out_variables
+                    yield inp[i], out[i], lead_times[i], variables, out_variables
 
 
 class ShuffleIterableDataset(IterableDataset):
@@ -400,3 +407,24 @@ class ShuffleIterableDataset(IterableDataset):
 # x, variables = next(iter(dataset))
 # print(x.shape)
 # print (variables)
+
+# x = y = torch.rand(10, 2)
+# history = 3
+# interval = 1
+# max_predict_range = 3
+# inputs = x.unsqueeze(0).repeat_interleave(history, dim=0)
+# for t in range(history):
+#     inputs[t] = inputs[t].roll(-t * interval, dims=0)
+
+# last_idx = -((history - 1) * interval + max_predict_range)
+
+# inputs = inputs[:, :last_idx].transpose(0, 1)  # N, T, C, H, W
+
+# random_predict_ranges = torch.randint(low=1, high=max_predict_range, size=(inputs.shape[0],))
+# output_ids = torch.arange(inputs.shape[0]) + (history - 1) * interval + random_predict_ranges
+# outputs = y[output_ids]
+
+# print ('data', x)
+# print ('inputs', inputs)
+# print ('predict ranges', random_predict_ranges)
+# print ('outputs', outputs)

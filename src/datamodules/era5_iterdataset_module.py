@@ -10,26 +10,22 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (
-    ERA5,
-    ERA5Forecast,
-    ERA5ForecastMultiStep,
-    ERA5Npy,
-    ERA5Video,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-    ShuffleIterableDataset,
-)
+from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5ForecastMultiStep,
+                               ERA5Npy, ERA5Video, IndividualDataIter,
+                               IndividualForecastDataIter,
+                               ShuffleIterableDataset)
 
 
 def collate_fn(batch):
     inp = torch.stack([batch[i][0] for i in range(len(batch))])
     out = torch.stack([batch[i][1] for i in range(len(batch))])
-    variables = batch[0][2]
-    out_variables = batch[0][3]
+    lead_times = torch.stack([batch[i][2] for i in range(len(batch))])
+    variables = batch[0][3]
+    out_variables = batch[0][4]
     return (
         inp,
         out,
+        lead_times,
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables],
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in out_variables],
     )
@@ -45,7 +41,9 @@ class ERA5IterDatasetModule(LightningDataModule):
         buffer_size,
         out_variables=None,
         timesteps: int = 8,  # only used for video
-        predict_range: int = 6,  # only used for forecast
+        max_predict_range: int = 6,  # only used for forecast
+        random_lead_time: bool = False, # only used for forecast
+        hrs_each_step: int = 1, # only used for forecast
         predict_steps: int = 4,  # only used for forecast
         history: int = 3,  # used for forecast
         interval: int = 6,  # used for forecast and video
@@ -89,14 +87,16 @@ class ERA5IterDatasetModule(LightningDataModule):
         elif dataset_type == "forecast":
             self.train_dataset_class = ERA5Forecast
             self.train_dataset_args = {
-                "predict_range": predict_range,
+                "max_predict_range": max_predict_range,
+                "random_lead_time": random_lead_time,
+                "hrs_each_step": hrs_each_step,
                 "history": history,
                 "interval": interval,
                 "subsample": subsample,
             }
             self.val_dataset_class = ERA5ForecastMultiStep
             self.val_dataset_args = {
-                "pred_range": predict_range,
+                "pred_range": max_predict_range,
                 "pred_steps": predict_steps,
                 "history": history,
                 "interval": interval,
