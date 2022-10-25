@@ -36,6 +36,8 @@ class ERA5Npy(IterableDataset):
                 num_gpus_per_node = int(world_size / num_nodes)
                 num_shards = num_workers_per_ddp * num_gpus_per_node
                 rank = rank % num_gpus_per_node
+            else:
+                num_shards = num_workers_per_ddp * world_size
             per_worker = int(math.floor(len(self.file_list) / float(num_shards)))
             worker_id = rank * num_workers_per_ddp + worker_info.id
             iter_start = worker_id * per_worker
