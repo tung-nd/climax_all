@@ -18,19 +18,20 @@ target:
 
 storage:
   my_data:
-    storage_account_name: weatherdatastorage2
-    # storage_account_name: weatherml1836488272
+    # storage_account_name: weatherdatastorage2
+    storage_account_name: weathercmip6storage0
+    # storage_account_name: weathercmip6storage1
     container_name: datasets
     mount_dir: /mnt/data
     is_output: True
 
 jobs:
-  - name: extract_equally_npz_cmcc
+  - name: extract_equally_npz_awi
     sku: 1xC72
     command:
-      # - python src/nc2np_equally_cmip6_mpi.py /mnt/data/CMIP6/MPI-ESM/5.625deg --num_shards=10
-      # - python src/nc2np_equally_cmip6_taiesm1.py /mnt/data/CMIP6/TaiESM1/5.625deg --num_shards=20
-      # - python src/nc2np_equally_cmip6_awi.py /mnt/data/CMIP6/AWI-ESM/5.625deg --num_shards=2
-      # - python src/nc2np_equally_cmip6_hammoz.py /mnt/data/CMIP6/HAMMOZ/5.625deg --num_shards=40
-      - python src/nc2np_equally_cmip6_cmcc.py /mnt/data/CMIP6/CMCC/5.625deg --num_shards=2
-      # - python src/nc2np_equally_cmip6_nasa.py /mnt/data/CMIP6/NASA-GISS/5.625deg --num_shards=2
+      # - python src/nc2np_equally_cmip6_mpi.py /mnt/data/CMIP6/MPI-ESM/1.40625deg --num_shards=50
+      # - python src/nc2np_equally_cmip6_taiesm1.py /mnt/data/CMIP6/TaiESM1/1.40625deg --num_shards=100
+      - python src/nc2np_equally_cmip6_awi.py /mnt/data/CMIP6/AWI-ESM/1.40625deg --num_shards=10
+      # - python src/nc2np_equally_cmip6_hammoz.py /mnt/data/CMIP6/HAMMOZ/1.40625deg --num_shards=200
+      # - python src/nc2np_equally_cmip6_cmcc.py /mnt/data/CMIP6/CMCC/1.40625deg --num_shards=10
+      # - python src/nc2np_equally_cmip6_nasa.py /mnt/data/CMIP6/NASA-GISS/1.40625deg --num_shards=2
