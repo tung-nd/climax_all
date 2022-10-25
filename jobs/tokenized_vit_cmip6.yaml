@@ -30,7 +30,7 @@ env_defaults:
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_mpi_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
+  - name: tokenized_vit_5.625deg_predict_all_mpi_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -44,12 +44,10 @@ jobs:
         --trainer.devices=${GPUS} --trainer.strategy=ddp
         --trainer.max_epochs=50
         --data.root_dir=/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels/ --data.reader=npy
-        --data.out_variables=['z_500','t_850']
         --data.predict_range=12 --data.predict_steps=1 --data.history=1 --data.interval=0
-        --data.num_workers=2 --data.batch_size=16
+        --data.num_workers=1 --data.batch_size=16
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
-        --model.net.out_vars=["z_500","t_850"]
         --model.net.channel_agg='attention'
         --model.net.init_mode='small'
         --model.net.patch_size=2
