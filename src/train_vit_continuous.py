@@ -25,7 +25,7 @@ def main():
     mean_denorm, std_denorm = -mean_norm / std_norm, 1 / std_norm
     cli.model.set_denormalization(mean_denorm, std_denorm)
     cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
-    cli.model.set_pred_range(cli.datamodule.hparams.max_predict_range)
+    cli.model.set_pred_range(cli.datamodule.hparams.val_predict_range)
 
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)

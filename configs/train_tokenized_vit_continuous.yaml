@@ -198,6 +198,7 @@ data:
       "q_925",
     ]
   max_predict_range: 72
+  val_predict_range: 72
   random_lead_time: False
   hrs_each_step: 1
   history: 1
