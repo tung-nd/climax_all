@@ -1,4 +1,5 @@
 import math
+import os
 import random
 
 import numpy as np
@@ -7,12 +8,13 @@ from torch.utils.data import IterableDataset
 
 
 class ERA5Npy(IterableDataset):
-    def __init__(self, file_list, variables, out_variables, shuffle: bool = False) -> None:
+    def __init__(self, file_list, variables, out_variables, shuffle: bool = False, multi_dataset_training=False) -> None:
         super().__init__()
         self.file_list = file_list
         self.variables = variables
         self.out_variables = out_variables if out_variables is not None else variables
         self.shuffle = shuffle
+        self.multi_dataset_training = multi_dataset_training
 
     def __iter__(self):
         if self.shuffle:
@@ -29,7 +31,13 @@ class ERA5Npy(IterableDataset):
                 rank = torch.distributed.get_rank()
                 world_size = torch.distributed.get_world_size()
             num_workers_per_ddp = worker_info.num_workers
-            num_shards = num_workers_per_ddp * world_size
+            if self.multi_dataset_training:
+                num_nodes = int(os.environ.get("NODES", None))
+                num_gpus_per_node = int(world_size / num_nodes)
+                num_shards = num_workers_per_ddp * num_gpus_per_node
+                rank = rank % num_gpus_per_node
+            else:
+                num_shards = num_workers_per_ddp * world_size
             per_worker = int(math.floor(len(self.file_list) / float(num_shards)))
             worker_id = rank * num_workers_per_ddp + worker_info.id
             iter_start = worker_id * per_worker

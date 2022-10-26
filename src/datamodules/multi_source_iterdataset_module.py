@@ -5,21 +5,14 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset import (
-    ERA5Npy,
-    ERA5,
-    ERA5Video,
-    ERA5Forecast,
-    IndividualDataIter,
-    IndividualForecastDataIter,
-    ShuffleIterableDataset,
-)
+from .era5_iterdataset import (ERA5, ERA5Forecast, ERA5Npy, ERA5Video,
+                               IndividualDataIter, IndividualForecastDataIter,
+                               ShuffleIterableDataset)
 
 
 def collate_fn(batch):
@@ -157,6 +150,7 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
                                 variables=variables,
                                 out_variables=out_variables,
                                 shuffle=True,
+                                multi_dataset_training=True
                             ),
                             **dataset_args,
                         ),
@@ -168,18 +162,32 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
             self.dict_data_train = dict_data_train
 
     def train_dataloader(self):
-        loaders = {
-            k: DataLoader(
-                data_train,
-                batch_size=self.hparams.batch_size,
-                # shuffle=True,
-                drop_last=True,
-                num_workers=self.hparams.num_workers,
-                pin_memory=self.hparams.pin_memory,
-                collate_fn=self.collate_fn,
-            ) for k, data_train in self.dict_data_train.items()
-        }
-        return CombinedLoader(loaders, mode="max_size_cycle")
+        if not torch.distributed.is_initialized():
+            raise NotImplementedError("Only support distributed training")
+        else:
+            node_rank = int(os.environ["NODE_RANK"])
+            # Requires setting up our job yaml `env_defaults` to have this variable setup correctly
+            num_nodes = os.environ.get("NODES", None)
+            if num_nodes is not None:
+                num_nodes = int(num_nodes)
+                assert num_nodes == len(self.dict_data_train.keys())
+
+            # TODO: figure out how to assert that number of datasets is the same as number of nodes
+            for idx, k in enumerate(self.dict_data_train.keys()):
+                if idx == node_rank:
+                    data_train = self.dict_data_train[k]
+                    break
+
+        # This assumes that the number of datapoints are going to be the same for all datasets
+        return DataLoader(
+            data_train,
+            batch_size=self.hparams.batch_size,            
+            drop_last=True,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            collate_fn=self.collate_fn,
+        )
+
 
 # dataset_type = 'forecast'
 # dict_root_dirs = {
