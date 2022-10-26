@@ -44,7 +44,7 @@ jobs:
       - python src/train_vit_multi_dataset.py --config configs/train_tokenized_vit_multi_cmip6.yaml
         --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
         --trainer.max_epochs=50
-        --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels","awi-esm":"/mnt/data/CMIP6/AWI-ESM/5.625deg_equally_np_all_levels","hammoz":"/mnt/data/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels","cmcc":"/mnt/data/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels"}'
+        --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels","awi-esm":"/mnt/data/CMIP6/AWI-ESM/5.625deg_equally_np_all_levels","hammoz":"/mnt/data/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels","cmcc":"/mnt/data/CMIP6/CMCC/5.625deg_equally_np_all_levels"}'
         --data.dict_predict_ranges='{"mpi-esm":12,"taiesm":12,"awi-esm":12,"hammoz":12,"cmcc":12}'
         --data.dict_histories='{"mpi-esm":1,"taiesm":1,"awi-esm":1,"hammoz":1,"cmcc":1}'
         --data.dict_intervals='{"mpi-esm":0,"taiesm":0,"awi-esm":0,"hammoz":0,"cmcc":0}'
