@@ -1,0 +1,11 @@
+datadir: /datadrive/CMIP6/MPI-ESM
+name: u_component_of_wind
+cmip_name: ua
+era_name: u
+output_type: 6hrPlevPt
+run: r1i1p1f1
+version: v20190815
+res:
+  - 1.40625
+  # - 2.8125
+  # - 5.625

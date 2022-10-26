@@ -114,7 +114,7 @@ def nc2np(path, variables, use_all_levels, years, save_dir, num_shards_per_year)
     ],
 )
 @click.option("--all_levels", type=bool, default=True)
-@click.option("--num_shards", type=int, default=16)
+@click.option("--num_shards", type=int, default=40)
 def main(
     path,
     variables,

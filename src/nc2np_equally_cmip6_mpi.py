@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from datamodules import ALL_LEVELS, DEFAULT_PRESSURE_LEVELS, NAME_TO_VAR
 
-HOURS_PER_YEAR = 7304  # timesteps per file in CMIP6
+HOURS_PER_YEAR = 7300  # 7304 --> 7300 timesteps per file in CMIP6
 
 
 def nc2np(path, variables, use_all_levels, years, save_dir, num_shards_per_year):
@@ -108,7 +108,7 @@ def nc2np(path, variables, use_all_levels, years, save_dir, num_shards_per_year)
     ],
 )
 @click.option("--all_levels", type=bool, default=True)
-@click.option("--num_shards", type=int, default=8)
+@click.option("--num_shards", type=int, default=10)
 def main(
     path,
     variables,
