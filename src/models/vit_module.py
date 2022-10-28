@@ -24,7 +24,7 @@ class ViTLitModule(LightningModule):
         eta_min: float = 1e-8,
     ):
         super().__init__()
-        self.automatic_optimization = False
+        # self.automatic_optimization = False
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
@@ -60,8 +60,8 @@ class ViTLitModule(LightningModule):
         self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
-        optimizer = self.optimizers()
-        optimizer.zero_grad()
+        # optimizer = self.optimizers()
+        # optimizer.zero_grad()
         x, y, variables, out_variables = batch
         loss_dict, _ = self.net.forward(x, y, variables, out_variables, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
@@ -75,12 +75,14 @@ class ViTLitModule(LightningModule):
             )
         loss = loss_dict['loss']
 
-        self.manual_backward(loss)
-        optimizer.step()
+        return loss
 
-    def training_step_end(self, step_output):
-        lr_scheduler = self.lr_schedulers()
-        lr_scheduler.step()
+        # self.manual_backward(loss)
+        # optimizer.step()
+
+    # def training_step_end(self, step_output):
+    #     lr_scheduler = self.lr_schedulers()
+    #     lr_scheduler.step()
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, variables, out_variables = batch
@@ -203,5 +205,10 @@ class ViTLitModule(LightningModule):
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
         )
+        scheduler = {
+            'scheduler': lr_scheduler,
+            'interval': 'step', # or 'epoch'
+            'frequency': 1
+        }
 
-        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
