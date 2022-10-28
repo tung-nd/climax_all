@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-scus
+  name: v100x8-ded
 
 storage:
   data:
@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: tokenized_vit_5.625deg_finetune_continuous_0-5days_predict_all_continuous_mpi_{auto:10s} # ex: simple_job_lr_05
+    name: tokenized_vit_5.625deg_finetune_mpi_predict_all_continuous_sinusoidal_100epochs_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -46,7 +46,7 @@ search:
         --trainer.max_epochs=50
         --data.root_dir=/mnt/data/5.625deg_equally_np_all_levels/
         --data.out_variables=['z_500','t_850']
-        --data.max_predict_range=120 --data.val_predict_range=72 --data.random_lead_time=True --data.hrs_each_step=1 --data.history=1 --data.interval=0
+        --data.max_predict_range=72 --data.val_predict_range=72 --data.random_lead_time=False --data.hrs_each_step=1 --data.history=1 --data.interval=0
         --data.num_workers=1 --data.batch_size=16
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
@@ -61,7 +61,7 @@ search:
         --model.net.drop_rate={drop_rate}
         --model.lr={lr}
         --model.weight_decay={decay}
-        --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_predict_all_continuous/last.ckpt
+        --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_predict_all_continuous_sinusoidal_100epochs/last.ckpt
 
   type: grid
   max_trials: 80
@@ -83,7 +83,7 @@ search:
       values: [16]
     - name: lr
       spec: discrete
-      values: [5e-7, 1e-6]
+      values: [5e-7]
     - name: depth
       spec: discrete
       values: [8]
