@@ -95,7 +95,7 @@ class ERA5Forecast(IterableDataset):
                 predict_ranges = torch.randint(low=1, high=self.max_predict_range, size=(inputs.shape[0],))
             else:
                 predict_ranges = torch.ones(inputs.shape[0]).to(torch.long) * self.max_predict_range
-            lead_times = self.hrs_each_step * predict_ranges / 100
+            lead_times = self.hrs_each_step * predict_ranges
             output_ids = torch.arange(inputs.shape[0]) + (self.history - 1) * self.interval + predict_ranges
             outputs = y[output_ids]
 
