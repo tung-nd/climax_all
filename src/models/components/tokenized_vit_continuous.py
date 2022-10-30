@@ -12,7 +12,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from src.models.components.tokenized_base import TokenizedBase
-from src.utils.pos_embed import get_1d_sincos_pos_embed_from_grid
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_1d_sincos_pos_embed_from_grid_pytorch)
 
 
 class TokenizedViTContinuous(TokenizedBase):
@@ -144,9 +145,7 @@ class TokenizedViTContinuous(TokenizedBase):
 
     def emb_lead_time(self, lead_times: torch.Tensor, embed_dim, device):
         # lead_times: B, 1
-        lead_times = lead_times.cpu().numpy()
-        sinusoidal_emb = get_1d_sincos_pos_embed_from_grid(embed_dim, lead_times) # B, D
-        sinusoidal_emb = torch.from_numpy(sinusoidal_emb).float().to(device)
+        sinusoidal_emb = get_1d_sincos_pos_embed_from_grid_pytorch(embed_dim, lead_times, dtype=lead_times.dtype).to(device)
         return self.lead_time_embed(sinusoidal_emb) # B, D
 
     def forward_encoder(self, x, lead_times, variables):
