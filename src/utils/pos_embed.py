@@ -7,6 +7,8 @@
 # Position embedding utils
 # --------------------------------------------------------
 
+import math
+
 import numpy as np
 import torch
 
@@ -87,6 +89,28 @@ def get_1d_sincos_pos_embed_from_grid_pytorch(embed_dim, pos, dtype=torch.float3
 
     emb = torch.cat([emb_sin, emb_cos], dim=1)  # (M, D)
     return emb
+
+
+def get_1d_sincos_pos_embed_from_grid_pytorch_stable(dim, timesteps, dtype=torch.float32, max_period=10000):
+    """
+    Create sinusoidal timestep embeddings.
+    Arguments:
+        - `timesteps`: a 1-D Tensor of N indices, one per batch element.
+                      These may be fractional.
+        - `dim`: the dimension of the output.
+        - `max_period`: controls the minimum frequency of the embeddings.
+    Returns:
+        - embedding: [N x dim] Tensor of positional embeddings.
+    """
+    half = dim // 2
+    freqs = torch.exp(
+        -math.log(max_period) * torch.arange(start=0, end=half, dtype=dtype) / half
+    ).to(device=timesteps.device)
+    args = timesteps[:, None].float() * freqs[None]
+    embedding = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)
+    if dim % 2:
+        embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+    return embedding
 
 
 # --------------------------------------------------------
