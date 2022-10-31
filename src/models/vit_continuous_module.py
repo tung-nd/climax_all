@@ -26,7 +26,6 @@ class ViTContinuousLitModule(LightningModule):
         eta_min: float = 1e-8,
     ):
         super().__init__()
-        self.automatic_optimization = False
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
         if len(pretrained_path) > 0:
@@ -62,45 +61,26 @@ class ViTContinuousLitModule(LightningModule):
         self.pred_range = r
 
     def training_step(self, batch: Any, batch_idx: int):
-        optimizer = self.optimizers()
-        optimizer.zero_grad()
-        if isinstance(batch, dict):
-            loss = 0
-            for source_id in batch.keys():
-                x, y, lead_times, variables, out_variables = batch[source_id]
-                loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
-                loss_dict = loss_dict[0]
-                for var in loss_dict.keys():
-                    self.log(
-                        f"train/{source_id}/" + var,
-                        loss_dict[var],
-                        on_step=True,
-                        on_epoch=False,
-                        prog_bar=True,
-                    )
-                # return loss_dict
-                loss += loss_dict["loss"]
-            loss = loss / len(batch.keys())
-        else:
-            x, y, lead_times, variables, out_variables = batch
-            loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
-            loss_dict = loss_dict[0]
-            for var in loss_dict.keys():
-                self.log(
-                    "train/" + var,
-                    loss_dict[var],
-                    on_step=True,
-                    on_epoch=False,
-                    prog_bar=True,
-                )
-            loss = loss_dict['loss']
+        # optimizer = self.optimizers()
+        # optimizer.zero_grad()
+        x, y, lead_times, variables, out_variables = batch
+        loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+        loss_dict = loss_dict[0]
+        for var in loss_dict.keys():
+            self.log(
+                "train/" + var,
+                loss_dict[var],
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True,
+            )
+        loss = loss_dict['loss']
 
-        self.manual_backward(loss)
-        optimizer.step()
+        return loss
 
-    def training_step_end(self, step_output):
-        lr_scheduler = self.lr_schedulers()
-        lr_scheduler.step()
+    # def training_step_end(self, step_output):
+    #     lr_scheduler = self.lr_schedulers()
+    #     lr_scheduler.step()
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, lead_times, variables, out_variables = batch
@@ -225,5 +205,10 @@ class ViTContinuousLitModule(LightningModule):
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
         )
+        scheduler = {
+            'scheduler': lr_scheduler,
+            'interval': 'step', # or 'epoch'
+            'frequency': 1
+        }
 
-        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
