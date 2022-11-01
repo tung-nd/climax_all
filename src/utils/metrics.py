@@ -74,7 +74,7 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
     lat: H
     """
 
-    orig_dtype = pred.dtype
+    # orig_dtype = pred.dtype
 
     pred = pred.to(dtype=torch.float32)
     y = y.to(dtype=torch.float32)
@@ -94,7 +94,7 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
 
     loss_dict["w_mse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
-    loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
+    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
 
     return loss_dict
 
@@ -107,7 +107,7 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
     lat: H
     """
 
-    orig_dtype = pred.dtype
+    # orig_dtype = pred.dtype
 
     pred = pred.to(dtype=torch.float32)
     y = y.to(dtype=torch.float32)
@@ -134,7 +134,7 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
 
     loss_dict["w_rmse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
-    loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
+    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
 
     return loss_dict
 
@@ -148,7 +148,7 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
     TODO: subtract the climatology
     """
 
-    orig_dtype = pred.dtype
+    # orig_dtype = pred.dtype
 
     pred = pred.to(dtype=torch.float32)
     y = y.to(dtype=torch.float32)
@@ -179,7 +179,7 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
 
     loss_dict["acc"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
-    loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
+    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
     
     return loss_dict
 
