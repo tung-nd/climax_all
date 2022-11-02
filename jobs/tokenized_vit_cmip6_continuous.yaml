@@ -30,7 +30,7 @@ env_defaults:
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_predict_all_continuous_sinusoidal_fixed_100epochs_mpi_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
+  - name: tokenized_vit_5.625deg_predict_all_continuous_sinusoidal_100epochs_mpi_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
