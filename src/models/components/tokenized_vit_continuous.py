@@ -78,12 +78,12 @@ class TokenizedViTContinuous(TokenizedBase):
 
         self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
-        self.lead_time_embed = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim),
-            nn.GELU(),
-            nn.Linear(embed_dim, embed_dim),
-        )
-        # self.lead_time_embed = nn.Linear(1, embed_dim)
+        # self.lead_time_embed = nn.Sequential(
+        #     nn.Linear(embed_dim, embed_dim),
+        #     nn.GELU(),
+        #     nn.Linear(embed_dim, embed_dim),
+        # )
+        self.lead_time_embed = nn.Linear(1, embed_dim)
 
         # --------------------------------------------------------------------------
         # Decoder: either a linear or non linear prediction head
@@ -181,8 +181,8 @@ class TokenizedViTContinuous(TokenizedBase):
         x = x + self.time_pos_embed.unsqueeze(2)
 
         # add lead time embedding
-        # lead_time_emb = self.lead_time_embed(lead_times.unsqueeze(-1)) # B, D
-        lead_time_emb = self.emb_lead_time(lead_times, x.shape[-1], x.device)
+        lead_time_emb = self.lead_time_embed(lead_times.unsqueeze(-1)) # B, D
+        # lead_time_emb = self.emb_lead_time(lead_times, x.shape[-1], x.device)
         lead_time_emb = lead_time_emb.unsqueeze(1).unsqueeze(2) # B, 1, 1, D
         x = x + lead_time_emb
 
