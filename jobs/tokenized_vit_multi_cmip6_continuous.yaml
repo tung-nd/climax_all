@@ -30,7 +30,7 @@ env_defaults:
   GPUS: 8
 
 jobs:
-  - name: tokenized_vit_5.625deg_predict_all_continuous_sinusoidal_mpi_tai_awi_hammoz_cmcc_1024dim_16head_8depth_5e-4_lr_scheduler_step_10000_beta2_0.95 # ex: simple_job_lr_05
+  - name: tokenized_vit_5.625deg_predict_all_continuous_mpi_tai_awi_hammoz_cmcc_1024dim_16head_8depth_5e-4_scheduler_10000_250000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -46,7 +46,7 @@ jobs:
         --trainer.max_epochs=100
         --data.dict_root_dirs='{"mpi-esm":"/mnt/data/CMIP6/MPI-ESM/5.625deg_equally_np_all_levels","taiesm":"/mnt/data/CMIP6/TaiESM1/5.625deg_equally_np_all_levels","awi-esm":"/mnt/data/CMIP6/AWI-ESM/5.625deg_equally_np_all_levels","hammoz":"/mnt/data/CMIP6/HAMMOZ/5.625deg_equally_np_all_levels","cmcc":"/mnt/data/CMIP6/CMCC/5.625deg_equally_np_all_levels"}'
         --data.dict_max_predict_ranges='{"mpi-esm":28,"taiesm":28,"awi-esm":28,"hammoz":28,"cmcc":28}'
-        --data.dict_hrs_each_step='{"mpi-esm":6,"taiesm":6,"awi-esm":6,"hammoz":28,"cmcc":6}'
+        --data.dict_hrs_each_step='{"mpi-esm":6,"taiesm":6,"awi-esm":6,"hammoz":6,"cmcc":6}'
         --data.dict_histories='{"mpi-esm":1,"taiesm":1,"awi-esm":1,"hammoz":1,"cmcc":1}'
         --data.dict_intervals='{"mpi-esm":0,"taiesm":0,"awi-esm":0,"hammoz":0,"cmcc":0}'
         --data.num_workers=1 --data.batch_size=16
@@ -63,7 +63,7 @@ jobs:
         --model.lr=5e-4
         --model.beta_2=0.95
         --model.weight_decay=1e-5
-        --model.warmup_epochs=20000 --model.max_epochs=200000
+        --model.warmup_epochs=10000 --model.max_epochs=250000
 
 # search:
 #   job_template:
