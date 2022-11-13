@@ -9,24 +9,21 @@ def mse(pred, y, vars, lat=None, mask=None):
     vars: list of variable names
     """
 
-    orig_dtype = pred.dtype
-
-    pred = pred.to(dtype=torch.float32)
-    y = y.to(dtype=torch.float32)
-
     loss = (pred - y) ** 2
-
-    if mask is None:
-        mask = torch.ones_like(loss)[:, 0]
 
     loss_dict = {}
 
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[var] = (loss[:, i] * mask).sum() / mask.sum()
-    loss_dict["loss"] = (loss.mean(dim=1) * mask).sum() / mask.sum()
-
-    loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
+            if mask is not None:
+                loss_dict[var] = (loss[:, i] * mask).sum() / mask.sum()
+            else:
+                loss_dict[var] = loss[:, i].mean()
+    
+    if mask is not None:
+        loss_dict["loss"] = (loss.mean(dim=1) * mask).sum() / mask.sum()
+    else:
+        loss_dict["loss"] = loss.mean(dim=1).mean()
 
     return loss_dict
 
@@ -39,11 +36,6 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
     lat: H
     """
 
-    orig_dtype = pred.dtype
-
-    pred = pred.to(dtype=torch.float32)
-    y = y.to(dtype=torch.float32)
-
     error = (pred - y) ** 2  # [N, C, H, W]
 
     # lattitude weights
@@ -51,17 +43,18 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
     w_lat = w_lat / w_lat.mean()  # (H, )
     w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=error.dtype, device=error.device)  # (1, H, 1)
 
-    if mask is None:
-        mask = torch.ones_like(error)[:, 0]
-
     loss_dict = {}
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[var] = (error[:, i] * w_lat * mask).sum() / mask.sum()
+            if mask is not None:
+                loss_dict[var] = (error[:, i] * w_lat * mask).sum() / mask.sum()
+            else:
+                loss_dict[var] = (error[:, i] * w_lat).mean()
 
-    loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).mean(dim=1) * mask).sum() / mask.sum()
-
-    loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
+    if mask is not None:
+        loss_dict["loss"] = ((error * w_lat.unsqueeze(1)).mean(dim=1) * mask).sum() / mask.sum()
+    else:
+        loss_dict["loss"] = (error * w_lat.unsqueeze(1)).mean(dim=1).mean()
 
     return loss_dict
 
@@ -73,11 +66,6 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
     vars: list of variable names
     lat: H
     """
-
-    # orig_dtype = pred.dtype
-
-    pred = pred.to(dtype=torch.float32)
-    y = y.to(dtype=torch.float32)
 
     error = (pred - y) ** 2  # [N, T, C, H, W]
 
@@ -94,8 +82,6 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
 
     loss_dict["w_mse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
-    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
-
     return loss_dict
 
 
@@ -106,16 +92,9 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
     vars: list of variable names
     lat: H
     """
-
-    # orig_dtype = pred.dtype
-
-    pred = pred.to(dtype=torch.float32)
-    y = y.to(dtype=torch.float32)
     
     pred = transform(pred)
     y = transform(y)
-    # pred = pred.to(torch.float32)
-    # y = y.to(torch.float32)
 
     error = (pred - y) ** 2  # [N, T, 3, H, W]
 
@@ -134,8 +113,6 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
 
     loss_dict["w_rmse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
-    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
-
     return loss_dict
 
 
@@ -148,15 +125,8 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
     TODO: subtract the climatology
     """
 
-    # orig_dtype = pred.dtype
-
-    pred = pred.to(dtype=torch.float32)
-    y = y.to(dtype=torch.float32)
-
     pred = transform(pred)
     y = transform(y)
-    # pred = pred.to(torch.float32)
-    # y = y.to(torch.float32)
 
     # lattitude weights
     w_lat = np.cos(np.deg2rad(lat))
@@ -178,8 +148,6 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
                 )
 
     loss_dict["acc"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
-
-    # loss_dict = {k: v.to(dtype=orig_dtype) for k, v in loss_dict.items()}
     
     return loss_dict
 
