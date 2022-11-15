@@ -33,7 +33,7 @@ class ViTContinuousLitModule(LightningModule):
             self.load_mae_weights(pretrained_path)
 
     def load_mae_weights(self, pretrained_path):
-        checkpoint = torch.load(pretrained_path)
+        checkpoint = torch.load(pretrained_path, map_location=torch.device('cpu'))
 
         print("Loading pre-trained checkpoint from: %s" % pretrained_path)
         checkpoint_model = checkpoint["state_dict"]
