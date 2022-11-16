@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x8-scus
 
 storage:
   data1:
@@ -45,11 +45,11 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 5
+  NODES: 10
   GPUS: 8
 
 jobs:
-  - name: deepspeed_1_min_scale_0.01_tokenized_vit_1.40625deg_predict_all_continuous_mpi_tai_awi_hammoz_cmcc_1024dim_16head_8depth_4patch_5e-4_lr_scheduler_step_20000_500000_beta2_0.95 # ex: simple_job_lr_05
+  - name: tokenized_vit_1.40625deg_predict_all_continuous_mpi_tai_awi_hammoz_cmcc_1024dim_16head_8depth_4patch_5e-4_lr_scheduler_step_20000_500000_beta2_0.95 # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -60,16 +60,10 @@ jobs:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - export NODES=${NODES}
-      - python src/train_vit_multi_dataset_continuous.py --config configs/train_tokenized_vit_multi_cmip6_continuous.yaml
-        --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=deepspeed_stage_1
+      - python src/train_vit_multi_dataset_continuous.py --config configs/train_tokenized_vit_multi_cmip6_continuous_high_res.yaml
+        --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
         --trainer.max_epochs=100
-        --data.dict_root_dirs='{"mpi-esm":"/mnt1/data/CMIP6/MPI-ESM/1.40625deg_equally_np_all_levels","taiesm":"/mnt2/data/CMIP6/TaiESM1/1.40625deg_equally_np_all_levels","awi-esm":"/mnt3/data/CMIP6/AWI-ESM/1.40625deg_equally_np_all_levels","hammoz":"/mnt4/data/CMIP6/HAMMOZ/1.40625deg_equally_np_all_levels","cmcc":"/mnt5/data/CMIP6/CMCC/1.40625deg_equally_np_all_levels"}'
-        --data.dict_max_predict_ranges='{"mpi-esm":28,"taiesm":28,"awi-esm":28,"hammoz":28,"cmcc":28}'
-        --data.dict_hrs_each_step='{"mpi-esm":6,"taiesm":6,"awi-esm":6,"hammoz":6,"cmcc":6}'
-        --data.dict_histories='{"mpi-esm":1,"taiesm":1,"awi-esm":1,"hammoz":1,"cmcc":1}'
-        --data.dict_intervals='{"mpi-esm":0,"taiesm":0,"awi-esm":0,"hammoz":0,"cmcc":0}'
-        --data.dict_buffer_sizes='{"mpi-esm":2000,"taiesm":2000,"awi-esm":2000,"hammoz":2000,"cmcc":2000}'
-        --data.num_workers=1 --data.batch_size=8
+        --data.num_workers=1 --data.batch_size=4
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[128,256]
         --model.net.time_history=1
         --model.net.channel_agg='attention'

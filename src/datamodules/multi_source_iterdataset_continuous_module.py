@@ -35,6 +35,8 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
     def __init__(
         self,
         dict_root_dirs: Dict,
+        dict_start_idx: Dict,
+        dict_end_idx: Dict,
         dict_buffer_sizes: Dict,
         dict_in_variables: Dict,
         dict_out_variables: Dict,
@@ -114,6 +116,8 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
             dict_data_train = {}
             for k in self.dict_lister_trains.keys():
                 lister_train = self.dict_lister_trains[k]
+                start_idx = self.hparams.dict_start_idx[k]
+                end_idx = self.hparams.dict_end_idx[k]
                 variables = self.hparams.dict_in_variables[k]
                 out_variables = self.hparams.dict_out_variables[k]
                 dataset_args = self.train_dataset_args[k]
@@ -125,6 +129,8 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
                         ERA5Forecast(
                             ERA5Npy(
                                 lister_train,
+                                start_idx=start_idx,
+                                end_idx=end_idx,
                                 variables=variables,
                                 out_variables=out_variables,
                                 shuffle=True,

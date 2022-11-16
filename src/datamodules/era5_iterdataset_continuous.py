@@ -8,9 +8,11 @@ from torch.utils.data import IterableDataset
 
 
 class ERA5Npy(IterableDataset):
-    def __init__(self, file_list, variables, out_variables, shuffle: bool = False, multi_dataset_training=False) -> None:
+    def __init__(self, file_list, start_idx, end_idx, variables, out_variables, shuffle: bool = False, multi_dataset_training=False) -> None:
         super().__init__()
-        self.file_list = file_list
+        start_idx = int(start_idx * len(file_list))
+        end_idx = int(end_idx * len(file_list))
+        self.file_list = file_list[start_idx:end_idx]
         self.variables = variables
         self.out_variables = out_variables if out_variables is not None else variables
         self.shuffle = shuffle
