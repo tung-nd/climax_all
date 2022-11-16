@@ -1,3 +1,6 @@
+import json
+
+import click
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -39,36 +42,18 @@ def plot(ax, data, title, show_legend=True):
         if show_legend:
             ax.legend()
 
-def main():
-    # TODO: read a json file instead of hardcoding
-    data = {}
-    data["5.625"] = {}
-    data["5.625"]["1024"] = {"x": [1, 2, 3, 4, 5], "y": [271, 252, 248, 247, 243]}
-    data["5.625"]["512"] = {"x": [1, 5], "y": [289, 257]}
-    data["5.625"]["256"] = {"x": [1, 5], "y": [300, 282]}
-    data["5.625"]["128"] = {"x": [1, 5], "y": [350, 336]}    
-    data["1.40625"] = {}
-    data["1.40625"]["1024"] = {"x": [5], "y": [193]}
-    data["ifs"] = 155
-    data["fourcastnet"] = 220
-    data["pangu"] = 134.5
-    data["task"] = "Z500 (3 days)"
-    fig, axs = plt.subplots(1, 2, figsize=(12, 4), squeeze=True)
-    plot(axs[0], data, title=data["task"])
-    data = {}
-    data["5.625"] = {}
-    data["5.625"]["1024"] = {"x": [1, 2, 3, 4, 5], "y": [1.71, 1.64, 1.63, 1.62, 1.60]}
-    data["5.625"]["512"] = {"x": [1, 5], "y": [1.76, 1.70]}
-    data["5.625"]["256"] = {"x": [1, 5], "y": [1.88, 1.84]}
-    data["5.625"]["128"] = {"x": [1, 5], "y": [2.10, 2.06]}
-    data["1.40625"] = {}
-    data["1.40625"]["1024"] = {"x": [5], "y": [1.42]}
-    data["ifs"] = 1.37
-    data["fourcastnet"] = 1.5
-    data["pangu"] = 1.14
-    data["task"] = "T850 (3 days)"
-    plot(axs[1], data, title=data["task"])
-    fig.savefig("scale_plots.png", bbox_inches="tight", dpi=300)
+@click.command()
+@click.argument('jsons', nargs=-1)
+@click.option('--output', '-o', default="scale_plots.png")
+def main(jsons, output):
+
+    fig, axs = plt.subplots(1, len(jsons), figsize=(6*len(jsons), 4), squeeze=True)
+    for idx, jsonf in enumerate(jsons):
+        with open(jsonf, 'r') as f:
+            data = json.load(f)
+        plot(axs[idx], data, title=data["task"])
+    
+    fig.savefig(output, bbox_inches="tight", dpi=300)
     
 if __name__ == "__main__":
     main()
