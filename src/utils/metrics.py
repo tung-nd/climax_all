@@ -59,7 +59,7 @@ def lat_weighted_mse(pred, y, vars, lat, mask=None):
     return loss_dict
 
 
-def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
+def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -85,7 +85,7 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, log_steps, log_days):
     return loss_dict
 
 
-def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
+def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -116,7 +116,7 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days):
     return loss_dict
 
 
-def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
+def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -133,7 +133,8 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days):
     w_lat = w_lat / w_lat.mean()  # (H, )
     w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=pred.dtype, device=pred.device)  # [1, H, 1]
 
-    clim = torch.mean(y, dim=(0, 1), keepdim=True)
+    # clim = torch.mean(y, dim=(0, 1), keepdim=True)
+    clim = clim.to(device=y.device).unsqueeze(0).unsqueeze(0)
     pred = pred - clim
     y = y - clim
     loss_dict = {}

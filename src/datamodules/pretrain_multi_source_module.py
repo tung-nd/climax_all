@@ -5,15 +5,13 @@ import numpy as np
 import torch
 import torchdata.datapipes as dp
 from pytorch_lightning import LightningDataModule
-from src.datamodules.era5_iterdataset import ERA5
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset_continuous import (ERA5Forecast, ERA5Npy,
-                                          IndividualForecastDataIter,
-                                          ShuffleIterableDataset)
+from .pretrain_iterdataset import (Forecast, IndividualForecastDataIter,
+                                   NpyReader, ShuffleIterableDataset)
 
 
 def collate_fn(batch):
@@ -126,8 +124,8 @@ class MultiSourceTrainDatasetModule(LightningDataModule):
                 buffer_size = self.hparams.dict_buffer_sizes[k]
                 dict_data_train[k] = ShuffleIterableDataset(
                     IndividualForecastDataIter(
-                        ERA5Forecast(
-                            ERA5Npy(
+                        Forecast(
+                            NpyReader(
                                 lister_train,
                                 start_idx=start_idx,
                                 end_idx=end_idx,

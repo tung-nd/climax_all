@@ -3,8 +3,7 @@ import os
 from pytorch_lightning.utilities.cli import LightningCLI
 
 from models.vit_continuous_module import ViTContinuousLitModule
-from src.datamodules.era5_iterdataset_continuous_module import \
-    ERA5IterDatasetContinuousModule
+from src.datamodules.finetune_module import ERA5IterDatasetContinuousModule
 
 
 def main():
@@ -25,7 +24,9 @@ def main():
     mean_denorm, std_denorm = -mean_norm / std_norm, 1 / std_norm
     cli.model.set_denormalization(mean_denorm, std_denorm)
     cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
-    cli.model.set_pred_range(cli.datamodule.hparams.val_predict_range)
+    cli.model.set_pred_range(cli.datamodule.hparams.predict_range)
+    cli.model.set_val_clim(cli.datamodule.val_clim)
+    cli.model.set_test_clim(cli.datamodule.test_clim)
 
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)

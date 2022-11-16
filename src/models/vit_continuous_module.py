@@ -64,6 +64,12 @@ class ViTContinuousLitModule(LightningModule):
     def set_pred_range(self, r):
         self.pred_range = r
 
+    def set_val_clim(self, clim):
+        self.val_clim = clim
+
+    def set_test_clim(self, clim):
+        self.test_clim = clim
+
     def training_step(self, batch: Any, batch_idx: int):
         # optimizer = self.optimizers()
         # optimizer.zero_grad()
@@ -109,6 +115,7 @@ class ViTContinuousLitModule(LightningModule):
             lat=self.lat,
             log_steps=steps,
             log_days=days,
+            clim=self.val_clim
         )
 
         loss_dict = {}
@@ -159,6 +166,7 @@ class ViTContinuousLitModule(LightningModule):
             lat=self.lat,
             log_steps=steps,
             log_days=days,
+            clim=self.test_clim
         )
 
         loss_dict = {}

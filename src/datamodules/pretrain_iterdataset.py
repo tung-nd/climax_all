@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import IterableDataset
 
 
-class ERA5Npy(IterableDataset):
+class NpyReader(IterableDataset):
     def __init__(self, file_list, start_idx, end_idx, variables, out_variables, shuffle: bool = False, multi_dataset_training=False) -> None:
         super().__init__()
         start_idx = int(start_idx * len(file_list))
@@ -68,9 +68,9 @@ class ERA5Npy(IterableDataset):
             yield {k: data[k] for k in self.variables}, self.variables, self.out_variables
 
 
-class ERA5Forecast(IterableDataset):
+class Forecast(IterableDataset):
     def __init__(
-        self, dataset: ERA5Npy, max_predict_range: int = 6, random_lead_time: bool = False, hrs_each_step: int = 1, history: int = 3, interval: int = 6, subsample: int = 1
+        self, dataset: NpyReader, max_predict_range: int = 6, random_lead_time: bool = False, hrs_each_step: int = 1, history: int = 3, interval: int = 6, subsample: int = 1
     ) -> None:
         super().__init__()
         self.dataset = dataset

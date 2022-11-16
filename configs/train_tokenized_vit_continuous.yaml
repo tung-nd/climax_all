@@ -48,18 +48,18 @@ trainer:
         filename: "epoch_{epoch:03d}"
         auto_insert_metric_name: False
 
-    # - class_path: pytorch_lightning.callbacks.EarlyStopping
-    #   init_args:
-    #     monitor: "val/w_mse" # name of the logged metric which determines when model is improving
-    #     mode: "min" # "max" means higher metric value is better, can be also "min"
-    #     patience: 3 # how many validation epochs of not improving until training stops
-    #     min_delta: 0 # minimum change in the monitored metric needed to qualify as an improvement
+    - class_path: pytorch_lightning.callbacks.EarlyStopping
+      init_args:
+        monitor: "val/w_mse" # name of the logged metric which determines when model is improving
+        mode: "min" # "max" means higher metric value is better, can be also "min"
+        patience: 3 # how many validation epochs of not improving until training stops
+        min_delta: 0. # minimum change in the monitored metric needed to qualify as an improvement
 
     - class_path: pytorch_lightning.callbacks.RichModelSummary
       init_args:
         max_depth: -1
 
-    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+    - class_path: pytorch_lightning.callbacks.RichProgressBar
 
 # ---------------------------- MODEL -------------------------------------------
 model:
@@ -144,7 +144,7 @@ model:
 
 # ---------------------------- DATA -------------------------------------------
 data:
-  root_dir: /datadrive/datasets/5.625deg_equally_np_all_levels/
+  root_dir: /datadrive/datasets/era5_forecast_5.625deg_3days/
   variables: [
       "lsm",
       "orography",
@@ -197,12 +197,21 @@ data:
       "q_850",
       "q_925",
     ]
-  max_predict_range: 72
-  val_predict_range: 72
-  random_lead_time: False
+  out_variables: [
+    "t2m",
+    "u10",
+    "v10",
+    "z_500",
+    "t_500",
+    "t_850",
+    "q_500",
+    "q_850",
+    "u_500",
+    "v_500",
+  ]
+  predict_range: 72
   hrs_each_step: 1
-  history: 1
-  interval: 0
+  subsample: 1
   pct_train: 1.0
   buffer_size: 10000
   batch_size: 128

@@ -5,7 +5,7 @@ from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 from pytorch_lightning.utilities.cli import LightningCLI
 
 from models.vit_continuous_module import ViTContinuousLitModule
-from src.datamodules.multi_source_iterdataset_continuous_module import \
+from src.datamodules.pretrain_multi_source_module import \
     MultiSourceTrainDatasetModule
 
 

@@ -10,9 +10,8 @@ from torchvision.transforms import transforms
 
 from datamodules import VAR_LEVEL_TO_NAME_LEVEL
 
-from .era5_iterdataset_continuous import (ERA5Forecast, ERA5Npy,
-                                          IndividualForecastDataIter,
-                                          ShuffleIterableDataset)
+from .finetune_iterdataset import (Forecast, IndividualForecastDataIter,
+                                   NpyReader, ShuffleIterableDataset)
 
 
 def collate_fn(batch):
@@ -37,12 +36,8 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         variables,
         buffer_size,
         out_variables=None,
-        max_predict_range: int = 6,
-        val_predict_range: int = 6,
-        random_lead_time: bool = True,
+        predict_range: int = 6,
         hrs_each_step: int = 1,
-        history: int = 3,
-        interval: int = 6,
         subsample: int = 1,
         pct_train: float = 1.0,
         batch_size: int = 64,
@@ -54,7 +49,6 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         self.save_hyperparameters(logger=False)
 
-        self.reader = ERA5Npy
         self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
         if pct_train < 1.0:
             train_len = int(pct_train * len(self.lister_train))
@@ -67,6 +61,9 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
 
         self.transforms = self.get_normalize()
         self.output_transforms = self.get_normalize(out_variables)
+
+        self.val_clim = self.get_climatology('val', out_variables)
+        self.test_clim = self.get_climatology('test', out_variables)
 
         self.data_train: Optional[IterableDataset] = None
         self.data_val: Optional[IterableDataset] = None
@@ -94,23 +91,29 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         lon = np.load(os.path.join(self.hparams.root_dir, "lon.npy"))
         return lat, lon
 
+    def get_climatology(self, partition='val', variables=None):
+        path = os.path.join(self.hparams.root_dir, partition, 'climatology.npz')
+        clim_dict = np.load(path)
+        if variables is None:
+            variables = self.hparams.variables
+        clim = np.concatenate([clim_dict[var] for var in variables])
+        clim = torch.from_numpy(clim)
+        return clim
+
     def setup(self, stage: Optional[str] = None):
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             self.data_train = ShuffleIterableDataset(
                 IndividualForecastDataIter(
-                    ERA5Forecast(
-                        ERA5Npy(
+                    Forecast(
+                        NpyReader(
                             file_list=self.lister_train,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                             shuffle=True,
                         ),
-                        max_predict_range=self.hparams.max_predict_range,
-                        random_lead_time=self.hparams.random_lead_time,
+                        predict_range=self.hparams.predict_range,
                         hrs_each_step=self.hparams.hrs_each_step,
-                        history=self.hparams.history,
-                        interval=self.hparams.interval,
                         subsample=self.hparams.subsample
                     ),
                     transforms=self.transforms,
@@ -121,17 +124,14 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
 
             if self.lister_val is not None:
                 self.data_val = IndividualForecastDataIter(
-                    ERA5Forecast(
-                        ERA5Npy(
+                    Forecast(
+                        NpyReader(
                             file_list=self.lister_val,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                         ),
-                        max_predict_range=self.hparams.val_predict_range,
-                        random_lead_time=False,
+                        predict_range=self.hparams.predict_range,
                         hrs_each_step=self.hparams.hrs_each_step,
-                        history=self.hparams.history,
-                        interval=self.hparams.interval,
                         subsample=self.hparams.subsample
                     ),
                     transforms=self.transforms,
@@ -140,17 +140,14 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
 
             if self.lister_test is not None:
                 self.data_test = IndividualForecastDataIter(
-                    ERA5Forecast(
-                        ERA5Npy(
+                    Forecast(
+                        NpyReader(
                             file_list=self.lister_test,
                             variables=self.hparams.variables,
                             out_variables=self.hparams.out_variables,
                         ),
-                        max_predict_range=self.hparams.val_predict_range,
-                        random_lead_time=False,
+                        predict_range=self.hparams.predict_range,
                         hrs_each_step=self.hparams.hrs_each_step,
-                        history=self.hparams.history,
-                        interval=self.hparams.interval,
                         subsample=self.hparams.subsample
                     ),
                     transforms=self.transforms,
