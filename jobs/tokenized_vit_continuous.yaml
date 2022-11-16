@@ -60,7 +60,7 @@ search:
         --model.lr={lr}
         --model.net.drop_path=0.1
         --model.net.drop_rate=0.1
-        --model.weight_decay={decay}
+        --model.weight_decay=1e-5
         --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_tai_awi_hammoz_cmcc_predict_all_continuous_scalar_linear_divide_100epochs_10k_250k/last.ckpt
 
   type: grid
