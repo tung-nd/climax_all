@@ -31,6 +31,9 @@ def main():
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
 
+    # test the trained model
+    cli.trainer.test(cli.model, datamodule=cli.datamodule)
+
 
 if __name__ == "__main__":
     main()
