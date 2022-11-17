@@ -183,6 +183,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
                 self.data_test,
                 batch_size=self.hparams.batch_size,
                 shuffle=False,
+                drop_last=True,
                 num_workers=self.hparams.num_workers,
                 pin_memory=self.hparams.pin_memory,
                 collate_fn=collate_fn,

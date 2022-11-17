@@ -32,7 +32,7 @@ def main():
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
 
     # test the trained model
-    cli.trainer.test(cli.model, datamodule=cli.datamodule)
+    cli.trainer.test(cli.model, datamodule=cli.datamodule, ckpt_path='best')
 
 
 if __name__ == "__main__":

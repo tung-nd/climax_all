@@ -97,11 +97,8 @@ class ViTContinuousLitModule(LightningModule):
         pred_steps = 1
         pred_range = self.pred_range
 
-        default_days = [1, 3, 5]
-        days_each_step = pred_range / 24
-        default_steps = [d / days_each_step for d in default_days if d % days_each_step == 0]
-        steps = [int(s) for s in default_steps if s <= pred_steps and s > 0]
-        days = [int(s * pred_range / 24) for s in steps]
+        days = [int(pred_range / 24)]
+        steps = [1]
 
         all_loss_dicts, _ = self.net.rollout(
             x,
@@ -148,11 +145,8 @@ class ViTContinuousLitModule(LightningModule):
         pred_steps = 1
         pred_range = self.pred_range
 
-        default_days = [1, 3, 5]
-        days_each_step = pred_range / 24
-        steps = [int(d / days_each_step) for d in default_days]
-        steps = [s for s in steps if s <= pred_steps]
-        days = [int(s * pred_range / 24) for s in steps]
+        days = [int(pred_range / 24)]
+        steps = [1]
 
         all_loss_dicts, _ = self.net.rollout(
             x,
@@ -180,6 +174,7 @@ class ViTContinuousLitModule(LightningModule):
                 loss_dict[var],
                 on_step=False,
                 on_epoch=True,
+                prog_bar=False,
                 sync_dist=True,
             )
         return loss_dict

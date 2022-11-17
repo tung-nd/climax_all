@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x4ssh-sc
 
 storage:
   data:
@@ -26,12 +26,12 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 1
-  GPUS: 8
+  NODES: 2
+  GPUS: 4
 
 search:
   job_template:
-    name: tokenized_vit_5.625deg_3days_finetune_mpi_tai_awi_hammoz_cmcc_predict_all_continuous_{auto:10s} # ex: simple_job_lr_05
+    name: tokenized_vit_5.625deg_z500_1month_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -42,15 +42,15 @@ search:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
       - python src/train_vit_continuous.py --config configs/train_tokenized_vit_continuous.yaml
-        --trainer.devices=${GPUS} --trainer.strategy=ddp
+        --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
         --trainer.max_epochs=50
-        --data.root_dir=/mnt/data/era5_forecast_5.625deg_3days/
-        --data.out_variables=["t2m","u10","v10","z_500","t_500","t_850","q_500","q_850","u_500","v_500"]
-        --data.predict_range=72 --data.hrs_each_step=1
+        --data.root_dir=/mnt/data/era5_forecast_5.625deg_1month/
+        --data.out_variables=["z_500"]
+        --data.predict_range=720 --data.hrs_each_step=1
         --data.num_workers=1 --data.batch_size=16
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
         --model.net.time_history=1
-        --model.net.out_vars=["t2m","u10","v10","z_500","t_500","t_850","q_500","q_850","u_500","v_500"]
+        --model.net.out_vars=["z_500"]
         --model.net.channel_agg='attention'
         --model.net.init_mode='small'
         --model.net.patch_size=2
@@ -61,11 +61,14 @@ search:
         --model.net.drop_path=0.1
         --model.net.drop_rate=0.1
         --model.weight_decay=1e-5
-        --model.pretrained_path=/mnt/data/checkpoints/tokenized_vit/cmip6_5.625_mpi_tai_awi_hammoz_cmcc_predict_all_continuous_scalar_linear_divide_100epochs_10k_250k/last.ckpt
+        --model.pretrained_path=/mnt/data/checkpoints/data_scaling/{dataset}/last.ckpt
 
   type: grid
   max_trials: 80
   params:
+    - name: dataset
+      spec: discrete
+      values: [mpi, mpi_tai, mpi_tai_awi, mpi_tai_awi_hammoz, mpi_tai_awi_hammoz_cmcc]
     - name: depth
       spec: discrete
       values: [8]
