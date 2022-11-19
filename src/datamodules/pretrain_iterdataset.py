@@ -117,7 +117,7 @@ class Forecast(IterableDataset):
 
 
 class IndividualForecastDataIter(IterableDataset):
-    def __init__(self, dataset: ERA5Forecast, transforms: torch.nn.Module, output_transforms: torch.nn.Module):
+    def __init__(self, dataset, transforms: torch.nn.Module, output_transforms: torch.nn.Module):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
