@@ -12,9 +12,14 @@ environment:
 code:
   local_dir: $CONFIG_DIR/../
 
+# target:
+#   service: aml
+#   name: a100x8
+
 target:
-  service: aml
-  name: a100x8
+  service: singularity
+  name: msrai4svc3
+  vc: gcr-singularity-msrai4s
 
 storage:
   data1:
@@ -50,7 +55,8 @@ env_defaults:
 
 jobs:
   - name: tokenized_vit_1.40625deg_patch_size_2_pretrain_mpi_tai_awi_hammoz_cmcc # ex: simple_job_lr_05
-    sku: ${NODES}x32G${GPUS} # ex: G1
+    sku: ${NODES}x80G${GPUS} # ex: G1
+    sla_tier: basic
     process_count_per_node: ${GPUS}
     submit_args:
       env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
