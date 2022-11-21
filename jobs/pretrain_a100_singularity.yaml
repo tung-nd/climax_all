@@ -50,7 +50,7 @@ storage:
 
 # some environment variables to ease up setting of jobs
 env_defaults:
-  NODES: 1
+  NODES: 5
   GPUS: 8
 
 jobs:

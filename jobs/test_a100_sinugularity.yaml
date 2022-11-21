@@ -40,7 +40,7 @@ jobs:
     sla_tier: basic
     process_count_per_node: ${GPUS}
     submit_args:
-      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True, SHARED_MEMORY_PERCENT: 0.8 }
       container_args:
         shm_size: 650g
     command:
@@ -55,7 +55,7 @@ jobs:
         --data.dict_hrs_each_step='{"mpi-esm":6}'
         --data.dict_histories='{"mpi-esm":1}'
         --data.dict_intervals='{"mpi-esm":0}'
-        --data.num_workers=1 --data.batch_size=16
+        --data.num_workers=1 --data.batch_size=8
         --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[128,256]
         --model.net.time_history=1
         --model.net.channel_agg='attention'
