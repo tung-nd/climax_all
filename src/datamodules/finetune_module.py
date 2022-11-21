@@ -49,6 +49,10 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         # this line allows to access init params with 'self.hparams' attribute
         self.save_hyperparameters(logger=False)
 
+        if isinstance(out_variables, str):
+            out_variables = [out_variables]
+            self.hparams.out_variables = out_variables
+
         self.lister_train = list(dp.iter.FileLister(os.path.join(root_dir, "train")))
         if pct_train < 1.0:
             train_len = int(pct_train * len(self.lister_train))
