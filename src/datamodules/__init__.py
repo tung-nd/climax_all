@@ -64,3 +64,34 @@ DEFAULT_PRESSURE_LEVELS = {
     "t": [850, 500],
     "r": [850, 500],
 }
+
+BOUNDARIES = {
+    'NorthAmerica': { # 8x14
+        'lat_range': (15, 65),
+        'lon_range': (220, 300)
+    },
+    'SouthAmerica': { # 14x10
+        'lat_range': (-55, 20),
+        'lon_range': (270, 330)
+    },
+    'Europe': { # 6x8
+        'lat_range': (30, 65),
+        'lon_range': (0, 40)
+    },
+    'SouthAsia': { # 10, 14
+        'lat_range': (-15, 45),
+        'lon_range': (25, 110)
+    },
+    'EastAsia': { # 10, 12
+        'lat_range': (5, 65),
+        'lon_range': (70, 150)
+    },
+    'Australia': { # 10x14
+        'lat_range': (-50, 10),
+        'lon_range': (100, 180)
+    },
+    'Global': { # 32, 64
+        'lat_range': (-90, 90),
+        'lon_range': (0, 360)
+    }
+}

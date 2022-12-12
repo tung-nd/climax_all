@@ -209,6 +209,7 @@ data:
     "u_500",
     "v_500",
   ]
+  region: 'Global'
   predict_range: 72
   hrs_each_step: 1
   subsample: 1

@@ -1,6 +1,7 @@
 import math
 import os
 import random
+from typing import Dict
 
 import numpy as np
 import torch
@@ -101,11 +102,12 @@ class Forecast(IterableDataset):
 
 
 class IndividualForecastDataIter(IterableDataset):
-    def __init__(self, dataset: Forecast, transforms: torch.nn.Module, output_transforms: torch.nn.Module):
+    def __init__(self, dataset: Forecast, transforms: torch.nn.Module, output_transforms: torch.nn.Module, region_info: Dict):
         super().__init__()
         self.dataset = dataset
         self.transforms = transforms
         self.output_transforms = output_transforms
+        self.region_info = region_info
 
     def __iter__(self):
         for (inp, out, lead_times, variables, out_variables) in self.dataset:
@@ -113,9 +115,9 @@ class IndividualForecastDataIter(IterableDataset):
             for i in range(inp.shape[0]):
                 # TODO: should we unsqueeze the first dimension?
                 if self.transforms is not None:
-                    yield self.transforms(inp[i]), self.output_transforms(out[i]), lead_times[i], variables, out_variables
+                    yield self.transforms(inp[i]), self.output_transforms(out[i]), lead_times[i], variables, out_variables, self.region_info
                 else:
-                    yield inp[i], out[i], lead_times[i], variables, out_variables
+                    yield inp[i], out[i], lead_times[i], variables, out_variables, self.region_info
 
 
 class ShuffleIterableDataset(IterableDataset):

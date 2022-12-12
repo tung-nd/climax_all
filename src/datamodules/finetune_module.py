@@ -8,7 +8,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import transforms
 
-from datamodules import VAR_LEVEL_TO_NAME_LEVEL
+from datamodules import BOUNDARIES, VAR_LEVEL_TO_NAME_LEVEL
 
 from .finetune_iterdataset import (Forecast, IndividualForecastDataIter,
                                    NpyReader, ShuffleIterableDataset)
@@ -20,12 +20,14 @@ def collate_fn(batch):
     lead_times = torch.stack([batch[i][2] for i in range(len(batch))])
     variables = batch[0][3]
     out_variables = batch[0][4]
+    region_info = batch[0][5]
     return (
         inp,
         out,
         lead_times,
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in variables],
         [VAR_LEVEL_TO_NAME_LEVEL[v] for v in out_variables],
+        region_info,
     )
 
 
@@ -36,6 +38,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         variables,
         buffer_size,
         out_variables=None,
+        region: str = 'Global',
         predict_range: int = 6,
         hrs_each_step: int = 1,
         subsample: int = 1,
@@ -73,6 +76,41 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         self.data_val: Optional[IterableDataset] = None
         self.data_test: Optional[IterableDataset] = None
 
+    def get_region_info(self, region):
+        region = BOUNDARIES[region]
+        lat_range = region['lat_range']
+        lon_range = region['lon_range']
+        lat, lon = self.get_lat_lon()
+        lat = lat[::-1] # -90 to 90 from south (bottom) to north (top)
+        h, w = len(lat), len(lon)
+        lat_matrix = np.expand_dims(lat, axis=1).repeat(w, axis=1)
+        lon_matrix = np.expand_dims(lon, axis=0).repeat(h, axis=0)
+        valid_cells = (lat_matrix >= lat_range[0]) & (lat_matrix <= lat_range[1]) & (lon_matrix >= lon_range[0]) & (lon_matrix <= lon_range[1])
+        h_ids, w_ids = np.nonzero(valid_cells)
+        h_from, h_to = h_ids[0], h_ids[-1]
+        w_from, w_to = w_ids[0], w_ids[-1]
+        patch_idx = -1
+        p = self.patch_size
+        valid_patch_ids = []
+        min_h, max_h = 1e5, -1e5
+        min_w, max_w = 1e5, -1e5
+        for i in range(0, h, p):
+            for j in range(0, w, p):
+                patch_idx += 1
+                if (i >= h_from) & (i + p - 1 <= h_to) & (j >= w_from) & (j + p - 1 <= w_to):
+                    valid_patch_ids.append(patch_idx)
+                    min_h = min(min_h, i)
+                    max_h = max(max_h, i + p - 1)
+                    min_w = min(min_w, j)
+                    max_w = max(max_w, j + p - 1)
+        return {
+            'patch_ids': valid_patch_ids,
+            'min_h': min_h,
+            'max_h': max_h,
+            'min_w': min_w,
+            'max_w': max_w
+        }
+
     def get_normalize(self, variables=None):
         if variables is None:
             variables = self.hparams.variables
@@ -95,6 +133,9 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         lon = np.load(os.path.join(self.hparams.root_dir, "lon.npy"))
         return lat, lon
 
+    def set_patch_size(self, p):
+        self.patch_size = p
+
     def get_climatology(self, partition='val', variables=None):
         path = os.path.join(self.hparams.root_dir, partition, 'climatology.npz')
         clim_dict = np.load(path)
@@ -105,6 +146,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
         return clim
 
     def setup(self, stage: Optional[str] = None):
+        region_info = self.get_region_info(self.hparams.region)
         # load datasets only if they're not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             self.data_train = ShuffleIterableDataset(
@@ -122,6 +164,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
                     ),
                     transforms=self.transforms,
                     output_transforms=self.output_transforms,
+                    region_info=region_info
                 ),
                 buffer_size=self.hparams.buffer_size,
             )
@@ -140,6 +183,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
                     ),
                     transforms=self.transforms,
                     output_transforms=self.output_transforms,
+                    region_info=region_info
                 )
 
             if self.lister_test is not None:
@@ -156,6 +200,7 @@ class ERA5IterDatasetContinuousModule(LightningDataModule):
                     ),
                     transforms=self.transforms,
                     output_transforms=self.output_transforms,
+                    region_info=region_info
                 )
 
     def train_dataloader(self):

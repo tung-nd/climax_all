@@ -111,15 +111,15 @@ class TokenizedViTContinuous(TokenizedBase):
         time_pos_embed = get_1d_sincos_pos_embed_from_grid(self.time_pos_embed.shape[-1], np.arange(self.time_history))
         self.time_pos_embed.data.copy_(torch.from_numpy(time_pos_embed).float().unsqueeze(0))
 
-    def unpatchify(self, x):
+    def unpatchify(self, x, h=None, w=None):
         """
         x: (B, L, patch_size**2 *3)
         imgs: (B, C, H, W)
         """
         p = self.patch_size
         c = len(self.out_vars)
-        h = self.img_size[0] // p
-        w = self.img_size[1] // p
+        h = self.img_size[0] // p if h is None else h // p
+        w = self.img_size[1] // p if w is None else w // p
         assert h * w == x.shape[1]
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
@@ -150,7 +150,7 @@ class TokenizedViTContinuous(TokenizedBase):
         sinusoidal_emb = get_1d_sincos_pos_embed_from_grid_pytorch_stable(embed_dim, lead_times, dtype=lead_times.dtype).to(device)
         return self.lead_time_embed(sinusoidal_emb) # B, D
 
-    def forward_encoder(self, x, lead_times, variables):
+    def forward_encoder(self, x, lead_times, variables, region_info):
         """
         x: B, T, C, H, W
         """
@@ -170,13 +170,16 @@ class TokenizedViTContinuous(TokenizedBase):
         channel_embed = self.get_channel_emb(self.channel_embed, variables)
         x = x + channel_embed.unsqueeze(2) # BxT, C, L, D
 
+        valid_patch_ids = region_info['patch_ids']
+        x = x[:, :, valid_patch_ids, :]
+
         x = self.aggregate_channel(x)  # BxT, L, D
 
         x = x.unflatten(0, sizes=(b, t)) # B, T, L, D
 
         # add time and pos embed
         # pos emb: 1, L, D
-        x = x + self.pos_embed.unsqueeze(1)
+        x = x + self.pos_embed[:, valid_patch_ids, :].unsqueeze(1)
         # time emb: 1, T, D
         x = x + self.time_pos_embed.unsqueeze(2)
 
@@ -197,12 +200,16 @@ class TokenizedViTContinuous(TokenizedBase):
 
         return x
 
-    def forward_loss(self, y, pred, variables, out_variables, metric, lat):  # metric is a list
+    def forward_loss(self, y, pred, variables, out_variables, region_info, metric, lat):  # metric is a list
         """
         y: [B, C, H, W]
         pred: [B, L, C*p*p]
         """
-        pred = self.unpatchify(pred)  # B, C, H, W
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
+        pred = self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)  # B, C, H, W
+        y = y[:, :, min_h:max_h+1, min_w:max_w+1]
+        lat = lat[min_h:max_h+1]
 
         # if len(self.out_vars) == len(self.default_vars):
         # only compute loss over the variables in out_variables
@@ -211,32 +218,34 @@ class TokenizedViTContinuous(TokenizedBase):
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
-    def forward(self, x, y, lead_times, variables, out_variables, metric, lat):
+    def forward(self, x, y, lead_times, variables, out_variables, region_info, metric, lat):
         # x: N, T, C, H, W
         # y: N, C, H, W
         # lead_times: N
-        embeddings = self.forward_encoder(x, lead_times, variables)  # B, TxL, D
-        preds = self.head(embeddings)[:, -self.num_patches :]
-        loss, preds = self.forward_loss(y, preds, variables, out_variables, metric, lat)
+        embeddings = self.forward_encoder(x, lead_times, variables, region_info)  # B, TxL, D
+        preds = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
+        loss, preds = self.forward_loss(y, preds, variables, out_variables, region_info, metric, lat)
         return loss, preds
 
-    def predict(self, x, lead_times, variables):
+    def predict(self, x, lead_times, variables, region_info):
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
         with torch.no_grad():
-            embeddings = self.forward_encoder(x, lead_times, variables)
-            pred = self.head(embeddings)[:, -self.num_patches :]
-        return self.unpatchify(pred)
+            embeddings = self.forward_encoder(x, lead_times, variables, region_info)
+            pred = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
+        return self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)
         # pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         # pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         # return self.unpatchify(pred, variables)
 
-    def rollout(self, x, y, lead_times, variables, out_variables, steps, metric, transform, lat, log_steps, log_days, clim):
+    def rollout(self, x, y, lead_times, variables, out_variables, region_info, steps, metric, transform, lat, log_steps, log_days, clim):
         # transform: get back to the original range
         if steps > 1:
             # can only rollout for more than 1 step if input variables and output variables are the same
             assert len(variables) == len(out_variables)
         preds = []
         for _ in range(steps):
-            x = self.predict(x, lead_times, variables).unsqueeze(1)
+            x = self.predict(x, lead_times, variables, region_info).unsqueeze(1)
             preds.append(x)
         preds = torch.concat(preds, dim=1)
 
@@ -244,6 +253,14 @@ class TokenizedViTContinuous(TokenizedBase):
         # only compute loss over the variables in out_variables
         out_var_ids = self.get_channel_ids(out_variables)
         preds = preds[:, :, out_var_ids]
+
+        # extract the specified region from y and lat
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
+        y = y[:, :, min_h:max_h+1, min_w:max_w+1]
+        lat = lat[min_h:max_h+1]
+
+        clim = clim[:, min_h:max_h+1, min_w:max_w+1]
 
         return [m(preds, y.unsqueeze(1), transform, out_variables, lat, log_steps, log_days, clim) for m in metric], preds
 

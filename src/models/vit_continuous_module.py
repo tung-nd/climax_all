@@ -1,6 +1,7 @@
 # credits: https://github.com/ashleve/lightning-hydra-template/blob/main/src/models/mnist_module.py
 from typing import Any, Dict
 
+import numpy as np
 import torch
 from pytorch_lightning import LightningModule
 from src.models.components.tokenized_vit_continuous import \
@@ -10,6 +11,38 @@ from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
                                lat_weighted_mse_val, lat_weighted_rmse)
 from src.utils.pos_embed import interpolate_pos_embed
 from torchvision.transforms import transforms
+
+
+def get_region_info(lat_range, lon_range, lat, lon, patch_size):
+    lat = lat[::-1] # -90 to 90 from south (bottom) to north (top)
+    h, w = len(lat), len(lon)
+    lat_matrix = np.expand_dims(lat, axis=1).repeat(w, axis=1)
+    lon_matrix = np.expand_dims(lon, axis=0).repeat(h, axis=0)
+    valid_cells = (lat_matrix >= lat_range[0]) & (lat_matrix <= lat_range[1]) & (lon_matrix >= lon_range[0]) & (lon_matrix <= lon_range[1])
+    h_ids, w_ids = np.nonzero(valid_cells)
+    h_from, h_to = h_ids[0], h_ids[-1]
+    w_from, w_to = w_ids[0], w_ids[-1]
+    patch_idx = -1
+    p = patch_size
+    valid_patch_ids = []
+    min_h, max_h = 1e5, -1e5
+    min_w, max_w = 1e5, -1e5
+    for i in range(0, h, p):
+        for j in range(0, w, p):
+            patch_idx += 1
+            if (i >= h_from) & (i + p - 1 <= h_to) & (j >= w_from) & (j + p - 1 <= w_to):
+                valid_patch_ids.append(patch_idx)
+                min_h = min(min_h, i)
+                max_h = max(max_h, i + p - 1)
+                min_w = min(min_w, j)
+                max_w = max(max_w, j + p - 1)
+    return {
+        'patch_ids': valid_patch_ids,
+        'min_h': min_h,
+        'max_h': max_h,
+        'min_w': min_w,
+        'max_w': max_w
+    }
 
 
 class ViTContinuousLitModule(LightningModule):
@@ -54,6 +87,9 @@ class ViTContinuousLitModule(LightningModule):
     def forward(self, x):
         return self.net.predict(x)
 
+    def get_patch_size(self):
+        return self.net.patch_size
+
     def set_denormalization(self, mean, std):
         self.denormalization = transforms.Normalize(mean, std)
 
@@ -73,8 +109,8 @@ class ViTContinuousLitModule(LightningModule):
     def training_step(self, batch: Any, batch_idx: int):
         # optimizer = self.optimizers()
         # optimizer.zero_grad()
-        x, y, lead_times, variables, out_variables = batch
-        loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, [lat_weighted_mse], lat=self.lat)
+        x, y, lead_times, variables, out_variables, region_info = batch
+        loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, region_info, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
@@ -93,7 +129,7 @@ class ViTContinuousLitModule(LightningModule):
     #     lr_scheduler.step()
 
     def validation_step(self, batch: Any, batch_idx: int):
-        x, y, lead_times, variables, out_variables = batch
+        x, y, lead_times, variables, out_variables, region_info = batch
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -106,6 +142,7 @@ class ViTContinuousLitModule(LightningModule):
             lead_times,
             variables,
             out_variables,
+            region_info,
             pred_steps,
             [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,
@@ -141,7 +178,7 @@ class ViTContinuousLitModule(LightningModule):
     #     self.val_acc.reset()  # reset val accuracy for next epoch
 
     def test_step(self, batch: Any, batch_idx: int):
-        x, y, lead_times, variables, out_variables = batch
+        x, y, lead_times, variables, out_variables, region_info = batch
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -154,6 +191,7 @@ class ViTContinuousLitModule(LightningModule):
             lead_times,
             variables,
             out_variables,
+            region_info,
             pred_steps,
             [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,

@@ -19,6 +19,8 @@ def main():
     )
     os.makedirs(cli.trainer.default_root_dir, exist_ok=True)
 
+    cli.datamodule.set_patch_size(cli.model.get_patch_size())
+
     normalization = cli.datamodule.output_transforms
     mean_norm, std_norm = normalization.mean, normalization.std
     mean_denorm, std_denorm = -mean_norm / std_norm, 1 / std_norm
