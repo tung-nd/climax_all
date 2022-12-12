@@ -1,31 +1,29 @@
-from typing import Any
+from typing import Any, Union
 
 import torch
 from pytorch_lightning import LightningModule
+from src.models.components.resnet import ResNet
+from src.models.components.unet import Unet
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
+                               lat_weighted_mse_val, lat_weighted_rmse)
 from torchvision.transforms import transforms
 
-from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (
-    lat_weighted_acc,
-    lat_weighted_mse,
-    lat_weighted_mse_val,
-    lat_weighted_rmse,
-)
 
-
-class UnetLitModule(LightningModule):
+class CNNLitModule(LightningModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: Union[ResNet, Unet],
         pretrained_path: str,
         lr: float = 0.001,
+        beta_1: float = 0.9,
+        beta_2: float = 0.999,
         weight_decay: float = 0.005,
         warmup_epochs: int = 5,
         max_epochs: int = 30,
         warmup_start_lr: float = 1e-8,
         eta_min: float = 1e-8,
     ) -> None:
-        super().__init__()
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.net = net
@@ -51,6 +49,9 @@ class UnetLitModule(LightningModule):
     def forward(self, x):
         return self.net.predict(x)
 
+    def get_patch_size(self):
+        return self.net.patch_size
+
     def set_denormalization(self, mean, std):
         self.denormalization = transforms.Normalize(mean, std)
 
@@ -61,9 +62,15 @@ class UnetLitModule(LightningModule):
     def set_pred_range(self, r):
         self.pred_range = r
 
+    def set_val_clim(self, clim):
+        self.val_clim = clim
+
+    def set_test_clim(self, clim):
+        self.test_clim = clim
+
     def training_step(self, batch: Any, batch_idx: int):
-        x, y, _, out_variables = batch
-        loss_dict, _ = self.net.forward(x, y, out_variables, [lat_weighted_mse], lat=self.lat)
+        x, y, _, _, out_variables, region_info = batch
+        loss_dict, _ = self.net.forward(x, y, out_variables, region_info, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
@@ -73,30 +80,31 @@ class UnetLitModule(LightningModule):
                 on_epoch=False,
                 prog_bar=True,
             )
-        return loss_dict
+        loss = loss_dict['loss']
+
+        return loss
 
     def validation_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        pred_steps = y.shape[1]
+        x, y, _, variables, out_variables, region_info = batch
+        pred_steps = 1
         pred_range = self.pred_range
 
-        default_days = [1, 3, 5]
-        days_each_step = pred_range / 24
-        default_steps = [d / days_each_step for d in default_days if d % days_each_step == 0]
-        steps = [int(s) for s in default_steps if s <= pred_steps and s > 0]
-        days = [int(s * pred_range / 24) for s in steps]
+        days = [int(pred_range / 24)]
+        steps = [1]
 
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
             variables,
             out_variables,
+            region_info,
             pred_steps,
             [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,
             lat=self.lat,
             log_steps=steps,
             log_days=days,
+            clim=self.val_clim
         )
         loss_dict = {}
         for d in all_loss_dicts:
@@ -115,27 +123,26 @@ class UnetLitModule(LightningModule):
         return loss_dict
 
     def test_step(self, batch: Any, batch_idx: int):
-        x, y, variables, out_variables = batch
-        pred_steps = y.shape[1]
+        x, y, _, variables, out_variables, region_info = batch
+        pred_steps = 1
         pred_range = self.pred_range
 
-        default_days = [1, 3, 5]
-        days_each_step = pred_range / 24
-        steps = [int(d / days_each_step) for d in default_days]
-        steps = [s for s in steps if s <= pred_steps]
-        days = [int(s * pred_range / 24) for s in steps]
+        days = [int(pred_range / 24)]
+        steps = [1]
 
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
             variables,
             out_variables,
+            region_info,
             pred_steps,
             [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
             self.denormalization,
             lat=self.lat,
             log_steps=steps,
             log_days=days,
+            clim=self.test_clim
         )
 
         loss_dict = {}
@@ -167,9 +174,15 @@ class UnetLitModule(LightningModule):
                 {
                     "params": decay,
                     "lr": self.hparams.lr,
+                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
                     "weight_decay": self.hparams.weight_decay,
                 },
-                {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
+                {
+                    "params": no_decay,
+                    "lr": self.hparams.lr,
+                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
+                    "weight_decay": 0
+                },
             ]
         )
 
@@ -180,5 +193,10 @@ class UnetLitModule(LightningModule):
             self.hparams.warmup_start_lr,
             self.hparams.eta_min,
         )
+        scheduler = {
+            'scheduler': lr_scheduler,
+            'interval': 'step', # or 'epoch'
+            'frequency': 1
+        }
 
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
