@@ -24,9 +24,12 @@ def plot(ax, data, title, show_legend=True):
         ax.plot(data["1.40625"][key]["x"], data["1.40625"][key]["y"], color=f"C{idx+count}", label=f"CliMax{key}-1.40625", marker=markers[idx])
         count += 1
 
-    ax.plot(range(1, 6), np.ones(5)* data["ifs"], color=f"C{count+1}", label="IFS", linestyle='--', alpha=0.5)
-    ax.plot(range(1, 6), np.ones(5)* data["fourcastnet"], color=f"C{count+2}", label="FourCastNet-0.25", linestyle='--', alpha=0.5)
-    ax.plot(range(1, 6), np.ones(5)* data["pangu"], color=f"C{count+3}", label="PanguWeather-0.25", linestyle='--', alpha=0.5)
+    if "ifs" in data.keys():
+        ax.plot(range(1, 6), np.ones(5)* data["ifs"], color=f"C{count+1}", label="IFS", linestyle='--', alpha=0.5)
+    if "fourcastnet" in data.keys():
+        ax.plot(range(1, 6), np.ones(5)* data["fourcastnet"], color=f"C{count+2}", label="FourCastNet-0.25", linestyle='--', alpha=0.5)
+    if "pangu" in data.keys():
+        ax.plot(range(1, 6), np.ones(5)* data["pangu"], color=f"C{count+3}", label="PanguWeather-0.25", linestyle='--', alpha=0.5)
 
     ax.set_xlim(0.9, 5.1)
     ax.set_xticks(range(1, 6))
@@ -51,7 +54,8 @@ def main(jsons, output):
     for idx, jsonf in enumerate(jsons):
         with open(jsonf, 'r') as f:
             data = json.load(f)
-        plot(axs[idx], data, title=data["task"])
+        ax = axs[idx] if type(axs) is np.ndarray else axs
+        plot(ax, data, title=data["task"])
     
     fig.savefig(output, bbox_inches="tight", dpi=300)
     
