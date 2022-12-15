@@ -1,6 +1,8 @@
+import math
 from typing import List, Tuple, Union
 
 import torch
+import torchvision
 from torch import nn
 
 # Large based on https://github.com/labmlai/annotated_deep_learning_paper_implementations/blob/master/labml_nn/diffusion/ddpm/unet.py
@@ -264,6 +266,7 @@ class Unet(nn.Module):
         self,
         in_channels,
         hidden_channels=64,
+        patch_size=2,
         activation="leaky",
         time_history=1,
         time_future=1,
@@ -283,6 +286,7 @@ class Unet(nn.Module):
         self.time_history = time_history
         self.time_future = time_future
         self.hidden_channels = hidden_channels
+        self.patch_size = patch_size
 
         if activation == "gelu":
             self.activation = nn.GELU()
@@ -375,9 +379,25 @@ class Unet(nn.Module):
         out_channels = time_future * self.out_channels
         self.final = PeriodicConv2D(in_channels, out_channels, kernel_size=7, padding=3)
 
-    def predict(self, x):
+    def pad_to_power_of_2(self, x: torch.Tensor):
+        h, w = x.shape[-2], x.shape[-1]
+        h_power_of_2 = 2**(int(math.log2(h)) + 1)
+        padding_h = (h_power_of_2 - h) // 2
+        w_power_of_2 = 2**(int(math.log2(w)) + 1)
+        padding_w = (w_power_of_2 - w) // 2
+        x_padded = nn.functional.pad(x, (padding_w, padding_w, padding_h, padding_h))
+        return x_padded, padding_h, padding_w
+
+    def predict(self, x: torch.Tensor, region_info):
+        # B, T, C, H, W
         if len(x.shape) == 5:
-            x = x.flatten(1, 2)
+            x = x.flatten(1, 2) # N, C, H, W
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
+        x = x[:, :, min_h:max_h+1, min_w:max_w+1]
+
+        x, padding_h, padding_w = self.pad_to_power_of_2(x)
+
         x = self.image_proj(x)
 
         h = [x]
@@ -396,24 +416,38 @@ class Unet(nn.Module):
                 x = torch.cat((x, s), dim=1)
                 x = m(x)
 
-        return self.final(self.activation(self.norm(x)))
+        pred = self.final(self.activation(self.norm(x)))
+        pred = pred[:, :, padding_h:-padding_h, padding_w:-padding_w]
+        return pred
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, out_variables, metric, lat):
+    def forward(self, x: torch.Tensor, y: torch.Tensor, out_variables, region_info, metric, lat):
         # B, C, H, W
-        pred = self.predict(x)
+        pred = self.predict(x, region_info)
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
+        y = y[:, :, min_h:max_h+1, min_w:max_w+1]
+        lat = lat[min_h:max_h+1]
         return [m(pred, y, out_variables, lat) for m in metric], x
 
-    def rollout(self, x, y, variables, out_variables, steps, metric, transform, lat, log_steps, log_days):
+    def rollout(self, x, y, variables, out_variables, region_info, steps, metric, transform, lat, log_steps, log_days, clim):
         if steps > 1:
             assert len(variables) == len(out_variables)
 
         preds = []
         for _ in range(steps):
-            x = self.predict(x)
+            x = self.predict(x, region_info)
             preds.append(x)
         preds = torch.stack(preds, dim=1)
 
-        return [m(preds, y, transform, out_variables, lat, log_steps, log_days) for m in metric], preds
+        # extract the specified region from y and lat
+        min_h, max_h = region_info['min_h'], region_info['max_h']
+        min_w, max_w = region_info['min_w'], region_info['max_w']
+        y = y[:, :, min_h:max_h+1, min_w:max_w+1]
+        lat = lat[min_h:max_h+1]
+
+        clim = clim[:, min_h:max_h+1, min_w:max_w+1]
+
+        return [m(preds, y.unsqueeze(1), transform, out_variables, lat, log_steps, log_days, clim) for m in metric], preds
 
 
 # model = Unet(in_channels=2, time_history=3, out_channels=2).cuda()
