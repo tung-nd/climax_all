@@ -71,16 +71,16 @@ class ClimateDataModule(LightningDataModule):
         x_test, y_test, _, _ = load_x_y(os.path.join(root_dir, 'test'), list_test_simu, out_variables)
 
         self.dataset_train = ClimateBenchDataset(
-            x_train, y_train, variables, out_variables, 'train'
+            x_train, y_train, variables, out_variables, lat, 'train'
         )
         
         self.dataset_val = ClimateBenchDataset(
-            x_val, y_val, variables, out_variables, 'val'
+            x_val, y_val, variables, out_variables, lat, 'val'
         )
         self.dataset_val.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
         self.dataset_test = ClimateBenchDataset(
-            x_test, y_test, variables, out_variables, 'test'
+            x_test, y_test, variables, out_variables, lat, 'test'
         )
         self.dataset_test.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
@@ -124,6 +124,9 @@ class ClimateDataModule(LightningDataModule):
 
     def set_patch_size(self, p):
         self.patch_size = p
+
+    def get_test_clim(self):
+        return self.dataset_test.y_normalization
 
     def setup(self, stage: Optional[str] = None):
         region_info = self.get_region_info(self.hparams.region)

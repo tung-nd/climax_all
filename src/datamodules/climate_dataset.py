@@ -37,12 +37,13 @@ def split_train_val(x, y, train_ratio=0.9):
     return x[train_ids], y[train_ids], x[val_ids], y[val_ids]
 
 class ClimateBenchDataset(Dataset):
-    def __init__(self, x: np.ndarray, y: np.ndarray, variables, out_variables, partition='train'):
+    def __init__(self, x: np.ndarray, y: np.ndarray, variables, out_variables, lat, partition='train'):
         super().__init__()
         self.x = x.astype(np.float32)
         self.y = y.astype(np.float32)
         self.variables = variables
         self.out_variables = out_variables
+        self.lat = lat
         self.partition = partition
     
         if partition == 'train':
@@ -51,6 +52,9 @@ class ClimateBenchDataset(Dataset):
         else:
             self.inp_transform = None
             self.out_transform = None
+
+        if partition == 'test':
+            self.get_rmse_normalization()
 
     def get_normalize(self, data):
         mean = np.mean(data, axis=(0, 2, 3))
@@ -63,6 +67,14 @@ class ClimateBenchDataset(Dataset):
 
     def set_region_info(self, region_info):
         self.region_info = region_info
+
+    def get_rmse_normalization(self):
+        y = torch.from_numpy(self.y).squeeze(1) # N, H, W
+        y = y[-20:] # 2080 to 2010 according to ClimateBench
+        w_lat = np.cos(np.deg2rad(self.lat)) # (H,)
+        w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (1, H, 1)
+        y_avg = torch.mean(y * w_lat, dim=(-2, -1)) # (N,)
+        self.y_normalization = torch.mean(y_avg)
 
     def __len__(self):
         return self.x.shape[0]

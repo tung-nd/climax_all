@@ -55,7 +55,7 @@ search:
         --model.net.out_vars='tas'
         --model.net.channel_agg='attention'
         --model.net.init_mode='small'
-        --model.net.patch_size=4
+        --model.net.patch_size=2
         --model.net.depth={depth}
         --model.net.embed_dim={dim}
         --model.net.num_heads={heads}
@@ -77,10 +77,10 @@ search:
       values: [8]
     - name: dim
       spec: discrete
-      values: [1024]
+      values: [128]
     - name: heads
       spec: discrete
-      values: [16]
+      values: [4]
     - name: lr
       spec: discrete
       values: [5e-4]

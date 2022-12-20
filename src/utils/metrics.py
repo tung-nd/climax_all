@@ -116,6 +116,80 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, log_steps, log_days, clim):
     return loss_dict
 
 
+def lat_weighted_nrmses(pred, y, transform, vars, lat, log_steps, log_days, clim):
+    """
+    y: [N, T, C, H, W]
+    pred: [N, T, C, H, W]
+    vars: list of variable names
+    lat: H
+    """
+    
+    pred = transform(pred)
+    y = transform(y)
+    y_normalization = clim
+
+    # lattitude weights
+    w_lat = np.cos(np.deg2rad(lat)) # (H,)
+    w_lat = torch.from_numpy(w_lat).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (H, 1)
+
+    loss_dict = {}
+    with torch.no_grad():
+        for i, var in enumerate(vars):
+            for day, step in zip(log_days, log_steps):
+                pred_ = pred[:, step - 1, i] # N, H, W
+                y_ = y[:, step - 1, i] # N, H, W
+                error = (torch.mean(pred_, dim=0) - torch.mean(y_, dim=0))**2 # (H, W)
+                error = torch.mean(error * w_lat)
+                loss_dict[f"w_nrmses_{var}"] = torch.sqrt(error) / y_normalization
+    return loss_dict
+
+
+def lat_weighted_nrmseg(pred, y, transform, vars, lat, log_steps, log_days, clim):
+    """
+    y: [N, T, C, H, W]
+    pred: [N, T, C, H, W]
+    vars: list of variable names
+    lat: H
+    """
+    
+    pred = transform(pred)
+    y = transform(y)
+    y_normalization = clim
+
+    # lattitude weights
+    w_lat = np.cos(np.deg2rad(lat)) # (H,)
+    w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (1, H, 1)
+
+    loss_dict = {}
+    with torch.no_grad():
+        for i, var in enumerate(vars):
+            for day, step in zip(log_days, log_steps):
+                pred_ = pred[:, step - 1, i] # N, H, W
+                pred_ = torch.mean(pred_ * w_lat, dim=(-2, -1)) # N
+                y_ = y[:, step - 1, i] # N, H, W
+                y_ = torch.mean(y_ * w_lat, dim=(-2, -1)) # N
+                error = torch.mean((pred_ - y_)**2)
+                loss_dict[f"w_nrmseg_{var}"] = torch.sqrt(error) / y_normalization
+    return loss_dict
+
+
+def lat_weighted_nrmse(pred, y, transform, vars, lat, log_steps, log_days, clim):
+    """
+    y: [N, T, C, H, W]
+    pred: [N, T, C, H, W]
+    vars: list of variable names
+    lat: H
+    """
+    nrmses = lat_weighted_nrmses(pred, y, transform, vars, lat, log_steps, log_days, clim)
+    nrmseg = lat_weighted_nrmseg(pred, y, transform, vars, lat, log_steps, log_days, clim)
+    loss_dict = {}
+    for var in vars:
+        loss_dict[f"w_nrmses_{var}"] = nrmses[f"w_nrmses_{var}"]
+        loss_dict[f"w_nrmseg_{var}"] = nrmseg[f"w_nrmseg_{var}"]
+        loss_dict[f"w_nrmse_{var}"] = nrmses[f"w_nrmses_{var}"] + 5*nrmseg[f"w_nrmseg_{var}"]
+    return loss_dict
+
+
 def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
     y: [N, T, 3, H, W]

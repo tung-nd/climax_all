@@ -28,7 +28,7 @@ def main():
     cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
     cli.model.set_pred_range(0)
     cli.model.set_val_clim(None)
-    cli.model.set_test_clim(None)
+    cli.model.set_test_clim(cli.datamodule.get_test_clim())
 
     # fit() runs the training
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)

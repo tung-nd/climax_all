@@ -8,7 +8,8 @@ from src.models.components.tokenized_vit_continuous import \
     TokenizedViTContinuous
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_mse_val, lat_weighted_rmse)
+                               lat_weighted_mse_val, lat_weighted_nrmse,
+                               lat_weighted_rmse)
 from src.utils.pos_embed import interpolate_pos_embed
 from torchvision.transforms import transforms
 
@@ -191,7 +192,7 @@ class ViTContinuousLitModule(LightningModule):
         steps = [1]
 
         if self.net.climate_modeling:
-            metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_nrmse]
         else:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
 
