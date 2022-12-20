@@ -21,6 +21,7 @@ from src.utils.pos_embed import (
 class TokenizedViTContinuous(TokenizedBase):
     def __init__(
         self,
+        climate_modeling=False,
         time_history=1,
         img_size=[128, 256],
         patch_size=16,
@@ -71,10 +72,14 @@ class TokenizedViTContinuous(TokenizedBase):
             channel_agg,
         )
 
+        self.climate_modeling = climate_modeling
         self.freeze_encoder = freeze_encoder
         self.time_history = time_history
-        # self.out_vars = out_vars if out_vars is not None else default_vars
-        self.out_vars = default_vars
+        if climate_modeling:
+            assert out_vars is not None
+            self.out_vars = out_vars
+        else:
+            self.out_vars = default_vars
 
         self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
@@ -211,10 +216,11 @@ class TokenizedViTContinuous(TokenizedBase):
         y = y[:, :, min_h:max_h+1, min_w:max_w+1]
         lat = lat[min_h:max_h+1]
 
-        # if len(self.out_vars) == len(self.default_vars):
+        # if not climate_modeling (weather forecasting), then out varibles = a subset of in variables
         # only compute loss over the variables in out_variables
-        out_var_ids = self.get_channel_ids(out_variables)
-        pred = pred[:, out_var_ids]
+        if not self.climate_modeling:
+            out_var_ids = self.get_channel_ids(out_variables)
+            pred = pred[:, out_var_ids]
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 
@@ -249,10 +255,11 @@ class TokenizedViTContinuous(TokenizedBase):
             preds.append(x)
         preds = torch.concat(preds, dim=1)
 
-        # if len(self.out_vars) == len(self.default_vars):
+        # if not climate_modeling (weather forecasting), then out varibles = a subset of in variables
         # only compute loss over the variables in out_variables
-        out_var_ids = self.get_channel_ids(out_variables)
-        preds = preds[:, :, out_var_ids]
+        if not self.climate_modeling:
+            out_var_ids = self.get_channel_ids(out_variables)
+            preds = preds[:, :, out_var_ids]
 
         # extract the specified region from y and lat
         min_h, max_h = region_info['min_h'], region_info['max_h']
@@ -260,7 +267,8 @@ class TokenizedViTContinuous(TokenizedBase):
         y = y[:, :, min_h:max_h+1, min_w:max_w+1]
         lat = lat[min_h:max_h+1]
 
-        clim = clim[:, min_h:max_h+1, min_w:max_w+1]
+        if clim is not None:
+            clim = clim[:, min_h:max_h+1, min_w:max_w+1]
 
         return [m(preds, y.unsqueeze(1), transform, out_variables, lat, log_steps, log_days, clim) for m in metric], preds
 

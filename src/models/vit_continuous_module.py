@@ -136,6 +136,11 @@ class ViTContinuousLitModule(LightningModule):
         days = [int(pred_range / 24)]
         steps = [1]
 
+        if self.net.climate_modeling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+        else:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
@@ -144,7 +149,7 @@ class ViTContinuousLitModule(LightningModule):
             out_variables,
             region_info,
             pred_steps,
-            [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metrics,
             self.denormalization,
             lat=self.lat,
             log_steps=steps,
@@ -185,6 +190,11 @@ class ViTContinuousLitModule(LightningModule):
         days = [int(pred_range / 24)]
         steps = [1]
 
+        if self.net.climate_modeling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+        else:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
@@ -193,7 +203,7 @@ class ViTContinuousLitModule(LightningModule):
             out_variables,
             region_info,
             pred_steps,
-            [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metrics,
             self.denormalization,
             lat=self.lat,
             log_steps=steps,
