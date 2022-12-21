@@ -6,7 +6,8 @@ from src.models.components.resnet import ResNet
 from src.models.components.unet import Unet
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_mse_val, lat_weighted_rmse)
+                               lat_weighted_mse_val, lat_weighted_nrmse,
+                               lat_weighted_rmse)
 from torchvision.transforms import transforms
 
 
@@ -92,6 +93,11 @@ class CNNLitModule(LightningModule):
         days = [int(pred_range / 24)]
         steps = [1]
 
+        if self.net.climate_modeling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+        else:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
@@ -99,7 +105,7 @@ class CNNLitModule(LightningModule):
             out_variables,
             region_info,
             pred_steps,
-            [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metrics,
             self.denormalization,
             lat=self.lat,
             log_steps=steps,
@@ -130,6 +136,11 @@ class CNNLitModule(LightningModule):
         days = [int(pred_range / 24)]
         steps = [1]
 
+        if self.net.climate_modeling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_nrmse]
+        else:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
+
         all_loss_dicts, _ = self.net.rollout(
             x,
             y,
@@ -137,7 +148,7 @@ class CNNLitModule(LightningModule):
             out_variables,
             region_info,
             pred_steps,
-            [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc],
+            metrics,
             self.denormalization,
             lat=self.lat,
             log_steps=steps,

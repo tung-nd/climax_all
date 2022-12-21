@@ -94,6 +94,7 @@ class ResidualBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
+        climate_modeling,
         in_channels,
         hidden_channels=128,
         patch_size=2,
@@ -106,6 +107,7 @@ class ResNet(nn.Module):
         n_blocks: int = 2,
     ) -> None:
         super().__init__()
+        self.climate_modeling = climate_modeling
         self.in_channels = in_channels
         if out_channels is None:
             out_channels = in_channels
@@ -191,7 +193,8 @@ class ResNet(nn.Module):
         y = y[:, :, min_h:max_h+1, min_w:max_w+1]
         lat = lat[min_h:max_h+1]
 
-        clim = clim[:, min_h:max_h+1, min_w:max_w+1]
+        if clim is not None and len(clim.shape) == 3:
+            clim = clim[:, min_h:max_h+1, min_w:max_w+1]
 
         return [m(preds, y.unsqueeze(1), transform, out_variables, lat, log_steps, log_days, clim) for m in metric], preds
 
