@@ -180,7 +180,7 @@ class CNNLitModule(LightningModule):
             else:
                 decay.append(m)
 
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             [
                 {
                     "params": decay,
@@ -210,4 +210,4 @@ class CNNLitModule(LightningModule):
             'frequency': 1
         }
 
-        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}

@@ -54,6 +54,9 @@ class ClimateBenchDataset(Dataset):
             self.out_transform = None
 
         if partition == 'test':
+            # only use 2080 - 2100 according to ClimateBench
+            self.x = self.x[-20:]
+            self.y = self.y[-20:]
             self.get_rmse_normalization()
 
     def get_normalize(self, data):
@@ -69,12 +72,12 @@ class ClimateBenchDataset(Dataset):
         self.region_info = region_info
 
     def get_rmse_normalization(self):
-        y = torch.from_numpy(self.y).squeeze(1) # N, H, W
-        y = y[-20:] # 2080 to 2010 according to ClimateBench
+        y = torch.from_numpy(self.y).squeeze(1).mean(0) # H, W
+        # y = y[-20:] # 2080 to 2010 according to ClimateBench
         w_lat = np.cos(np.deg2rad(self.lat)) # (H,)
-        w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (1, H, 1)
-        y_avg = torch.mean(y * w_lat, dim=(-2, -1)) # (N,)
-        self.y_normalization = torch.mean(y_avg)
+        w_lat = w_lat / w_lat.mean()
+        w_lat = torch.from_numpy(w_lat).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (H, 1)
+        self.y_normalization = torch.abs(torch.mean(y * w_lat))
 
     def __len__(self):
         return self.x.shape[0]

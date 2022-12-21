@@ -130,6 +130,7 @@ def lat_weighted_nrmses(pred, y, transform, vars, lat, log_steps, log_days, clim
 
     # lattitude weights
     w_lat = np.cos(np.deg2rad(lat)) # (H,)
+    w_lat = w_lat / w_lat.mean()
     w_lat = torch.from_numpy(w_lat).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (H, 1)
 
     loss_dict = {}
@@ -158,6 +159,7 @@ def lat_weighted_nrmseg(pred, y, transform, vars, lat, log_steps, log_days, clim
 
     # lattitude weights
     w_lat = np.cos(np.deg2rad(lat)) # (H,)
+    w_lat = w_lat / w_lat.mean()
     w_lat = torch.from_numpy(w_lat).unsqueeze(0).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (1, H, 1)
 
     loss_dict = {}
