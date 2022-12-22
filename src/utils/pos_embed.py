@@ -126,7 +126,7 @@ def interpolate_pos_embed(model, checkpoint_model, new_size=(64, 128)):
         embedding_size = pos_embed_checkpoint.shape[-1]
         orig_num_patches = pos_embed_checkpoint.shape[-2]
         patch_size = model.patch_size
-        w_h_ratio = new_size[1] // new_size[0]
+        w_h_ratio = 2
         orig_h = int((orig_num_patches // w_h_ratio)**0.5)
         orig_w = w_h_ratio * orig_h
         orig_size = (orig_h, orig_w)
@@ -141,3 +141,10 @@ def interpolate_pos_embed(model, checkpoint_model, new_size=(64, 128)):
             )
             new_pos_tokens = new_pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
             checkpoint_model["net.pos_embed"] = new_pos_tokens
+
+def interpolate_channel_embed(checkpoint_model, new_len):
+    if "net.channel_embed" in checkpoint_model:
+        channel_embed_checkpoint = checkpoint_model["net.channel_embed"]
+        old_len = channel_embed_checkpoint.shape[1]
+        if new_len <= old_len:
+            checkpoint_model["net.channel_embed"] = channel_embed_checkpoint[:, :new_len]

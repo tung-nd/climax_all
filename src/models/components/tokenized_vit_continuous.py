@@ -103,9 +103,9 @@ class TokenizedViTContinuous(TokenizedBase):
         self.initialize_weights()
 
         if freeze_encoder:
-            self.token_embed.requires_grad_(False)
-            self.channel_embed.requires_grad_(False)
-            self.pos_embed.requires_grad_(False)
+            # self.token_embed.requires_grad_(False)
+            # self.channel_embed.requires_grad_(False)
+            # self.pos_embed.requires_grad_(False)
             self.blocks.requires_grad_(False)
 
     def initialize_weights(self):

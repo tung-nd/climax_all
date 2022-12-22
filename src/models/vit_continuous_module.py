@@ -10,7 +10,8 @@ from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
                                lat_weighted_mse_val, lat_weighted_nrmse,
                                lat_weighted_rmse)
-from src.utils.pos_embed import interpolate_pos_embed
+from src.utils.pos_embed import (interpolate_channel_embed,
+                                 interpolate_pos_embed)
 from torchvision.transforms import transforms
 
 
@@ -73,10 +74,16 @@ class ViTContinuousLitModule(LightningModule):
         checkpoint_model = checkpoint["state_dict"]
         # interpolate positional embedding
         interpolate_pos_embed(self.net, checkpoint_model, new_size=self.net.img_size)
+        interpolate_channel_embed(checkpoint_model, new_len=self.net.channel_embed.shape[1])
 
         state_dict = self.state_dict()
         checkpoint_keys = list(checkpoint_model.keys())
         for k in checkpoint_keys:
+            if self.net.climate_modeling:
+                if 'token_embeds' in k or 'head' in k:
+                    print(f"Removing key {k} from pretrained checkpoint")
+                    del checkpoint_model[k]
+                    continue
             if k not in state_dict.keys() or checkpoint_model[k].shape != state_dict[k].shape:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
