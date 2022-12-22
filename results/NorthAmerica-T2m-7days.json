@@ -1,0 +1,8 @@
+{
+    "ResNet": 1.75,
+    "Unet": 1.85,
+    "CliMax": 1.77,
+    "Interpolated CliMax": 1.74,
+    "Finetuned CliMax": 1.58,
+    "task": "T2m - North America (7 days)"
+}

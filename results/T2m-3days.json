@@ -51,5 +51,8 @@
       ]
     }
   },
+  "ifs": 1.35,
+  "fourcastnet": 1.38,
+  "pangu": 1.05,
   "task": "T2m (3 days)"
 }

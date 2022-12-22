@@ -1,0 +1,8 @@
+{
+    "ResNet": 874,
+    "Unet": 826,
+    "CliMax": 838,
+    "Interpolated CliMax": 762,
+    "Finetuned CliMax": 731,
+    "task": "Z500 - North America (3 days)"
+}
