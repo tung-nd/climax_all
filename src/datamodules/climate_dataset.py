@@ -24,8 +24,12 @@ def load_x_y(root_dir, list_simu, out_var):
     y_all = np.concatenate(y_all, axis=0)
 
     temp = xr.open_dataset(os.path.join(root_dir, 'inputs_' + list_simu[0] + '.nc'))
-    lat = np.array(temp['latitude'])
-    lon = np.array(temp['longitude'])
+    if 'latitude' in temp:
+        lat = np.array(temp['latitude'])
+        lon = np.array(temp['longitude'])
+    else:
+        lat = np.array(temp['lat'])
+        lon = np.array(temp['lon'])
 
     return x_all, y_all, lat, lon
 
