@@ -22,12 +22,15 @@ def main():
     trainer = cli.trainer
 
     os.makedirs(trainer.default_root_dir, exist_ok=True)
+
+    cli.datamodule.set_patch_size(cli.model.get_patch_size())
+    
     cli.model.set_lat_lon(*cli.datamodule.get_lat_lon())
 
     # fit() runs the training
     ckpt_path = os.path.join(trainer.default_root_dir, 'checkpoints', 'last.ckpt')
     print (ckpt_path)
-    if (not os.path.exists(ckpt_path)) or (cli.model.pretrain_path != ''):
+    if (not os.path.exists(ckpt_path)) or (cli.model.pretrained_path != ''):
         ckpt_path = None
         print ('No ckpt found')
     trainer.fit(cli.model, datamodule=cli.datamodule, ckpt_path=ckpt_path)
