@@ -303,6 +303,7 @@ class Unet(nn.Module):
 
         # Number of resolutions
         n_resolutions = len(ch_mults)
+        self.n_resolutions = n_resolutions
 
         insize = time_history * self.in_channels
         n_channels = hidden_channels
@@ -398,7 +399,15 @@ class Unet(nn.Module):
         min_w, max_w = region_info['min_w'], region_info['max_w']
         x = x[:, :, min_h:max_h+1, min_w:max_w+1]
 
-        x, padding_h, padding_w = self.pad_to_power_of_2(x)
+        # determine if padding is needed
+        need_padding = True
+        _, _, height, width = x.shape
+        down_ratio = 2*(self.n_resolutions-1)
+        if height % down_ratio == 0 and width % down_ratio == 0:
+            x, padding_h, padding_w = x, None, None
+            need_padding = False
+        else:
+            x, padding_h, padding_w = self.pad_to_power_of_2(x)
 
         x = self.image_proj(x)
 
@@ -419,7 +428,8 @@ class Unet(nn.Module):
                 x = m(x)
 
         pred = self.final(self.activation(self.norm(x)))
-        pred = pred[:, :, padding_h:-padding_h, padding_w:-padding_w]
+        if need_padding:
+            pred = pred[:, :, padding_h:-padding_h, padding_w:-padding_w]
         return pred
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, out_variables, region_info, metric, lat):
