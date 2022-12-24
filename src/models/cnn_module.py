@@ -1,20 +1,22 @@
 from typing import Any, Union
 
 import torch
+from numpy import isin
 from pytorch_lightning import LightningModule
+from src.models.components.cnn_lstm import CNNLSTM
 from src.models.components.resnet import ResNet
 from src.models.components.unet import Unet
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
                                lat_weighted_mse_val, lat_weighted_nrmse,
-                               lat_weighted_rmse)
+                               lat_weighted_rmse, mse)
 from torchvision.transforms import transforms
 
 
 class CNNLitModule(LightningModule):
     def __init__(
         self,
-        net: Union[ResNet, Unet],
+        net: Union[ResNet, Unet, CNNLSTM],
         pretrained_path: str,
         lr: float = 0.001,
         beta_1: float = 0.9,
@@ -71,7 +73,13 @@ class CNNLitModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int):
         x, y, _, _, out_variables, region_info = batch
-        loss_dict, _ = self.net.forward(x, y, out_variables, region_info, [lat_weighted_mse], lat=self.lat)
+
+        if self.net.climate_modeling:
+            metric = [mse]
+        else:
+            metric = [lat_weighted_mse]
+
+        loss_dict, _ = self.net.forward(x, y, out_variables, region_info, metric, lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(
@@ -180,34 +188,52 @@ class CNNLitModule(LightningModule):
             else:
                 decay.append(m)
 
-        optimizer = torch.optim.AdamW(
-            [
-                {
-                    "params": decay,
-                    "lr": self.hparams.lr,
-                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
-                    "weight_decay": self.hparams.weight_decay,
-                },
-                {
-                    "params": no_decay,
-                    "lr": self.hparams.lr,
-                    "betas": (self.hparams.beta_1, self.hparams.beta_2),
-                    "weight_decay": 0
-                },
-            ]
-        )
+        if self.net.climate_modeling and isinstance(self.net, CNNLSTM):
+            optimizer = torch.optim.RMSprop(
+                [
+                    {
+                        "params": decay,
+                        "lr": self.hparams.lr,
+                        "weight_decay": self.hparams.weight_decay,
+                    },
+                    {
+                        "params": no_decay,
+                        "lr": self.hparams.lr,
+                        "weight_decay": 0
+                    },
+                ]
+            )
 
-        lr_scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            self.hparams.warmup_epochs,
-            self.hparams.max_epochs,
-            self.hparams.warmup_start_lr,
-            self.hparams.eta_min,
-        )
-        scheduler = {
-            'scheduler': lr_scheduler,
-            'interval': 'step', # or 'epoch'
-            'frequency': 1
-        }
+            return {"optimizer": optimizer}
+        else:
+            optimizer = torch.optim.AdamW(
+                [
+                    {
+                        "params": decay,
+                        "lr": self.hparams.lr,
+                        "betas": (self.hparams.beta_1, self.hparams.beta_2),
+                        "weight_decay": self.hparams.weight_decay,
+                    },
+                    {
+                        "params": no_decay,
+                        "lr": self.hparams.lr,
+                        "betas": (self.hparams.beta_1, self.hparams.beta_2),
+                        "weight_decay": 0
+                    },
+                ]
+            )
 
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+            lr_scheduler = LinearWarmupCosineAnnealingLR(
+                optimizer,
+                self.hparams.warmup_epochs,
+                self.hparams.max_epochs,
+                self.hparams.warmup_start_lr,
+                self.hparams.eta_min,
+            )
+            scheduler = {
+                'scheduler': lr_scheduler,
+                'interval': 'step', # or 'epoch'
+                'frequency': 1
+            }
+
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
