@@ -32,6 +32,7 @@ class ClimateDataModule(LightningDataModule):
     def __init__(
         self,
         root_dir,  # contains metadata and train + val + test
+        history=10,
         list_train_simu=[
             'ssp126',
             'ssp370',
@@ -65,22 +66,22 @@ class ClimateDataModule(LightningDataModule):
             out_variables = [out_variables]
             self.hparams.out_variables = out_variables
 
-        x_train_val, y_train_val, lat, lon = load_x_y(os.path.join(root_dir, 'train_val'), list_train_simu, out_variables)
+        x_train, y_train, lat, lon = load_x_y(os.path.join(root_dir, 'train_val'), list_train_simu, out_variables)
         self.lat, self.lon = lat, lon
-        x_train, y_train, x_val, y_val = split_train_val(x_train_val, y_train_val, train_ratio)
+        # x_train, y_train, x_val, y_val = split_train_val(x_train_val, y_train_val, train_ratio)
         x_test, y_test, _, _ = load_x_y(os.path.join(root_dir, 'test'), list_test_simu, out_variables)
 
         self.dataset_train = ClimateBenchDataset(
-            x_train, y_train, variables, out_variables, lat, 'train'
+            x_train, y_train, history, variables, out_variables, lat, 'train'
         )
         
-        self.dataset_val = ClimateBenchDataset(
-            x_val, y_val, variables, out_variables, lat, 'val'
-        )
-        self.dataset_val.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
+        # self.dataset_val = ClimateBenchDataset(
+        #     x_val, y_val, variables, out_variables, lat, 'val'
+        # )
+        # self.dataset_val.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
         self.dataset_test = ClimateBenchDataset(
-            x_test, y_test, variables, out_variables, lat, 'test'
+            x_test, y_test, history, variables, out_variables, lat, 'test'
         )
         self.dataset_test.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
@@ -131,7 +132,7 @@ class ClimateDataModule(LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         region_info = self.get_region_info(self.hparams.region)
         self.dataset_train.set_region_info(region_info)
-        self.dataset_val.set_region_info(region_info)
+        # self.dataset_val.set_region_info(region_info)
         self.dataset_test.set_region_info(region_info)
 
     def train_dataloader(self):
@@ -145,16 +146,16 @@ class ClimateDataModule(LightningDataModule):
             collate_fn=collate_fn,
         )
 
-    def val_dataloader(self):
-        return DataLoader(
-            self.dataset_val,
-            batch_size=self.hparams.batch_size,
-            shuffle=False,
-            # drop_last=True,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            collate_fn=collate_fn,
-        )
+    # def val_dataloader(self):
+    #     return DataLoader(
+    #         self.dataset_val,
+    #         batch_size=self.hparams.batch_size,
+    #         shuffle=False,
+    #         # drop_last=True,
+    #         num_workers=self.hparams.num_workers,
+    #         pin_memory=self.hparams.pin_memory,
+    #         collate_fn=collate_fn,
+    #     )
 
     def test_dataloader(self):
         return DataLoader(
@@ -166,73 +167,3 @@ class ClimateDataModule(LightningDataModule):
             pin_memory=self.hparams.pin_memory,
             collate_fn=collate_fn,
         )
-
-
-# era5 = ERA5IterDatasetModule(
-#     "/datadrive/datasets/5.625deg_equally_np/",
-#     "npy",
-#     "image",
-#     ["t2m", "u10", "v10", "z_850", "z_500"],
-#     1000,
-#     batch_size=64,
-#     num_workers=2,
-#     pin_memory=False,
-# )
-# era5.setup()
-# for x, variables in era5.train_dataloader():
-#     print(x.shape)
-#     print (variables)
-#     break
-
-# era5 = ERA5IterDatasetModule(
-#     "/datadrive/datasets/5.625deg_equally_np/",
-#     "npy",
-#     "video",
-#     ["t2m", "u10", "v10", "z"],
-#     1000,
-#     batch_size=64,
-#     num_workers=2,
-#     pin_memory=False,
-# )
-# era5.setup()
-# for x, variables in era5.train_dataloader():
-#     print(x.shape)
-#     print (variables)
-#     break
-
-# era5 = ERA5IterDatasetModule(
-#     "/datadrive/datasets/5.625deg_equally_np/",
-#     "npy",
-#     "forecast",
-#     ["t2m", "u10", "v10", "z_850", "z_500"],
-#     1000,
-#     out_variables=["t2m", "u10", "v10", "z_850", "z_500"],
-#     batch_size=64,
-#     num_workers=2,
-#     pin_memory=False,
-# )
-# era5.setup()
-# for x, y, variables, out_variables in era5.train_dataloader():
-#     print(x.shape)
-#     print(y.shape)
-#     print (era5.transforms)
-#     print ('mean input channel', x.mean(dim=(0, 1, 3, 4)))
-#     print ('std input channel', x.std(dim=(0, 1, 3, 4)))
-#     # print (era5.output_transforms)
-#     # print ('mean output channel', y.mean(dim=(0, 2, 3)))
-#     # print ('std output channel', y.std(dim=(0, 2, 3)))
-#     print (variables)
-#     # print (out_variables)
-#     break
-# for x, y, variables, out_variables in era5.val_dataloader():
-#     print(x.shape)
-#     print(y.shape)
-#     # print (era5.transforms)
-#     # print ('mean input channel', x.mean(dim=(0, 1, 3, 4)))
-#     # print ('std input channel', x.std(dim=(0, 1, 3, 4)))
-#     print (era5.output_transforms)
-#     print ('mean output channel', y.mean(dim=(0, 1, 3, 4)))
-#     print ('std output channel', y.std(dim=(0, 1, 3, 4)))
-#     # print (variables)
-#     print (out_variables)
-#     break

@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 
 import numpy as np
 import torch
@@ -7,23 +8,58 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 
 
-def load_x_y(root_dir, list_simu, out_var):
-    x_all, y_all = [], []
+def load_x_y(data_path, list_simu, out_var):
+    x_all, y_all = {}, {}
     for simu in list_simu:
-        x = xr.open_dataset(os.path.join(root_dir, 'inputs_' + simu + '.nc')).to_array()
-        x = x.to_numpy() # C, N, H, W
-        x = x.transpose(1, 0, 2, 3) # N, C, H, W
-        x_all.append(x)
+        input_name = 'inputs_' + simu + '.nc'
+        output_name = 'outputs_' + simu + '.nc'
+        if 'hist' in simu:
+            # load inputs 
+            input_xr = xr.open_dataset(os.path.join(data_path, input_name))
+                
+            # load outputs                                                             
+            output_xr = xr.open_dataset(os.path.join(data_path, output_name)).mean(dim='member')
+            output_xr = output_xr.assign({
+                "pr": output_xr.pr * 86400,
+                "pr90": output_xr.pr90 * 86400
+            }).rename({
+                'lon':'longitude',
+                'lat': 'latitude'
+            }).transpose('time','latitude', 'longitude').drop(['quantile'])
+        
+        # Concatenate with historical data in the case of scenario 'ssp126', 'ssp370' and 'ssp585'
+        else:
+            # load inputs 
+            input_xr = xr.open_mfdataset([
+                os.path.join(data_path, 'inputs_historical.nc'), 
+                os.path.join(data_path, input_name)
+            ]).compute()
+                
+            # load outputs                                                             
+            output_xr = xr.concat([
+                xr.open_dataset(os.path.join(data_path, 'outputs_historical.nc')).mean(dim='member'),
+                xr.open_dataset(os.path.join(data_path, output_name)).mean(dim='member')
+            ], dim='time').compute()
+            output_xr = output_xr.assign({
+                "pr": output_xr.pr * 86400,
+                "pr90": output_xr.pr90 * 86400
+            }).rename({
+                'lon':'longitude',
+                'lat': 'latitude'
+            }).transpose('time','latitude', 'longitude').drop(['quantile'])
 
-        y = xr.open_dataset(os.path.join(root_dir, 'outputs_' + simu + '.nc')).mean(dim='member')
-        y = y.assign({"pr": y.pr * 86400, "pr90": y.pr90 * 86400})
-        y = y[out_var].to_array().to_numpy() # 1, N, H, W
-        y = y.transpose(1, 0, 2, 3) # N, 1, H, W
-        y_all.append(y)
-    x_all = np.concatenate(x_all, axis=0)
-    y_all = np.concatenate(y_all, axis=0)
+        print(input_xr.dims, output_xr.dims, simu)
 
-    temp = xr.open_dataset(os.path.join(root_dir, 'inputs_' + list_simu[0] + '.nc'))
+        x = input_xr.to_array().to_numpy()
+        x = x.transpose(1, 0, 2, 3).astype(np.float32) # N, C, H, W
+        x_all[simu] = x
+
+        y = output_xr[out_var].to_array().to_numpy() # 1, N, H, W
+        # y = np.expand_dims(y, axis=1) # N, 1, H, W
+        y = y.transpose(1, 0, 2, 3).astype(np.float32)
+        y_all[simu] = y
+
+    temp = xr.open_dataset(os.path.join(data_path, 'inputs_' + list_simu[0] + '.nc')).compute()
     if 'latitude' in temp:
         lat = np.array(temp['latitude'])
         lon = np.array(temp['longitude'])
@@ -41,31 +77,67 @@ def split_train_val(x, y, train_ratio=0.9):
     return x[train_ids], y[train_ids], x[val_ids], y[val_ids]
 
 class ClimateBenchDataset(Dataset):
-    def __init__(self, x: np.ndarray, y: np.ndarray, variables, out_variables, lat, partition='train'):
+    def __init__(self, dict_x: Dict, dict_y: Dict, history, variables, out_variables, lat, partition='train'):
         super().__init__()
-        self.x = x.astype(np.float32)
-        self.y = y.astype(np.float32)
+        self.dict_x = dict_x
+        self.dict_y = dict_y
+        self.history = history
+        self.len_historical = 165
         self.variables = variables
         self.out_variables = out_variables
         self.lat = lat
         self.partition = partition
+
+        self.X_train_all = np.concatenate([
+            self.input_for_training(dict_x[simu], skip_historical=(i<2)) for i, simu in enumerate(dict_x.keys())
+        ], axis = 0) # N, T, C, H, W
+        self.Y_train_all = np.concatenate([
+            self.output_for_training(dict_y[simu], skip_historical=(i<2)) for i, simu in enumerate(dict_y.keys())
+        ], axis=0) # N, 1, H, W
     
         if partition == 'train':
-            self.inp_transform = self.get_normalize(self.x)
-            self.out_transform = self.get_normalize(self.y)
+            self.inp_transform = self.get_normalize(self.X_train_all)
+            # self.out_transform = self.get_normalize(self.Y_train_all)
+            self.out_transform = transforms.Normalize(np.array([0.]), np.array([1.]))
         else:
             self.inp_transform = None
             self.out_transform = None
 
         if partition == 'test':
             # only use 2080 - 2100 according to ClimateBench
-            self.x = self.x[-20:]
-            self.y = self.y[-20:]
+            self.X_train_all = self.X_train_all[-21:]
+            self.Y_train_all = self.Y_train_all[-21:]
             self.get_rmse_normalization()
+    
+    def input_for_training(self, x, skip_historical):
+        time_length = x.shape[0]
+        # If we skip historical data, the first sequence created has as last element the first scenario data point
+        if skip_historical and (not self.partition == 'test'):
+            X_train_to_return = np.array([
+                x[i:i+self.history] for i in range(self.len_historical-self.history+1, time_length-self.history+1)
+            ])
+        # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
+        else:
+            X_train_to_return = np.array([x[i:i+self.history] for i in range(0, time_length-self.history+1)])
+        
+        return X_train_to_return
+
+    def output_for_training(self, y, skip_historical):    
+        time_length = y.shape[0]
+        # If we skip historical data, the first sequence created has as target element the first scenario data point
+        if skip_historical and (not self.partition == 'test'):
+            Y_train_to_return = np.array([
+                y[i+self.history-1] for i in range(self.len_historical-self.history+1, time_length-self.history+1)
+            ])
+        # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
+        else:
+            Y_train_to_return = np.array([y[i+self.history-1] for i in range(0, time_length-self.history+1)])
+        
+        return Y_train_to_return
 
     def get_normalize(self, data):
-        mean = np.mean(data, axis=(0, 2, 3))
-        std = np.std(data, axis=(0, 2, 3))
+        mean = np.mean(data, axis=(0, 1, 3, 4))
+        std = np.std(data, axis=(0, 1, 3, 4))
         return transforms.Normalize(mean, std)
 
     def set_normalize(self, inp_normalize, out_normalize): # for val and test
@@ -76,19 +148,52 @@ class ClimateBenchDataset(Dataset):
         self.region_info = region_info
 
     def get_rmse_normalization(self):
-        y = torch.from_numpy(self.y).squeeze(1).mean(0) # H, W
-        # y = y[-20:] # 2080 to 2010 according to ClimateBench
+        y_avg = torch.from_numpy(self.Y_train_all).squeeze(1).mean(0) # H, W
         w_lat = np.cos(np.deg2rad(self.lat)) # (H,)
         w_lat = w_lat / w_lat.mean()
-        w_lat = torch.from_numpy(w_lat).unsqueeze(-1).to(dtype=y.dtype, device=y.device) # (H, 1)
-        self.y_normalization = torch.abs(torch.mean(y * w_lat))
+        w_lat = torch.from_numpy(w_lat).unsqueeze(-1).to(dtype=y_avg.dtype, device=y_avg.device) # (H, 1)
+        self.y_normalization = torch.abs(torch.mean(y_avg * w_lat))
 
     def __len__(self):
-        return self.x.shape[0]
+        return self.X_train_all.shape[0]
 
     def __getitem__(self, index):
-        inp = self.inp_transform(torch.from_numpy(self.x[index]))
-        out = self.out_transform(torch.from_numpy(self.y[index]))
+        inp = self.inp_transform(torch.from_numpy(self.X_train_all[index]))
+        out = self.out_transform(torch.from_numpy(self.Y_train_all[index]))
         # lead times = 0
         lead_times = torch.Tensor([0.0]).to(dtype=inp.dtype)
-        return inp.unsqueeze(0), out, lead_times, self.variables, self.out_variables, self.region_info
+        return inp, out, lead_times, self.variables, self.out_variables, self.region_info
+
+
+# x, y, lat, lon = load_x_y(
+#     '/datadrive/climate_bench/train_val/',
+#     [
+#         'ssp126',
+#         'ssp370',
+#         'ssp585',
+#         'hist-GHG',
+#         'hist-aer'
+#     ],
+#     'tas'
+# )
+# for k in x.keys():
+#     print(k)
+#     print (x[k].shape)
+#     print (y[k].shape)
+
+# train_dataset = ClimateBenchDataset(
+#     x, y, history=10, variables=['CO2', 'SO2', 'CH4', 'BC'],
+#     out_variables='tas', lat=lat, partition='train'
+# )
+
+# x_test, y_test, _, _ = load_x_y(
+#     '/datadrive/climate_bench/test/',
+#     [
+#         'ssp245',
+#     ],
+#     'tas'
+# )
+# test_dataset = ClimateBenchDataset(
+#     x_test, y_test, history=10, variables=['CO2', 'SO2', 'CH4', 'BC'],
+#     out_variables='tas', lat=lat, partition='test'
+# )
