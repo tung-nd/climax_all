@@ -83,6 +83,9 @@ class TokenizedViTContinuous(TokenizedBase):
 
         self.time_pos_embed = nn.Parameter(torch.zeros(1, time_history, embed_dim), requires_grad=learn_pos_emb)
 
+        self.time_agg = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
+        self.time_query = nn.Parameter(torch.zeros(1, 1, embed_dim), requires_grad=True)
+
         # self.lead_time_embed = nn.Sequential(
         #     nn.Linear(embed_dim, embed_dim),
         #     nn.GELU(),
@@ -92,12 +95,13 @@ class TokenizedViTContinuous(TokenizedBase):
 
         # --------------------------------------------------------------------------
         # Decoder: either a linear or non linear prediction head
-        self.head = nn.ModuleList()
-        for i in range(decoder_depth):
-            self.head.append(nn.Linear(embed_dim, embed_dim))
-            self.head.append(nn.GELU())
-        self.head.append(nn.Linear(embed_dim, len(self.out_vars) * patch_size**2))
-        self.head = nn.Sequential(*self.head)
+        self.head = nn.Linear(embed_dim, img_size[0]*img_size[1])
+        # self.head = nn.ModuleList()
+        # for i in range(decoder_depth):
+        #     self.head.append(nn.Linear(embed_dim, embed_dim))
+        #     self.head.append(nn.GELU())
+        # self.head.append(nn.Linear(embed_dim, len(self.out_vars) * patch_size**2))
+        # self.head = nn.Sequential(*self.head)
         # --------------------------------------------------------------------------
 
         self.initialize_weights()
@@ -185,8 +189,6 @@ class TokenizedViTContinuous(TokenizedBase):
         # add time and pos embed
         # pos emb: 1, L, D
         x = x + self.pos_embed[:, valid_patch_ids, :].unsqueeze(1)
-        # time emb: 1, T, D
-        x = x + self.time_pos_embed.unsqueeze(2)
 
         # add lead time embedding
         lead_time_emb = self.lead_time_embed(lead_times.unsqueeze(-1)) # B, D
@@ -194,14 +196,24 @@ class TokenizedViTContinuous(TokenizedBase):
         lead_time_emb = lead_time_emb.unsqueeze(1).unsqueeze(2) # B, 1, 1, D
         x = x + lead_time_emb
 
-        x = x.flatten(1, 2)  # B, TxL, D
+        x = x.flatten(0, 1)  # BxT, L, D
 
         x = self.pos_drop(x)
 
         # apply Transformer blocks
         for blk in self.blocks:
             x = blk(x)
-        x = self.norm(x)
+        x = self.norm(x) # BxT, L, D
+        x = x.unflatten(0, sizes=(b, t)) # B, T, L, D
+
+        # time emb: 1, T, D
+        x = x + self.time_pos_embed.unsqueeze(2)
+
+        x = x.mean(-2) # B, T, D
+        time_query = self.time_query.repeat_interleave(x.shape[0], dim=0)
+        x, _ = self.time_agg(time_query, x, x)  # B, 1, D
+        x = self.head(x)
+        x = x.reshape(-1, 1, self.img_size[0], self.img_size[1]) # B, 1, H, W
 
         return x
 
@@ -212,7 +224,7 @@ class TokenizedViTContinuous(TokenizedBase):
         """
         min_h, max_h = region_info['min_h'], region_info['max_h']
         min_w, max_w = region_info['min_w'], region_info['max_w']
-        pred = self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)  # B, C, H, W
+        # pred = self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)  # B, C, H, W
         y = y[:, :, min_h:max_h+1, min_w:max_w+1]
         lat = lat[min_h:max_h+1]
 
@@ -228,8 +240,8 @@ class TokenizedViTContinuous(TokenizedBase):
         # x: N, T, C, H, W
         # y: N, C, H, W
         # lead_times: N
-        embeddings = self.forward_encoder(x, lead_times, variables, region_info)  # B, TxL, D
-        preds = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
+        preds = self.forward_encoder(x, lead_times, variables, region_info)  # B, TxL, D
+        # preds = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
         loss, preds = self.forward_loss(y, preds, variables, out_variables, region_info, metric, lat)
         return loss, preds
 
@@ -237,9 +249,10 @@ class TokenizedViTContinuous(TokenizedBase):
         min_h, max_h = region_info['min_h'], region_info['max_h']
         min_w, max_w = region_info['min_w'], region_info['max_w']
         with torch.no_grad():
-            embeddings = self.forward_encoder(x, lead_times, variables, region_info)
-            pred = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
-        return self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)
+            pred = self.forward_encoder(x, lead_times, variables, region_info)
+            # pred = self.head(embeddings)[:, -len(region_info['patch_ids']) :]
+        return pred
+        # return self.unpatchify(pred, max_h - min_h + 1, max_w - min_w + 1)
         # pred = pred.unflatten(dim=1, sizes=(-1, self.num_patches))  # [B, C, L, p*p]
         # pred = pred.flatten(0, 1)  # [BxC, L, p*p]
         # return self.unpatchify(pred, variables)

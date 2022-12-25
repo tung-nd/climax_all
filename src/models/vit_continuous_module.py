@@ -9,7 +9,7 @@ from src.models.components.tokenized_vit_continuous import \
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
 from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
                                lat_weighted_mse_val, lat_weighted_nrmse,
-                               lat_weighted_rmse)
+                               lat_weighted_rmse, mse)
 from src.utils.pos_embed import (interpolate_channel_embed,
                                  interpolate_pos_embed)
 from torchvision.transforms import transforms
@@ -74,7 +74,7 @@ class ViTContinuousLitModule(LightningModule):
         checkpoint_model = checkpoint["state_dict"]
         # interpolate positional embedding
         interpolate_pos_embed(self.net, checkpoint_model, new_size=self.net.img_size)
-        interpolate_channel_embed(checkpoint_model, new_len=self.net.channel_embed.shape[1])
+        # interpolate_channel_embed(checkpoint_model, new_len=self.net.channel_embed.shape[1])
 
         state_dict = self.state_dict()
         checkpoint_keys = list(checkpoint_model.keys())
@@ -118,7 +118,13 @@ class ViTContinuousLitModule(LightningModule):
         # optimizer = self.optimizers()
         # optimizer.zero_grad()
         x, y, lead_times, variables, out_variables, region_info = batch
-        loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, region_info, [lat_weighted_mse], lat=self.lat)
+
+        if self.net.climate_modeling:
+            metric = [mse]
+        else:
+            metric = [lat_weighted_mse]
+
+        loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, region_info, metric, lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
             self.log(

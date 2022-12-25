@@ -11,12 +11,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from src.utils.pos_embed import (get_1d_sincos_pos_embed_from_grid,
+                                 get_2d_sincos_pos_embed)
 from timm.models.vision_transformer import Block, PatchEmbed, trunc_normal_
-
-from src.utils.pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_2d_sincos_pos_embed,
-)
 
 
 class TokenizedBase(nn.Module):
