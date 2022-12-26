@@ -8,7 +8,8 @@ from torch.utils.data import DataLoader
 
 from datamodules import BOUNDARIES
 
-from .climate_dataset import ClimateBenchDataset, load_x_y, split_train_val
+from .climate_dataset import (ClimateBenchDataset, input_for_training,
+                              load_x_y, output_for_training, split_train_val)
 
 
 def collate_fn(batch):
@@ -66,22 +67,38 @@ class ClimateDataModule(LightningDataModule):
             out_variables = [out_variables]
             self.hparams.out_variables = out_variables
 
-        x_train, y_train, lat, lon = load_x_y(os.path.join(root_dir, 'train_val'), list_train_simu, out_variables)
+        # split train and val datasets
+        dict_x_train_val, dict_y_train_val, lat, lon = load_x_y(os.path.join(root_dir, 'train_val'), list_train_simu, out_variables)
         self.lat, self.lon = lat, lon
-        # x_train, y_train, x_val, y_val = split_train_val(x_train_val, y_train_val, train_ratio)
-        x_test, y_test, _, _ = load_x_y(os.path.join(root_dir, 'test'), list_test_simu, out_variables)
-
-        self.dataset_train = ClimateBenchDataset(
-            x_train, y_train, history, variables, out_variables, lat, 'train'
-        )
+        x_train_val = np.concatenate([
+            input_for_training(
+                dict_x_train_val[simu], skip_historical=(i<2), history=history, len_historical=165
+            ) for i, simu in enumerate(dict_x_train_val.keys())
+        ], axis = 0) # N, T, C, H, W
+        y_train_val = np.concatenate([
+            output_for_training(
+                dict_y_train_val[simu], skip_historical=(i<2), history=history, len_historical=165
+            ) for i, simu in enumerate(dict_y_train_val.keys())
+        ], axis=0) # N, 1, H, W
+        x_train, y_train, x_val, y_val = split_train_val(x_train_val, y_train_val, train_ratio)
         
-        # self.dataset_val = ClimateBenchDataset(
-        #     x_val, y_val, variables, out_variables, lat, 'val'
-        # )
-        # self.dataset_val.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
+        self.dataset_train = ClimateBenchDataset(
+            x_train, y_train, variables, out_variables, lat, 'train'
+        )
+        self.dataset_val = ClimateBenchDataset(
+            x_val, y_val, variables, out_variables, lat, 'val'
+        )
+        self.dataset_val.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
+        dict_x_test, dict_y_test, _, _ = load_x_y(os.path.join(root_dir, 'test'), list_test_simu, out_variables)
+        x_test = input_for_training(
+            dict_x_test[list_test_simu[0]], skip_historical=True, history=history, len_historical=165
+        )
+        y_test = output_for_training(
+            dict_y_test[list_test_simu[0]], skip_historical=True, history=history, len_historical=165
+        )
         self.dataset_test = ClimateBenchDataset(
-            x_test, y_test, history, variables, out_variables, lat, 'test'
+            x_test, y_test, variables, out_variables, lat, 'test'
         )
         self.dataset_test.set_normalize(self.dataset_train.inp_transform, self.dataset_train.out_transform)
 
@@ -132,7 +149,7 @@ class ClimateDataModule(LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         region_info = self.get_region_info(self.hparams.region)
         self.dataset_train.set_region_info(region_info)
-        # self.dataset_val.set_region_info(region_info)
+        self.dataset_val.set_region_info(region_info)
         self.dataset_test.set_region_info(region_info)
 
     def train_dataloader(self):
@@ -146,16 +163,16 @@ class ClimateDataModule(LightningDataModule):
             collate_fn=collate_fn,
         )
 
-    # def val_dataloader(self):
-    #     return DataLoader(
-    #         self.dataset_val,
-    #         batch_size=self.hparams.batch_size,
-    #         shuffle=False,
-    #         # drop_last=True,
-    #         num_workers=self.hparams.num_workers,
-    #         pin_memory=self.hparams.pin_memory,
-    #         collate_fn=collate_fn,
-    #     )
+    def val_dataloader(self):
+        return DataLoader(
+            self.dataset_val,
+            batch_size=self.hparams.batch_size,
+            shuffle=False,
+            # drop_last=True,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            collate_fn=collate_fn,
+        )
 
     def test_dataloader(self):
         return DataLoader(

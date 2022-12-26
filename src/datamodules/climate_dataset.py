@@ -69,6 +69,32 @@ def load_x_y(data_path, list_simu, out_var):
 
     return x_all, y_all, lat, lon
 
+def input_for_training(x, skip_historical, history, len_historical):
+    time_length = x.shape[0]
+    # If we skip historical data, the first sequence created has as last element the first scenario data point
+    if skip_historical:
+        X_train_to_return = np.array([
+            x[i:i+history] for i in range(len_historical-history+1, time_length-history+1)
+        ])
+    # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
+    else:
+        X_train_to_return = np.array([x[i:i+history] for i in range(0, time_length-history+1)])
+    
+    return X_train_to_return
+
+def output_for_training(y, skip_historical, history, len_historical):    
+    time_length = y.shape[0]
+    # If we skip historical data, the first sequence created has as target element the first scenario data point
+    if skip_historical:
+        Y_train_to_return = np.array([
+            y[i+history-1] for i in range(len_historical-history+1, time_length-history+1)
+        ])
+    # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
+    else:
+        Y_train_to_return = np.array([y[i+history-1] for i in range(0, time_length-history+1)])
+    
+    return Y_train_to_return
+
 def split_train_val(x, y, train_ratio=0.9):
     shuffled_ids = np.random.permutation(x.shape[0])
     train_len = int(train_ratio * x.shape[0])
@@ -77,23 +103,15 @@ def split_train_val(x, y, train_ratio=0.9):
     return x[train_ids], y[train_ids], x[val_ids], y[val_ids]
 
 class ClimateBenchDataset(Dataset):
-    def __init__(self, dict_x: Dict, dict_y: Dict, history, variables, out_variables, lat, partition='train'):
+    def __init__(self, X_train_all, Y_train_all, variables, out_variables, lat, partition='train'):
         super().__init__()
-        self.dict_x = dict_x
-        self.dict_y = dict_y
-        self.history = history
+        self.X_train_all = X_train_all
+        self.Y_train_all = Y_train_all
         self.len_historical = 165
         self.variables = variables
         self.out_variables = out_variables
         self.lat = lat
         self.partition = partition
-
-        self.X_train_all = np.concatenate([
-            self.input_for_training(dict_x[simu], skip_historical=(i<2)) for i, simu in enumerate(dict_x.keys())
-        ], axis = 0) # N, T, C, H, W
-        self.Y_train_all = np.concatenate([
-            self.output_for_training(dict_y[simu], skip_historical=(i<2)) for i, simu in enumerate(dict_y.keys())
-        ], axis=0) # N, 1, H, W
     
         if partition == 'train':
             self.inp_transform = self.get_normalize(self.X_train_all)
@@ -108,32 +126,8 @@ class ClimateBenchDataset(Dataset):
             self.X_train_all = self.X_train_all[-21:]
             self.Y_train_all = self.Y_train_all[-21:]
             self.get_rmse_normalization()
-    
-    def input_for_training(self, x, skip_historical):
-        time_length = x.shape[0]
-        # If we skip historical data, the first sequence created has as last element the first scenario data point
-        if skip_historical and (not self.partition == 'test'):
-            X_train_to_return = np.array([
-                x[i:i+self.history] for i in range(self.len_historical-self.history+1, time_length-self.history+1)
-            ])
-        # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
-        else:
-            X_train_to_return = np.array([x[i:i+self.history] for i in range(0, time_length-self.history+1)])
-        
-        return X_train_to_return
 
-    def output_for_training(self, y, skip_historical):    
-        time_length = y.shape[0]
-        # If we skip historical data, the first sequence created has as target element the first scenario data point
-        if skip_historical and (not self.partition == 'test'):
-            Y_train_to_return = np.array([
-                y[i+self.history-1] for i in range(self.len_historical-self.history+1, time_length-self.history+1)
-            ])
-        # Else we just go through the whole dataset historical + scenario (does not matter in the case of 'hist-GHG' and 'hist_aer')
-        else:
-            Y_train_to_return = np.array([y[i+self.history-1] for i in range(0, time_length-self.history+1)])
-        
-        return Y_train_to_return
+        self.region_info = None
 
     def get_normalize(self, data):
         mean = np.mean(data, axis=(0, 1, 3, 4))
@@ -165,26 +159,47 @@ class ClimateBenchDataset(Dataset):
         return inp, out, lead_times, self.variables, self.out_variables, self.region_info
 
 
-# x, y, lat, lon = load_x_y(
-#     '/datadrive/climate_bench/train_val/',
-#     [
-#         'ssp126',
-#         'ssp370',
-#         'ssp585',
-#         'hist-GHG',
-#         'hist-aer'
-#     ],
-#     'tas'
+# list_simu = [
+#     'ssp126',
+#     'ssp370',
+#     'ssp585',
+#     'hist-GHG',
+#     'hist-aer'
+# ]
+# dict_x, dict_y, lat, lon = load_x_y(
+#     '/datadrive/climate_bench/train_val/', list_simu, 'tas'
 # )
-# for k in x.keys():
-#     print(k)
-#     print (x[k].shape)
-#     print (y[k].shape)
+
+# X_train_all = np.concatenate([
+#     input_for_training(
+#         dict_x[simu], skip_historical=(i<2), history=10, len_historical=165
+#     ) for i, simu in enumerate(dict_x.keys())
+# ], axis = 0) # N, T, C, H, W
+# Y_train_all = np.concatenate([
+#     output_for_training(
+#         dict_y[simu], skip_historical=(i<2), history=10, len_historical=165
+#     ) for i, simu in enumerate(dict_y.keys())
+# ], axis=0) # N, 1, H, W
+
+# print (X_train_all.shape)
+# print (Y_train_all.shape)
+
+# x_train, y_train, x_val, y_val = split_train_val(X_train_all, Y_train_all, train_ratio=0.9)
 
 # train_dataset = ClimateBenchDataset(
-#     x, y, history=10, variables=['CO2', 'SO2', 'CH4', 'BC'],
+#     x_train, y_train, variables=['CO2', 'SO2', 'CH4', 'BC'],
 #     out_variables='tas', lat=lat, partition='train'
 # )
+# val_dataset = ClimateBenchDataset(
+#     x_val, y_val, variables=['CO2', 'SO2', 'CH4', 'BC'],
+#     out_variables='tas', lat=lat, partition='train'
+# )
+
+# print (len(train_dataset))
+# print (len(val_dataset))
+# x, y, _, _, _, _ = train_dataset[0]
+# print (x.shape)
+# print (y.shape)
 
 # x_test, y_test, _, _ = load_x_y(
 #     '/datadrive/climate_bench/test/',
