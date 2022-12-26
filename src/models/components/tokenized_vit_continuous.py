@@ -110,7 +110,14 @@ class TokenizedViTContinuous(TokenizedBase):
             # self.token_embed.requires_grad_(False)
             # self.channel_embed.requires_grad_(False)
             # self.pos_embed.requires_grad_(False)
-            self.blocks.requires_grad_(False)
+            # self.blocks.requires_grad_(False)
+            for name, p in self.blocks.named_parameters():
+                name = name.lower()
+                if 'norm' in name:
+                    continue
+                else:
+                    p.requires_grad_(False)
+                
 
     def initialize_weights(self):
         # initialization
@@ -189,6 +196,8 @@ class TokenizedViTContinuous(TokenizedBase):
         # add time and pos embed
         # pos emb: 1, L, D
         x = x + self.pos_embed[:, valid_patch_ids, :].unsqueeze(1)
+        # time emb: 1, T, D
+        x = x + self.time_pos_embed.unsqueeze(2)
 
         # add lead time embedding
         lead_time_emb = self.lead_time_embed(lead_times.unsqueeze(-1)) # B, D
@@ -205,9 +214,6 @@ class TokenizedViTContinuous(TokenizedBase):
             x = blk(x)
         x = self.norm(x) # BxT, L, D
         x = x.unflatten(0, sizes=(b, t)) # B, T, L, D
-
-        # time emb: 1, T, D
-        x = x + self.time_pos_embed.unsqueeze(2)
 
         x = x.mean(-2) # B, T, D
         time_query = self.time_query.repeat_interleave(x.shape[0], dim=0)
