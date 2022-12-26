@@ -1,0 +1,7 @@
+{
+    "ResNet": 814,
+    "Unet": 829,
+    "CliMax": 844,
+    "Finetuned CliMax": 790,
+    "task": "Z500 (2 weeks)"
+}

@@ -1,0 +1,7 @@
+{
+    "ResNet": 4.06,
+    "Unet": 4.08,
+    "CliMax": 4.16,
+    "Finetuned CliMax": 4.04,
+    "task": "V10 (1 month)"
+}

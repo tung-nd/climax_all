@@ -1,0 +1,7 @@
+{
+    "ResNet": 2.71,
+    "Unet": 2.86,
+    "CliMax": 2.84,
+    "Finetuned CliMax": 2.61,
+    "task": "T2m (2 weeks)"
+}
