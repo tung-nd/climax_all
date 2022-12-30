@@ -1,0 +1,30 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Sharding for forecasting
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: f72-ded
+
+storage:
+  my_data:
+    storage_account_name: weatherdatastorage2
+    container_name: datasets
+    mount_dir: /mnt/data
+    is_output: True
+
+jobs:
+  - name: shard_forecast_5.625deg_s2s_2weeks
+    sku: 1xC72
+    command:
+      - python src/shard_forecast_era5_s2s.py /mnt/data/5.625deg_equally_np_all_levels --save_dir /mnt/data/era5_forecast_5.625deg_s2s_2weeks --pred_range 336 --orig_n_shards 12 --val_n_shards 8
