@@ -2,6 +2,7 @@
 # All rights reserved.
 
 import numpy as np
+
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 # --------------------------------------------------------
@@ -11,11 +12,13 @@ import numpy as np
 # --------------------------------------------------------
 import torch
 import torch.nn as nn
+
 from src.models.components.tokenized_base import TokenizedBase
 from src.utils.pos_embed import (
     get_1d_sincos_pos_embed_from_grid,
     get_1d_sincos_pos_embed_from_grid_pytorch,
-    get_1d_sincos_pos_embed_from_grid_pytorch_stable)
+    get_1d_sincos_pos_embed_from_grid_pytorch_stable,
+)
 
 
 class TokenizedViTContinuous(TokenizedBase):
@@ -221,6 +224,9 @@ class TokenizedViTContinuous(TokenizedBase):
         if not self.climate_modeling:
             out_var_ids = self.get_channel_ids(out_variables)
             pred = pred[:, out_var_ids]
+        
+        if metric is None:
+            return None, pred
 
         return [m(pred, y, out_variables, lat) for m in metric], pred
 

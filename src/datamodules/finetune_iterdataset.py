@@ -32,7 +32,7 @@ class NpyReader(IterableDataset):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is None:
             iter_start = 0
-            iter_end = len(self.file_list)
+            iter_end = len(self.file_list_inp)
         else:
             if not torch.distributed.is_initialized():
                 rank = 0
