@@ -1,0 +1,30 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Sharding for downscaling
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: f72-ded
+
+storage:
+  my_data:
+    storage_account_name: weatherdatastorage2
+    container_name: datasets
+    mount_dir: /mnt/data
+    is_output: True
+
+jobs:
+  - name: shard_downscale_5.625deg_1.40625deg
+    sku: 1xC72
+    command:
+      - python src/shard_downscale_era5.py /mnt/data/5.625deg_new_equally_np_all_levels /mnt/data/1.40625deg_equally_np_all_levels --save_dir /mnt/data/era5_downscale_5.625_1.40625 --orig_n_shards 32 --highres_orig_n_shards 32 --val_n_shards 32
