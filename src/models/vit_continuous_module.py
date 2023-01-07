@@ -4,15 +4,20 @@ from typing import Any, Dict
 import numpy as np
 import torch
 from pytorch_lightning import LightningModule
-from src.models.components.tokenized_vit_continuous import \
-    TokenizedViTContinuous
-from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_mse_val, lat_weighted_nrmse,
-                               lat_weighted_rmse)
-from src.utils.pos_embed import (interpolate_channel_embed,
-                                 interpolate_pos_embed)
 from torchvision.transforms import transforms
+
+from src.models.components.tokenized_vit_continuous import TokenizedViTContinuous
+from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
+from src.utils.metrics import (
+    lat_weighted_acc,
+    lat_weighted_mean_bias,
+    lat_weighted_mse,
+    lat_weighted_mse_val,
+    lat_weighted_nrmse,
+    lat_weighted_rmse,
+    pearson,
+)
+from src.utils.pos_embed import interpolate_channel_embed, interpolate_pos_embed
 
 
 def get_region_info(lat_range, lon_range, lat, lon, patch_size):
@@ -60,6 +65,7 @@ class ViTContinuousLitModule(LightningModule):
         max_epochs: int = 30,
         warmup_start_lr: float = 1e-8,
         eta_min: float = 1e-8,
+        downscaling = False
     ):
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
@@ -118,6 +124,11 @@ class ViTContinuousLitModule(LightningModule):
         # optimizer = self.optimizers()
         # optimizer.zero_grad()
         x, y, lead_times, variables, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
         loss_dict, _ = self.net.forward(x, y, lead_times, variables, out_variables, region_info, [lat_weighted_mse], lat=self.lat)
         loss_dict = loss_dict[0]
         for var in loss_dict.keys():
@@ -138,6 +149,12 @@ class ViTContinuousLitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, lead_times, variables, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
+
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -146,6 +163,8 @@ class ViTContinuousLitModule(LightningModule):
 
         if self.net.climate_modeling:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+        elif self.hparams.downscaling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, pearson, lat_weighted_mean_bias]
         else:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
 
@@ -192,6 +211,12 @@ class ViTContinuousLitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y, lead_times, variables, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
+
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -200,6 +225,8 @@ class ViTContinuousLitModule(LightningModule):
 
         if self.net.climate_modeling:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_nrmse]
+        elif self.hparams.downscaling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, pearson, lat_weighted_mean_bias]
         else:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
 

@@ -3,14 +3,22 @@ from typing import Any, Union
 import torch
 from numpy import isin
 from pytorch_lightning import LightningModule
+from torchvision.transforms import transforms
+
 from src.models.components.cnn_lstm import CNNLSTM
 from src.models.components.resnet import ResNet
 from src.models.components.unet import Unet
 from src.utils.lr_scheduler import LinearWarmupCosineAnnealingLR
-from src.utils.metrics import (lat_weighted_acc, lat_weighted_mse,
-                               lat_weighted_mse_val, lat_weighted_nrmse,
-                               lat_weighted_rmse, mse)
-from torchvision.transforms import transforms
+from src.utils.metrics import (
+    lat_weighted_acc,
+    lat_weighted_mean_bias,
+    lat_weighted_mse,
+    lat_weighted_mse_val,
+    lat_weighted_nrmse,
+    lat_weighted_rmse,
+    mse,
+    pearson,
+)
 
 
 class CNNLitModule(LightningModule):
@@ -26,6 +34,7 @@ class CNNLitModule(LightningModule):
         max_epochs: int = 30,
         warmup_start_lr: float = 1e-8,
         eta_min: float = 1e-8,
+        downscaling = False
     ) -> None:
         super().__init__()
         self.save_hyperparameters(logger=False, ignore=["net"])
@@ -73,6 +82,11 @@ class CNNLitModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int):
         x, y, _, _, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
 
         if self.net.climate_modeling:
             metric = [mse]
@@ -89,12 +103,18 @@ class CNNLitModule(LightningModule):
                 on_epoch=False,
                 prog_bar=True,
             )
-        loss = loss_dict['loss']
+        loss = loss_dict["loss"]
 
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int):
         x, y, _, variables, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
+
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -103,6 +123,8 @@ class CNNLitModule(LightningModule):
 
         if self.net.climate_modeling:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse]
+        elif self.hparams.downscaling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, pearson, lat_weighted_mean_bias]
         else:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
 
@@ -118,7 +140,7 @@ class CNNLitModule(LightningModule):
             lat=self.lat,
             log_steps=steps,
             log_days=days,
-            clim=self.val_clim
+            clim=self.val_clim,
         )
         loss_dict = {}
         for d in all_loss_dicts:
@@ -138,6 +160,12 @@ class CNNLitModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int):
         x, y, _, variables, out_variables, region_info = batch
+        n, t, c, inp_h, inp_w = x.shape
+        out_h, out_w = y.shape[-2], y.shape[-1]
+        x = x.flatten(0, 1)
+        x = torch.nn.functional.interpolate(x, (out_h, out_w), mode="bilinear")
+        x = x.unflatten(0, sizes=(n, t))
+
         pred_steps = 1
         pred_range = self.pred_range
 
@@ -146,6 +174,8 @@ class CNNLitModule(LightningModule):
 
         if self.net.climate_modeling:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_nrmse]
+        elif self.hparams.downscaling:
+            metrics = [lat_weighted_mse_val, lat_weighted_rmse, pearson, lat_weighted_mean_bias]
         else:
             metrics = [lat_weighted_mse_val, lat_weighted_rmse, lat_weighted_acc]
 
@@ -161,7 +191,7 @@ class CNNLitModule(LightningModule):
             lat=self.lat,
             log_steps=steps,
             log_days=days,
-            clim=self.test_clim
+            clim=self.test_clim,
         )
 
         loss_dict = {}
@@ -196,11 +226,7 @@ class CNNLitModule(LightningModule):
                         "lr": self.hparams.lr,
                         "weight_decay": self.hparams.weight_decay,
                     },
-                    {
-                        "params": no_decay,
-                        "lr": self.hparams.lr,
-                        "weight_decay": 0
-                    },
+                    {"params": no_decay, "lr": self.hparams.lr, "weight_decay": 0},
                 ]
             )
 
@@ -218,7 +244,7 @@ class CNNLitModule(LightningModule):
                         "params": no_decay,
                         "lr": self.hparams.lr,
                         "betas": (self.hparams.beta_1, self.hparams.beta_2),
-                        "weight_decay": 0
+                        "weight_decay": 0,
                     },
                 ]
             )
@@ -230,10 +256,6 @@ class CNNLitModule(LightningModule):
                 self.hparams.warmup_start_lr,
                 self.hparams.eta_min,
             )
-            scheduler = {
-                'scheduler': lr_scheduler,
-                'interval': 'step', # or 'epoch'
-                'frequency': 1
-            }
+            scheduler = {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}  # or 'epoch'
 
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
