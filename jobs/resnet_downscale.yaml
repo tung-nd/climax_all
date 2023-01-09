@@ -1,0 +1,75 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Train Resnet
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: v100x8-scus
+
+storage:
+  data:
+    storage_account_name: weatherdatastorage2
+    # storage_account_name: weatherml1836488272
+    container_name: datasets
+    mount_dir: /mnt/data
+    mount_options: ["--file-cache-timeout-in-seconds=0"]
+
+# some environment variables to ease up setting of jobs
+env_defaults:
+  NODES: 1
+  GPUS: 8
+
+search:
+  job_template:
+    name: resnet_downscale_5.625_1.40625_{auto:10s} # ex: simple_job_lr_05
+    sku: ${NODES}x32G${GPUS} # ex: G1
+    process_count_per_node: ${GPUS}
+    submit_args:
+      env: { AZUREML_COMPUTE_USE_COMMON_RUNTIME: True }
+      container_args:
+        shm_size: 650g
+    command:
+      - pip install -e .
+      - export MKL_THREADING_LAYER=GNU
+      - python src/train_cnn_downscale.py --config configs/train_resnet_downscale.yaml
+        --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
+        --trainer.max_epochs=50
+        --data.root_dir=/mnt/data/era5_downscale_5.625_1.40625
+        --data.region='Global'
+        --data.out_variables={vars}
+        --data.num_workers=1 --data.batch_size=16
+        --data.buffer_size=2000
+        --model.warmup_epochs=12500 --model.max_epochs=125000
+        --model.lr={lr} --model.beta_2=0.95
+        --model.net.out_channels=1
+        --model.net.patch_size=2
+        --model.net.dropout=0.1
+        --model.weight_decay=1e-5
+        --model.net.n_blocks={blocks}
+        --model.net.hidden_channels={channels}
+
+  type: grid
+  max_trials: 80
+  params:
+    - name: vars
+      spec: discrete
+      values: ['z_500', 't_850', 't2m', 'u10', 'v10']
+    - name: blocks
+      spec: discrete
+      values: [28]
+    - name: channels
+      spec: discrete
+      values: [128]
+    - name: lr
+      spec: discrete
+      values: [5e-4]
