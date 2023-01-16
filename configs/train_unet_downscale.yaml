@@ -76,7 +76,7 @@ model:
   net:
     class_path: src.models.components.unet.Unet
     init_args:
-      in_channels: 48
+      in_channels: 38
       time_history: 1
       hidden_channels: 64
       out_channels: 5
@@ -88,14 +88,9 @@ model:
 data:
   root_dir: /datadrive/datasets/era5_downscale_5.625_1.40625/
   variables: [
-      "lsm",
-      "orography",
-      "lat2d",
       "t2m",
       "u10",
       "v10",
-      # "tisr",
-      # 'tp',
       "z_50",
       "z_250",
       "z_500",
@@ -124,13 +119,6 @@ data:
       "t_700",
       "t_850",
       "t_925",
-      "r_50",
-      "r_250",
-      "r_500",
-      "r_600",
-      "r_700",
-      "r_850",
-      "r_925",
       "q_50",
       "q_250",
       "q_500",
