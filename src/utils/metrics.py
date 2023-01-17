@@ -229,6 +229,17 @@ def lat_weighted_acc(pred, y, transform, vars, lat, log_steps, log_days, clim):
 
     return loss_dict
 
+def remove_nans(pred: torch.Tensor, gt: torch.Tensor):
+    # pred and gt are two flattened arrays
+    pred_nan_ids = torch.isnan(pred) | torch.isinf(pred)
+    pred = pred[~pred_nan_ids]
+    gt = gt[~pred_nan_ids]
+
+    gt_nan_ids = torch.isnan(gt) | torch.isinf(gt)
+    pred = pred[~gt_nan_ids]
+    gt = gt[~gt_nan_ids]
+
+    return pred, gt
 
 def pearson(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
@@ -245,9 +256,11 @@ def pearson(pred, y, transform, vars, lat, log_steps, log_days, clim):
     with torch.no_grad():
         for i, var in enumerate(vars):
             for day, step in zip(log_days, log_steps):
+                pred_, y_ = pred[:, step - 1, i].flatten(), y[:, step - 1, i].flatten()
+                pred_, y_ = remove_nans(pred_, y_)
                 loss_dict[f"pearsonr_{var}_day_{day}"] = stats.pearsonr(
-                    pred[:, step - 1, i].flatten().cpu().numpy(),
-                    y[:, step - 1, i].flatten().cpu().numpy()
+                    pred_.cpu().numpy(),
+                    y_.cpu().numpy()
                 )[0]
 
     loss_dict["pearsonr"] = np.mean([loss_dict[k] for k in loss_dict.keys()])
@@ -274,9 +287,13 @@ def lat_weighted_mean_bias(pred, y, transform, vars, lat, log_steps, log_days, c
     with torch.no_grad():
         for i, var in enumerate(vars):
             for day, step in zip(log_days, log_steps):
-                pred_mean = torch.mean(w_lat * pred[:, step - 1, i])
-                y_mean = torch.mean(w_lat * y[:, step - 1, i])
-                loss_dict[f"mean_bias_{var}_day_{day}"] = y_mean - pred_mean
+                pred_, y_ = pred[:, step - 1, i].flatten(), y[:, step - 1, i].flatten()
+                pred_, y_ = remove_nans(pred_, y_)
+                loss_dict[f"mean_bias_{var}_day_{day}"] = pred_.mean() - y_.mean()
+
+                # pred_mean = torch.mean(w_lat * pred[:, step - 1, i])
+                # y_mean = torch.mean(w_lat * y[:, step - 1, i])
+                # loss_dict[f"mean_bias_{var}_day_{day}"] = y_mean - pred_mean
 
     loss_dict["mean_bias"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 

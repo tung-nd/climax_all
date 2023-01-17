@@ -1,0 +1,49 @@
+# Documentation:
+# https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
+# https://amulet-docs.azurewebsites.net/config_file.html
+
+description: Download IFS predictions
+
+environment:
+  registry: commondockerimages.azurecr.io
+  username: commondockerimages
+  image: climate_pretraining:latest
+
+code:
+  local_dir: $CONFIG_DIR/../
+
+target:
+  service: aml
+  name: f32-ded
+
+storage:
+  my_data:
+    storage_account_name: weatherdatastorage2
+    container_name: datasets
+    mount_dir: /mnt/data
+    is_output: True
+
+search:
+  job_template:
+    name: download_ifs_{auto:10s} # ex: simple_job_lr_05
+    sku: 1xC32
+    command:
+      - pip install -e .
+      - pip install ecmwf-api-client
+      - cp .ecmwfapirc /root/.ecmwfapirc
+      - cp .ecmwfapirc ~/.ecmwfapirc
+      - export MKL_THREADING_LAYER=GNU
+      - python src/download_ifs.py --var={var} --year={year} --month={month} --save_dir /mnt/data/TIGGE/
+
+  type: grid
+  max_trials: 80
+  params:
+    - name: var
+      spec: discrete
+      values: [z500]
+    - name: year
+      spec: discrete
+      values: [2017]
+    - name: month
+      spec: discrete
+      values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]

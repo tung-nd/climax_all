@@ -316,4 +316,4 @@ dependencies:
     - wrapt==1.12.1
     - xarray==2022.3.0
     - yarl==1.7.2
-    
+    - ecmwf-api-client==1.6.3

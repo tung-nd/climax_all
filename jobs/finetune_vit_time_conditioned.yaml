@@ -2,7 +2,7 @@
 # https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html#
 # https://amulet-docs.azurewebsites.net/config_file.html
 
-description: Train Unet
+description: Training Tokenized ViT
 
 environment:
   registry: commondockerimages.azurecr.io
@@ -14,7 +14,7 @@ code:
 
 target:
   service: aml
-  name: v100x8-ded
+  name: v100x8-scus
 
 storage:
   data:
@@ -31,7 +31,7 @@ env_defaults:
 
 search:
   job_template:
-    name: unet_downscale_mpi_era5_5.625_1.40625_{auto:10s} # ex: simple_job_lr_05
+    name: tokenized_vit_5.625deg_finetune_time_conditioned_{auto:10s} # ex: simple_job_lr_05
     sku: ${NODES}x32G${GPUS} # ex: G1
     process_count_per_node: ${GPUS}
     submit_args:
@@ -41,23 +41,28 @@ search:
     command:
       - pip install -e .
       - export MKL_THREADING_LAYER=GNU
-      - python src/train_cnn_downscale.py --config configs/train_unet_downscale.yaml
+      - python src/train_vit_time_conditioned.py --config configs/finetune_vit_time_conditioned.yaml
         --trainer.devices=${GPUS} --trainer.num_nodes=${NODES} --trainer.strategy=ddp
         --trainer.max_epochs=50
-        --trainer.num_sanity_val_steps=0
-        --data.root_dir=/mnt/data/mpi_era5_downscale_5.625_1.40625
-        --data.region='Global'
+        --data.root_dir=/mnt/data/5.625deg_new_equally_np_all_levels/
         --data.out_variables={vars}
+        --data.max_predict_range=168 --data.random_lead_time=True --data.hrs_each_step=1
+        --data.buffer_size=5000
         --data.num_workers=1 --data.batch_size=16
-        --data.buffer_size=2000
-        --model.warmup_epochs=2000 --model.max_epochs=20000
-        --model.lr={lr} --model.beta_2=0.95
-        --model.net.out_channels=1
+        --model.net.decoder_depth=2 --model.net.learn_pos_emb=True --model.net.img_size=[32,64]
+        --model.net.time_history=1
+        --model.net.out_vars={vars}
+        --model.net.channel_agg='attention'
+        --model.net.init_mode='small'
         --model.net.patch_size=2
-        --model.net.dropout=0.1
+        --model.net.depth={depth}
+        --model.net.embed_dim={dim}
+        --model.net.num_heads={heads}
+        --model.lr={lr}
+        --model.net.drop_path=0.1
+        --model.net.drop_rate=0.1
         --model.weight_decay=1e-5
-        --model.net.n_blocks={blocks}
-        --model.net.hidden_channels={channels}
+        --model.pretrained_path=/mnt/data/checkpoints/data_scaling/mpi_tai_awi_hammoz_cmcc/last.ckpt
 
   type: grid
   max_trials: 80
@@ -65,12 +70,15 @@ search:
     - name: vars
       spec: discrete
       values: ['z_500', 't_850', 't2m', 'u10', 'v10']
-    - name: blocks
+    - name: depth
       spec: discrete
-      values: [2]
-    - name: channels
+      values: [8]
+    - name: dim
       spec: discrete
-      values: [64]
+      values: [1024]
+    - name: heads
+      spec: discrete
+      values: [16]
     - name: lr
       spec: discrete
-      values: [5e-4]
+      values: [5e-7]
